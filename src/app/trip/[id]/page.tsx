@@ -118,32 +118,55 @@ export default function TripPage({ params }: PageProps) {
     let iconUrl = tripConfig.iconUrl || '/favicon.png';
     let appleIconUrl = tripConfig.appleIconUrl || tripConfig.iconUrl || '/favicon.png';
 
+    const updateAppleIcons = (href: string) => {
+      const appleLinks = document.querySelectorAll("link[rel*='apple-touch-icon']");
+      if (appleLinks.length > 0) {
+        appleLinks.forEach((link) => {
+          (link as HTMLLinkElement).href = href;
+        });
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'apple-touch-icon';
+        link.href = href;
+        document.head.appendChild(link);
+      }
+    };
+
     if (tripData.svgIcon && tripData.svgIcon.trim()) {
       const rawSvg = tripData.svgIcon.trim();
       iconUrl = `data:image/svg+xml;utf8,${encodeURIComponent(rawSvg)}`;
-      appleIconUrl = iconUrl; // 預設 Data URI
+      appleIconUrl = iconUrl; // 預設
 
-      // 背景 Canvas 自動繪製轉譯成 180x180 PNG Data URI (專給 iPhone Apple Touch Icon 讀取)
+      // 背景 Canvas 透過 Blob 轉繪 180x180 高畫質 PNG Data URI (專給 iPhone Apple Touch Icon 讀取)
       try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 180;
-        canvas.height = 180;
-        const ctx = canvas.getContext('2d');
+        const blob = new Blob([rawSvg], { type: 'image/svg+xml;charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
         const img = new Image();
         img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 180;
+          canvas.height = 180;
+          const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.fillStyle = '#0f172a'; // 深邊背景
-            ctx.fillRect(0, 0, 180, 180);
-            ctx.drawImage(img, 15, 15, 150, 150);
+            ctx.clearRect(0, 0, 180, 180);
+            ctx.drawImage(img, 0, 0, 180, 180);
             const pngDataUrl = canvas.toDataURL('image/png');
-            let linkApple = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
-            if (linkApple) linkApple.href = pngDataUrl;
+            updateAppleIcons(pngDataUrl);
           }
+          URL.revokeObjectURL(blobUrl);
         };
-        img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(rawSvg)}`;
+        img.onerror = (e) => {
+          console.error('SVG Image load error:', e);
+          updateAppleIcons(iconUrl);
+          URL.revokeObjectURL(blobUrl);
+        };
+        img.src = blobUrl;
       } catch (e) {
         console.error('SVG to PNG conversion error:', e);
+        updateAppleIcons(iconUrl);
       }
+    } else {
+      updateAppleIcons(appleIconUrl);
     }
 
     // 1. 動態標籤頁圖示
@@ -154,15 +177,6 @@ export default function TripPage({ params }: PageProps) {
       document.head.appendChild(linkIcon);
     }
     linkIcon.href = iconUrl;
-
-    // 2. 動態 iPhone 主畫面圖示 (Apple Touch Icon)
-    let linkAppleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
-    if (!linkAppleIcon) {
-      linkAppleIcon = document.createElement('link');
-      linkAppleIcon.rel = 'apple-touch-icon';
-      document.head.appendChild(linkAppleIcon);
-    }
-    linkAppleIcon.href = appleIconUrl;
 
     const displayTitle = tripData.tripTitle || tripConfig.title;
     if (displayTitle) {
