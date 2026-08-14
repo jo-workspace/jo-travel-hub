@@ -13,7 +13,7 @@ export interface TripConfig {
 }
 
 export function createPlaneSvg(bgColor = '#0f172a', planeColor = '#f59e0b'): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%"><rect x="0" y="0" width="24" height="24" rx="5" fill="${bgColor}"/><path fill="none" stroke="${planeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3.5c-.5-.5-2.5 0-4 1.5L13.5 8.5 5.3 6.7c-.8-.2-1.6.1-2 .8l-.6 1 4.5 3.5-3.5 3.5-2.3-.5-.9.9 2.5 2.5 2.5 2.5.9-.9-.5-2.3 3.5-3.5 3.5 4.5 1-.6c.7-.4 1-1.2.8-2z"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%"><rect x="0" y="0" width="24" height="24" fill="${bgColor}"/><path fill="none" stroke="${planeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3.5c-.5-.5-2.5 0-4 1.5L13.5 8.5 5.3 6.7c-.8-.2-1.6.1-2 .8l-.6 1 4.5 3.5-3.5 3.5-2.3-.5-.9.9 2.5 2.5 2.5 2.5.9-.9-.5-2.3 3.5-3.5 3.5 4.5 1-.6c.7-.4 1-1.2.8-2z"/></svg>`;
 }
 
 export const TRIPS: Record<string, TripConfig> = {
