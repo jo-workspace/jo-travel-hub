@@ -23,10 +23,6 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://jo-travel-hub.vercel.app"),
   title: "Jo Travel Hub - 隨身旅遊助理",
   description: "多旅程行程規劃與隨身助理 Portal",
-  icons: {
-    icon: "/icon",
-    apple: "/apple-icon",
-  },
   openGraph: {
     title: "Jo Travel Hub - 隨身旅遊助理",
     description: "多旅程行程規劃與隨身助理 Portal",

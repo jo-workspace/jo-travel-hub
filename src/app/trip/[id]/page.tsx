@@ -115,24 +115,6 @@ export default function TripPage({ params }: PageProps) {
   useEffect(() => {
     if (!tripConfig) return;
 
-    let iconUrl = tripConfig.iconUrl || '/favicon.png';
-    let appleIconUrl = tripConfig.appleIconUrl || tripConfig.iconUrl || '/favicon.png';
-
-    const updateAppleIcons = (href: string) => {
-      // 同步動態更新 iPhone 主畫面圖示標籤
-      const appleLinks = document.querySelectorAll("link[rel*='apple-touch-icon']");
-      if (appleLinks.length > 0) {
-        appleLinks.forEach((link) => {
-          (link as HTMLLinkElement).href = href;
-        });
-      } else {
-        const link = document.createElement('link');
-        link.rel = 'apple-touch-icon';
-        link.href = href;
-        document.head.appendChild(link);
-      }
-    };
-
     const displayTitle = tripData.tripTitle || tripConfig.title;
     const displayDates = tripData.tripDates || tripConfig.dates || '';
     const ogBannerUrl = `/api/og?title=${encodeURIComponent(displayTitle)}&dates=${encodeURIComponent(displayDates)}`;
@@ -154,55 +136,10 @@ export default function TripPage({ params }: PageProps) {
     }
     metaTwitter.content = ogBannerUrl;
 
-    const activeSvg = (tripData.svgIcon && tripData.svgIcon.trim())
-      ? tripData.svgIcon.trim()
-      : createPlaneSvg('#0f172a', '#f59e0b');
-
-    iconUrl = `data:image/svg+xml;utf8,${encodeURIComponent(activeSvg)}`;
-    appleIconUrl = iconUrl;
-
-    // 背景 Canvas 透過 Blob 轉繪 180x180 高畫質 PNG Data URI (專給 iPhone Apple Touch Icon 讀取)
-    try {
-      const blob = new Blob([activeSvg], { type: 'image/svg+xml;charset=utf-8' });
-      const blobUrl = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 180;
-        canvas.height = 180;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, 180, 180);
-          ctx.drawImage(img, 0, 0, 180, 180);
-          const pngDataUrl = canvas.toDataURL('image/png');
-          updateAppleIcons(pngDataUrl);
-        }
-        URL.revokeObjectURL(blobUrl);
-      };
-      img.onerror = (e) => {
-        console.error('SVG Image load error:', e);
-        updateAppleIcons(iconUrl);
-        URL.revokeObjectURL(blobUrl);
-      };
-      img.src = blobUrl;
-    } catch (e) {
-      console.error('SVG to PNG conversion error:', e);
-      updateAppleIcons(iconUrl);
-    }
-
-    // 1. 動態標籤頁圖示
-    let linkIcon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-    if (!linkIcon) {
-      linkIcon = document.createElement('link');
-      linkIcon.rel = 'icon';
-      document.head.appendChild(linkIcon);
-    }
-    linkIcon.href = iconUrl;
-
     if (displayTitle) {
       document.title = `${displayTitle} - Jo Travel Hub`;
     }
-  }, [tripConfig, tripData.svgIcon, tripData.tripTitle]);
+  }, [tripConfig, tripData.tripTitle, tripData.tripDates]);
 
   // Modal states
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
