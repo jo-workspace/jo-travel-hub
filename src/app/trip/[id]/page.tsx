@@ -130,6 +130,23 @@ export default function TripPage({ params }: PageProps) {
         link.href = href;
         document.head.appendChild(link);
       }
+
+      // 同步動態更新社群分享縮圖 (og:image & twitter:image)
+      let metaOg = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+      if (!metaOg) {
+        metaOg = document.createElement('meta');
+        metaOg.setAttribute('property', 'og:image');
+        document.head.appendChild(metaOg);
+      }
+      metaOg.content = href;
+
+      let metaTwitter = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+      if (!metaTwitter) {
+        metaTwitter = document.createElement('meta');
+        metaTwitter.name = 'twitter:image';
+        document.head.appendChild(metaTwitter);
+      }
+      metaTwitter.content = href;
     };
 
     if (tripData.svgIcon && tripData.svgIcon.trim()) {

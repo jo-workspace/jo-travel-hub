@@ -20,6 +20,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://jo-travel-hub.vercel.app"),
   title: "Jo Travel Hub - 隨身旅遊助理",
   description: "多旅程行程規劃與隨身助理 Portal",
   icons: {
@@ -28,6 +29,17 @@ export const metadata: Metadata = {
       { url: "/favicon_la_trip.png", type: "image/png" }
     ],
     apple: "/favicon.png",
+  },
+  openGraph: {
+    title: "Jo Travel Hub - 隨身旅遊助理",
+    description: "多旅程行程規劃與隨身助理 Portal",
+    images: [{ url: "/favicon.png", width: 512, height: 512, alt: "Jo Travel Hub Logo" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Jo Travel Hub - 隨身旅遊助理",
+    description: "多旅程行程規劃與隨身助理 Portal",
+    images: ["/favicon.png"],
   },
 };
 
