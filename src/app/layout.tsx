@@ -24,22 +24,19 @@ export const metadata: Metadata = {
   title: "Jo Travel Hub - 隨身旅遊助理",
   description: "多旅程行程規劃與隨身助理 Portal",
   icons: {
-    icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon_la_trip.png", type: "image/png" }
-    ],
-    apple: "/favicon.png",
+    icon: "/icon",
+    apple: "/apple-icon",
   },
   openGraph: {
     title: "Jo Travel Hub - 隨身旅遊助理",
     description: "多旅程行程規劃與隨身助理 Portal",
-    images: [{ url: "/favicon.png", width: 512, height: 512, alt: "Jo Travel Hub Logo" }],
+    images: [{ url: "/apple-icon", width: 180, height: 180, alt: "Jo Travel Hub Logo" }],
   },
   twitter: {
     card: "summary",
     title: "Jo Travel Hub - 隨身旅遊助理",
     description: "多旅程行程規劃與隨身助理 Portal",
-    images: ["/favicon.png"],
+    images: ["/apple-icon"],
   },
 };
 
