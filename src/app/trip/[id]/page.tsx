@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
-import { TRIPS, TripConfig } from '@/config/trips';
+import { TRIPS, TripConfig, createPlaneSvg } from '@/config/trips';
 import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
@@ -149,41 +149,40 @@ export default function TripPage({ params }: PageProps) {
       metaTwitter.content = href;
     };
 
-    if (tripData.svgIcon && tripData.svgIcon.trim()) {
-      const rawSvg = tripData.svgIcon.trim();
-      iconUrl = `data:image/svg+xml;utf8,${encodeURIComponent(rawSvg)}`;
-      appleIconUrl = iconUrl; // 預設
+    const activeSvg = (tripData.svgIcon && tripData.svgIcon.trim())
+      ? tripData.svgIcon.trim()
+      : createPlaneSvg('#0f172a', '#f59e0b');
 
-      // 背景 Canvas 透過 Blob 轉繪 180x180 高畫質 PNG Data URI (專給 iPhone Apple Touch Icon 讀取)
-      try {
-        const blob = new Blob([rawSvg], { type: 'image/svg+xml;charset=utf-8' });
-        const blobUrl = URL.createObjectURL(blob);
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = 180;
-          canvas.height = 180;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, 180, 180);
-            ctx.drawImage(img, 0, 0, 180, 180);
-            const pngDataUrl = canvas.toDataURL('image/png');
-            updateAppleIcons(pngDataUrl);
-          }
-          URL.revokeObjectURL(blobUrl);
-        };
-        img.onerror = (e) => {
-          console.error('SVG Image load error:', e);
-          updateAppleIcons(iconUrl);
-          URL.revokeObjectURL(blobUrl);
-        };
-        img.src = blobUrl;
-      } catch (e) {
-        console.error('SVG to PNG conversion error:', e);
+    iconUrl = `data:image/svg+xml;utf8,${encodeURIComponent(activeSvg)}`;
+    appleIconUrl = iconUrl;
+
+    // 背景 Canvas 透過 Blob 轉繪 180x180 高畫質 PNG Data URI (專給 iPhone Apple Touch Icon 讀取)
+    try {
+      const blob = new Blob([activeSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, 180, 180);
+          ctx.drawImage(img, 0, 0, 180, 180);
+          const pngDataUrl = canvas.toDataURL('image/png');
+          updateAppleIcons(pngDataUrl);
+        }
+        URL.revokeObjectURL(blobUrl);
+      };
+      img.onerror = (e) => {
+        console.error('SVG Image load error:', e);
         updateAppleIcons(iconUrl);
-      }
-    } else {
-      updateAppleIcons(appleIconUrl);
+        URL.revokeObjectURL(blobUrl);
+      };
+      img.src = blobUrl;
+    } catch (e) {
+      console.error('SVG to PNG conversion error:', e);
+      updateAppleIcons(iconUrl);
     }
 
     // 1. 動態標籤頁圖示

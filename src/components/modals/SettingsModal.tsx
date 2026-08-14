@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
+import { createPlaneSvg } from '@/config/trips';
 
 const TIMEZONE_PRESETS = ['Asia/Taipei', 'America/Los_Angeles', 'Asia/Tokyo', 'America/New_York', 'Europe/London'];
 
@@ -176,13 +177,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center justify-between">
-                  <span>自訂 SVG 圖示原始碼</span>
-                  <span className="text-slate-400 font-normal">（可直接貼上 &lt;svg&gt;...&lt;/svg&gt;）</span>
+                  <span>旅程飛機圖示配色</span>
+                  <span className="text-slate-400 font-normal">（一鍵套用向量飛機圖示）</span>
                 </label>
+                <div className="flex items-center flex-wrap gap-1.5 mb-2.5">
+                  {[
+                    { label: '深藍金 ✈️', bg: '#0f172a', plane: '#f59e0b' },
+                    { label: '渡假綠 ✈️', bg: '#0d9488', plane: '#ffffff' },
+                    { label: '愛馬仕橘 ✈️', bg: '#d97706', plane: '#ffffff' },
+                    { label: '酷黑藍 ✈️', bg: '#18181b', plane: '#38bdf8' },
+                    { label: '珊瑚紅 ✈️', bg: '#e11d48', plane: '#ffffff' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setSvgCode(createPlaneSvg(preset.bg, preset.plane))}
+                      className="px-2.5 py-1 text-xs font-extrabold rounded-lg border border-slate-200 hover:border-slate-400 transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5"
+                      style={{ backgroundColor: preset.bg, color: preset.plane }}
+                    >
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+
                 <textarea
                   value={svgCode}
                   onChange={(e) => setSvgCode(e.target.value)}
-                  placeholder='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">...</svg>'
+                  placeholder="點擊上方按鈕生成飛機圖示，或自行貼上自訂 SVG Code..."
                   rows={3}
                   className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono resize-none"
                 />
