@@ -14,3 +14,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - **自動推送**：凡是有修改程式碼並完成任務驗證後，務必自動執行 `git add`、`git commit` 以及 `git push` 將變更推送到遠端 Repository (origin/main)。
 
+## 溝通與協作規範 (Communication & Collaboration Guidance)
+
+- **想法理解與摘要**：當使用者提出想法時，先簡單摘要總結以確認理解無誤。
+- **客觀建議**：給予具建設性且客觀的建議（不盲目贊同，也不為質疑而質疑）。
+- **實作計畫 (Implementation Plan)**：遇到較大範圍的程式碼修改或架構調整時，執行前先撰寫 `implementation_plan.md` 供使用者審閱確認。
+
