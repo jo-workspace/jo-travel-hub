@@ -276,7 +276,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">
                     外幣代碼
-                    <span className="text-slate-400 font-normal ml-1">例：USD、JPY、EUR</span>
                   </label>
                   <input
                     type="text"
