@@ -129,7 +129,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSave} className="overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleSave} className="overflow-y-auto overflow-x-hidden max-h-[75vh]">
           <div className="px-6 py-4 space-y-5">
 
             {/* 基本資訊 */}
@@ -229,7 +229,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>日期與財務</span>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-bold text-slate-600 mb-1">
                   旅程起始日期
                   <span className="text-slate-400 font-normal ml-1">（Day 1 對應的日期）</span>
@@ -238,7 +238,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="date"
                   value={start}
                   onChange={(e) => setStart(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                  className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                 />
               </div>
 
