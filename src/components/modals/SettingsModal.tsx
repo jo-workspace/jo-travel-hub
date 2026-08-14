@@ -21,6 +21,7 @@ interface SettingsModalProps {
   foreignCurrency: string;
   companions?: string;
   timezone?: string;
+  svgIcon?: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -37,6 +38,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   foreignCurrency,
   companions,
   timezone,
+  svgIcon,
 }) => {
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
@@ -47,6 +49,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [currency, setCurrency] = useState('USD');
   const [people, setPeople] = useState('Jo, Will');
   const [tz, setTz] = useState('Asia/Taipei');
+  const [svgCode, setSvgCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -69,9 +72,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setCurrency(foreignCurrency || 'USD');
       setPeople(companions || 'Jo, Will');
       setTz(timezone || 'Asia/Taipei');
+      setSvgCode(svgIcon || '');
       setError('');
     }
-  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone]);
+  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, svgIcon]);
 
   if (!isOpen) return null;
 
@@ -90,6 +94,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         foreignCurrency: currency.trim().toUpperCase() || 'USD',
         companions: people.trim() || 'Jo, Will',
         timezone: tz.trim() || 'Asia/Taipei',
+        svgIcon: svgCode.trim(),
       });
       onSaved();
       onClose();
@@ -167,6 +172,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   placeholder="例：Jo, Will, Alex"
                   className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center justify-between">
+                  <span>自訂 SVG 圖示原始碼</span>
+                  <span className="text-slate-400 font-normal">（可直接貼上 &lt;svg&gt;...&lt;/svg&gt;）</span>
+                </label>
+                <textarea
+                  value={svgCode}
+                  onChange={(e) => setSvgCode(e.target.value)}
+                  placeholder='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">...</svg>'
+                  rows={3}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono resize-none"
+                />
+                {svgCode.trim() && (
+                  <div className="mt-2 flex items-center space-x-3 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-400">圖示預覽：</span>
+                    <div
+                      className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-slate-900 shadow-2xs p-1"
+                      dangerouslySetInnerHTML={{ __html: svgCode }}
+                    />
+                    <span className="text-[10px] text-emerald-600 font-bold">✓ 儲存後將自動套用至標籤頁與 iPhone 桌面</span>
+                  </div>
+                )}
               </div>
             </div>
 

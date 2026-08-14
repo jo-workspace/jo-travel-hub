@@ -153,12 +153,12 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       }
     });
   }
-  // 如果舊資料有非清單內的人員，自動補充進去（排除公用與關鍵字）
+  // 如果舊資料有非清單內的人員，自動補充進去（排除公用與關鍵字，並排除帶有冒號權重之字串）
   data.forEach((exp) => {
     const p = (exp.paidBy || '').trim();
     const s = (exp.split || '').trim();
-    if (p && !EXCLUDED_KEYWORDS.includes(p)) companionSet.add(p);
-    if (s && !EXCLUDED_KEYWORDS.includes(s)) companionSet.add(s);
+    if (p && !EXCLUDED_KEYWORDS.includes(p) && !p.includes(':') && !p.includes('：')) companionSet.add(p);
+    if (s && !EXCLUDED_KEYWORDS.includes(s) && !s.includes(':') && !s.includes('：')) companionSet.add(s);
   });
   const members = Array.from(companionSet).length > 0 ? Array.from(companionSet) : ['Jo', 'Will'];
 
@@ -521,7 +521,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       splitMode === 'weighted' ? 'bg-amber-400 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    按人頭/權重分攤
+                    分攤
                   </button>
                   {members.map((m) => (
                     <button

@@ -94,11 +94,57 @@ export default function TripPage({ params }: PageProps) {
   const [hideVisited, setHideVisited] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Main data state
+  const [tripData, setTripData] = useState<AllTripData>({
+    itinerary: [],
+    todo: [],
+    packing: [],
+    expenses: [],
+    shopping: [],
+    fxRate: 32.5,
+    tripNote: '',
+    startDate: '',
+    budgetTwd: 0,
+    foreignCurrency: 'USD',
+    tripTitle: '',
+    tripDates: '',
+    timezone: 'Asia/Taipei',
+  });
+
   // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (供 iPhone 主畫面捷徑讀取)
   useEffect(() => {
     if (!tripConfig) return;
-    const iconUrl = tripConfig.iconUrl || '/favicon.png';
-    const appleIconUrl = tripConfig.appleIconUrl || tripConfig.iconUrl || '/favicon.png';
+
+    let iconUrl = tripConfig.iconUrl || '/favicon.png';
+    let appleIconUrl = tripConfig.appleIconUrl || tripConfig.iconUrl || '/favicon.png';
+
+    if (tripData.svgIcon && tripData.svgIcon.trim()) {
+      const rawSvg = tripData.svgIcon.trim();
+      iconUrl = `data:image/svg+xml;utf8,${encodeURIComponent(rawSvg)}`;
+      appleIconUrl = iconUrl; // 預設 Data URI
+
+      // 背景 Canvas 自動繪製轉譯成 180x180 PNG Data URI (專給 iPhone Apple Touch Icon 讀取)
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+          if (ctx) {
+            ctx.fillStyle = '#0f172a'; // 深邊背景
+            ctx.fillRect(0, 0, 180, 180);
+            ctx.drawImage(img, 15, 15, 150, 150);
+            const pngDataUrl = canvas.toDataURL('image/png');
+            let linkApple = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+            if (linkApple) linkApple.href = pngDataUrl;
+          }
+        };
+        img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(rawSvg)}`;
+      } catch (e) {
+        console.error('SVG to PNG conversion error:', e);
+      }
+    }
 
     // 1. 動態標籤頁圖示
     let linkIcon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
@@ -118,27 +164,11 @@ export default function TripPage({ params }: PageProps) {
     }
     linkAppleIcon.href = appleIconUrl;
 
-    if (tripConfig.title) {
-      document.title = `${tripConfig.title} - Jo Travel Hub`;
+    const displayTitle = tripData.tripTitle || tripConfig.title;
+    if (displayTitle) {
+      document.title = `${displayTitle} - Jo Travel Hub`;
     }
-  }, [tripConfig]);
-
-
-  // Main data state
-  const [tripData, setTripData] = useState<AllTripData>({
-    itinerary: [],
-    todo: [],
-    packing: [],
-    expenses: [],
-    shopping: [],
-    fxRate: 32.5,
-    tripNote: '',
-    startDate: '',
-    budgetTwd: 0,
-    foreignCurrency: 'USD',
-    tripTitle: '',
-    tripDates: '',
-  });
+  }, [tripConfig, tripData.svgIcon, tripData.tripTitle]);
 
   // Modal states
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
@@ -572,6 +602,7 @@ export default function TripPage({ params }: PageProps) {
         foreignCurrency={tripData.foreignCurrency || 'USD'}
         timezone={tripData.timezone}
         companions={tripData.companions}
+        svgIcon={tripData.svgIcon}
       />
 
       <LightboxModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />

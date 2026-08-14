@@ -191,6 +191,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
     const timezone = settingsData?.timezone || TRIPS[tripId]?.timezone || 'Asia/Taipei';
+    const localSvgIcon = typeof window !== 'undefined' ? localStorage.getItem(`svgIcon_${tripId}`) || '' : '';
+    const svgIcon = settingsData?.svg_icon || localSvgIcon || '';
 
     return {
       itinerary,
@@ -207,9 +209,11 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripTitle,
       tripDates,
       timezone,
+      svgIcon,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);
+    const localSvgIcon = typeof window !== 'undefined' ? localStorage.getItem(`svgIcon_${tripId}`) || '' : '';
     return {
       itinerary: [],
       todo: [],
@@ -225,6 +229,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripTitle: '',
       tripDates: '',
       timezone: TRIPS[tripId]?.timezone || 'Asia/Taipei',
+      svgIcon: localSvgIcon,
     };
   }
 }
@@ -242,8 +247,13 @@ export async function updateTripSettings(
     timezone?: string;
     title?: string;
     dates?: string;
+    svgIcon?: string;
   }
 ): Promise<void> {
+  if (typeof window !== 'undefined' && settings.svgIcon !== undefined) {
+    localStorage.setItem(`svgIcon_${tripId}`, settings.svgIcon);
+  }
+
   // 1. 查詢現有資料與欄位名稱
   const { data: list } = await supabase
     .from('trip_settings')
@@ -270,6 +280,9 @@ export async function updateTripSettings(
   }
   if (dbKeys.length === 0 || dbKeys.includes('timezone')) {
     payload.timezone = settings.timezone ?? 'Asia/Taipei';
+  }
+  if (dbKeys.length === 0 || dbKeys.includes('svg_icon')) {
+    payload.svg_icon = settings.svgIcon ?? '';
   }
 
   let settingsError;
