@@ -30,13 +30,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Jo Travel Hub - 隨身旅遊助理",
     description: "多旅程行程規劃與隨身助理 Portal",
-    images: [{ url: "/apple-icon", width: 180, height: 180, alt: "Jo Travel Hub Logo" }],
+    images: [{ url: "/api/og", width: 1200, height: 630, alt: "Jo Travel Hub" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Jo Travel Hub - 隨身旅遊助理",
     description: "多旅程行程規劃與隨身助理 Portal",
-    images: ["/apple-icon"],
+    images: ["/api/og"],
   },
 };
 

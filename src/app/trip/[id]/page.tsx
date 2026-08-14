@@ -119,6 +119,7 @@ export default function TripPage({ params }: PageProps) {
     let appleIconUrl = tripConfig.appleIconUrl || tripConfig.iconUrl || '/favicon.png';
 
     const updateAppleIcons = (href: string) => {
+      // 同步動態更新 iPhone 主畫面圖示標籤
       const appleLinks = document.querySelectorAll("link[rel*='apple-touch-icon']");
       if (appleLinks.length > 0) {
         appleLinks.forEach((link) => {
@@ -130,24 +131,28 @@ export default function TripPage({ params }: PageProps) {
         link.href = href;
         document.head.appendChild(link);
       }
-
-      // 同步動態更新社群分享縮圖 (og:image & twitter:image)
-      let metaOg = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
-      if (!metaOg) {
-        metaOg = document.createElement('meta');
-        metaOg.setAttribute('property', 'og:image');
-        document.head.appendChild(metaOg);
-      }
-      metaOg.content = href;
-
-      let metaTwitter = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
-      if (!metaTwitter) {
-        metaTwitter = document.createElement('meta');
-        metaTwitter.name = 'twitter:image';
-        document.head.appendChild(metaTwitter);
-      }
-      metaTwitter.content = href;
     };
+
+    const displayTitle = tripData.tripTitle || tripConfig.title;
+    const displayDates = tripData.tripDates || tripConfig.dates || '';
+    const ogBannerUrl = `/api/og?title=${encodeURIComponent(displayTitle)}&dates=${encodeURIComponent(displayDates)}`;
+
+    // 動態更新社群分享縮圖 (og:image & twitter:image)，使用 1200x630 滿版大卡片
+    let metaOg = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+    if (!metaOg) {
+      metaOg = document.createElement('meta');
+      metaOg.setAttribute('property', 'og:image');
+      document.head.appendChild(metaOg);
+    }
+    metaOg.content = ogBannerUrl;
+
+    let metaTwitter = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+    if (!metaTwitter) {
+      metaTwitter = document.createElement('meta');
+      metaTwitter.name = 'twitter:image';
+      document.head.appendChild(metaTwitter);
+    }
+    metaTwitter.content = ogBannerUrl;
 
     const activeSvg = (tripData.svgIcon && tripData.svgIcon.trim())
       ? tripData.svgIcon.trim()
@@ -194,7 +199,6 @@ export default function TripPage({ params }: PageProps) {
     }
     linkIcon.href = iconUrl;
 
-    const displayTitle = tripData.tripTitle || tripConfig.title;
     if (displayTitle) {
       document.title = `${displayTitle} - Jo Travel Hub`;
     }
