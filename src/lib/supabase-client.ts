@@ -191,11 +191,16 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
 
     // 解析跨裝置同步的 SVG Icon（若包含在 tripNote 隱藏標籤中）
     const svgMatch = rawTripNote.match(/<!--SVG_ICON_START-->([\s\S]*?)<!--SVG_ICON_END-->/);
-    if (svgMatch) {
+    if (svgMatch && svgMatch[1].trim()) {
+      const inner = svgMatch[1].trim();
       try {
-        svgIcon = decodeURIComponent(atob(svgMatch[1].trim()));
+        svgIcon = decodeURIComponent(atob(inner));
       } catch {
-        svgIcon = svgMatch[1].trim();
+        try {
+          svgIcon = decodeURIComponent(inner);
+        } catch {
+          svgIcon = inner;
+        }
       }
       tripNote = rawTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
     } else {
@@ -279,15 +284,25 @@ export async function updateTripSettings(
   const existingRow = list?.[0] || null;
   const dbKeys = existingRow ? Object.keys(existingRow) : [];
 
-  // 將 svgIcon 用 Base64 壓進 trip_note 隱藏註解，確保全裝置同步
+  // 處理 trip_note 中跨裝置同步的 SVG Icon
   let finalTripNote = settings.tripNote ?? '';
-  finalTripNote = finalTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
-  if (settings.svgIcon && settings.svgIcon.trim()) {
-    try {
-      const encodedSvg = btoa(encodeURIComponent(settings.svgIcon.trim()));
-      finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${encodedSvg}<!--SVG_ICON_END-->`;
-    } catch {
-      finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${settings.svgIcon.trim()}<!--SVG_ICON_END-->`;
+
+  if (settings.svgIcon !== undefined) {
+    // 使用者明確編輯了 svgIcon 欄位
+    finalTripNote = finalTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
+    if (settings.svgIcon.trim()) {
+      try {
+        const encodedSvg = btoa(encodeURIComponent(settings.svgIcon.trim()));
+        finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${encodedSvg}<!--SVG_ICON_END-->`;
+      } catch {
+        finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${settings.svgIcon.trim()}<!--SVG_ICON_END-->`;
+      }
+    }
+  } else {
+    // 使用者未填寫 svgIcon 欄位，保護並保留資料庫原本已有之隱藏標籤
+    const existingSvgMatch = existingRow?.trip_note?.match(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/);
+    if (existingSvgMatch) {
+      finalTripNote = `${finalTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim()}\n${existingSvgMatch[0]}`;
     }
   }
 
