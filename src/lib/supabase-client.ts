@@ -185,14 +185,29 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const fxRate = settingsData?.fx_rate ? Number(settingsData.fx_rate) : 32.5;
     const startDate = settingsData?.start_date || '';
     const budgetTwd = settingsData?.budget_twd ? Number(settingsData.budget_twd) : 0;
-    const tripNote = settingsData?.trip_note || '';
+    const rawTripNote = settingsData?.trip_note || '';
+    let tripNote = rawTripNote;
+    let svgIcon = '';
+
+    // 解析跨裝置同步的 SVG Icon（若包含在 tripNote 隱藏標籤中）
+    const svgMatch = rawTripNote.match(/<!--SVG_ICON_START-->([\s\S]*?)<!--SVG_ICON_END-->/);
+    if (svgMatch) {
+      try {
+        svgIcon = decodeURIComponent(atob(svgMatch[1].trim()));
+      } catch {
+        svgIcon = svgMatch[1].trim();
+      }
+      tripNote = rawTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
+    } else {
+      const localSvgIcon = typeof window !== 'undefined' ? localStorage.getItem(`svgIcon_${tripId}`) || '' : '';
+      svgIcon = settingsData?.svg_icon || localSvgIcon || '';
+    }
+
     const foreignCurrency = settingsData?.foreign_currency || 'USD';
     const companions = settingsData?.companions || 'Jo, Will';
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
     const timezone = settingsData?.timezone || TRIPS[tripId]?.timezone || 'Asia/Taipei';
-    const localSvgIcon = typeof window !== 'undefined' ? localStorage.getItem(`svgIcon_${tripId}`) || '' : '';
-    const svgIcon = settingsData?.svg_icon || localSvgIcon || '';
 
     return {
       itinerary,
@@ -264,11 +279,23 @@ export async function updateTripSettings(
   const existingRow = list?.[0] || null;
   const dbKeys = existingRow ? Object.keys(existingRow) : [];
 
+  // 將 svgIcon 用 Base64 壓進 trip_note 隱藏註解，確保全裝置同步
+  let finalTripNote = settings.tripNote ?? '';
+  finalTripNote = finalTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
+  if (settings.svgIcon && settings.svgIcon.trim()) {
+    try {
+      const encodedSvg = btoa(encodeURIComponent(settings.svgIcon.trim()));
+      finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${encodedSvg}<!--SVG_ICON_END-->`;
+    } catch {
+      finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${settings.svgIcon.trim()}<!--SVG_ICON_END-->`;
+    }
+  }
+
   const payload: Record<string, any> = {
     start_date: settings.startDate ?? '',
     fx_rate: settings.fxRate ?? 32.5,
     budget_twd: settings.budgetTwd ?? 0,
-    trip_note: settings.tripNote ?? '',
+    trip_note: finalTripNote,
   };
 
   // 只有當 DB 擁有此欄位（或是準備全新建立）才帶入

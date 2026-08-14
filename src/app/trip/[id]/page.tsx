@@ -215,14 +215,22 @@ export default function TripPage({ params }: PageProps) {
   // Fetch data from Supabase
   const fetchData = useCallback(async (bypassCache = false) => {
     setIsLoading(true);
+    const start = Date.now();
     try {
       const res = await getAllData(bypassCache, tripId);
       if (res) {
         setTripData(res);
+        if (bypassCache) {
+          showToast('已完成最新資料同步 ✨');
+        }
       }
     } catch (err: any) {
       showToast(`資料載入失敗: ${err.message || err}`);
     } finally {
+      const elapsed = Date.now() - start;
+      if (elapsed < 600) {
+        await new Promise((r) => setTimeout(r, 600 - elapsed));
+      }
       setIsLoading(false);
     }
   }, [tripId]);
