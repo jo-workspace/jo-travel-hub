@@ -94,6 +94,36 @@ export default function TripPage({ params }: PageProps) {
   const [hideVisited, setHideVisited] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (供 iPhone 主畫面捷徑讀取)
+  useEffect(() => {
+    if (!tripConfig) return;
+    const iconUrl = tripConfig.iconUrl || '/favicon.png';
+    const appleIconUrl = tripConfig.appleIconUrl || tripConfig.iconUrl || '/favicon.png';
+
+    // 1. 動態標籤頁圖示
+    let linkIcon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+    if (!linkIcon) {
+      linkIcon = document.createElement('link');
+      linkIcon.rel = 'icon';
+      document.head.appendChild(linkIcon);
+    }
+    linkIcon.href = iconUrl;
+
+    // 2. 動態 iPhone 主畫面圖示 (Apple Touch Icon)
+    let linkAppleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+    if (!linkAppleIcon) {
+      linkAppleIcon = document.createElement('link');
+      linkAppleIcon.rel = 'apple-touch-icon';
+      document.head.appendChild(linkAppleIcon);
+    }
+    linkAppleIcon.href = appleIconUrl;
+
+    if (tripConfig.title) {
+      document.title = `${tripConfig.title} - Jo Travel Hub`;
+    }
+  }, [tripConfig]);
+
+
   // Main data state
   const [tripData, setTripData] = useState<AllTripData>({
     itinerary: [],

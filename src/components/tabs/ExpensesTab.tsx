@@ -65,6 +65,60 @@ export function formatFxRateLabel(fxRate: number, foreignCurrencyCode: string): 
   }
 }
 
+/** 解析 split 欄位，支援 '均分' / 'Both' / 'ALL' / 單人名 ('Jo') 或權重格式 ('Jo:2,Will:1') */
+export function parseSplitWeights(splitStr: string, members: string[]): Record<string, number> {
+  const weights: Record<string, number> = {};
+  const trimmed = (splitStr || '').trim();
+  const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
+
+  if (!trimmed || EXCLUDED_KEYWORDS.includes(trimmed)) {
+    members.forEach((m) => { weights[m] = 1; });
+    return weights;
+  }
+
+  if (trimmed.includes(':') || trimmed.includes('：')) {
+    const parts = trimmed.split(/[,，]+/);
+    parts.forEach((part) => {
+      const [name, weightStr] = part.split(/[:：]/);
+      const cleanName = (name || '').trim();
+      const w = parseFloat(weightStr) || 1;
+      if (cleanName) weights[cleanName] = w;
+    });
+    members.forEach((m) => {
+      if (weights[m] === undefined) weights[m] = 0;
+    });
+    return weights;
+  }
+
+  // 單一人名 (例如 'Jo')
+  members.forEach((m) => {
+    weights[m] = m === trimmed ? 1 : 0;
+  });
+  return weights;
+}
+
+/** 格式化費用列表顯示之分擔標籤 (例如 "全體均分" 或 "Jo 2份, Will 1份") */
+export function formatSplitLabel(splitStr: string, members: string[]): string {
+  const weights = parseSplitWeights(splitStr, members);
+  const activeMembers = Object.keys(weights).filter((m) => weights[m] > 0);
+
+  if (activeMembers.length === 0) return '全體均分';
+
+  const isAllEqual = activeMembers.length === members.length && activeMembers.every((m) => weights[m] === weights[activeMembers[0]]);
+  if (isAllEqual) {
+    if (weights[activeMembers[0]] > 1) {
+      return `全體均分 (各 ${weights[activeMembers[0]]} 份)`;
+    }
+    return '全體均分';
+  }
+
+  if (activeMembers.length === 1) {
+    return `${activeMembers[0]} 分擔`;
+  }
+
+  return activeMembers.map((m) => `${m} ${weights[m]}份`).join(', ');
+}
+
 export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   data,
   shopping,
@@ -114,7 +168,13 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [currency, setCurrency] = useState<string>(activeForeignCode);
   const [category, setCategory] = useState('🍔');
   const [paidBy, setPaidBy] = useState<string>(members[0] || 'Jo');
-  const [split, setSplit] = useState<string>('均分');
+  const [splitMode, setSplitMode] = useState<'weighted' | 'single'>('weighted');
+  const [selectedSingleMember, setSelectedSingleMember] = useState<string>(members[0] || 'Jo');
+  const [memberWeights, setMemberWeights] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    members.forEach((m) => { initial[m] = 1; });
+    return initial;
+  });
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -123,11 +183,18 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     setCurrency(activeForeignCode);
   }, [activeForeignCode]);
 
-  // 當同行人員改變時，若目前選擇的付款人不符，重置為第一個
+  // 當同行人員改變時，若目前選擇的付款人不符，重置為第一個，並更新權重物件
   useEffect(() => {
     if (!members.includes(paidBy)) {
       setPaidBy(members[0] || 'Jo');
     }
+    setMemberWeights((prev) => {
+      const next: Record<string, number> = {};
+      members.forEach((m) => {
+        next[m] = prev[m] ?? 1;
+      });
+      return next;
+    });
   }, [companions]);
 
   // 動態多人群體分帳計算
@@ -165,21 +232,17 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       paidTWD[payer] += amtTWD;
     }
 
-    // 累計應分攤金額（「均分」、「Both」、「ALL」、「公用」、「僅公用」、「全體均分」均代表全體真實成員均分）
+    // 累計應分攤金額（按人頭權重解析進行精確分配）
     const splitTarget = exp.split ? exp.split.trim() : '均分';
-    const isShared = EXCLUDED_KEYWORDS.includes(splitTarget);
+    const weights = parseSplitWeights(splitTarget, members);
+    const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
 
-    if (isShared) {
-      const sharePerPerson = amtTWD / members.length;
+    if (totalWeight > 0) {
       members.forEach((m) => {
-        shareTWD[m] = (shareTWD[m] || 0) + sharePerPerson;
+        const w = weights[m] || 0;
+        const memberShare = amtTWD * (w / totalWeight);
+        shareTWD[m] = (shareTWD[m] || 0) + memberShare;
       });
-    } else {
-      if (shareTWD[splitTarget] !== undefined) {
-        shareTWD[splitTarget] += amtTWD;
-      } else {
-        shareTWD[splitTarget] = amtTWD;
-      }
     }
   });
 
@@ -223,6 +286,20 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     e.preventDefault();
     if (!item.trim() || !amount || parseFloat(amount) <= 0) return;
 
+    let finalSplit = '均分';
+    if (splitMode === 'single') {
+      finalSplit = selectedSingleMember;
+    } else {
+      // 權重分攤模式
+      const activeWeights = members.map((m) => `${m}:${memberWeights[m] || 1}`);
+      const isAllOnes = members.every((m) => (memberWeights[m] || 1) === 1);
+      if (isAllOnes) {
+        finalSplit = '均分';
+      } else {
+        finalSplit = activeWeights.join(',');
+      }
+    }
+
     setIsSubmitting(true);
     try {
       await onAddExpense({
@@ -231,7 +308,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
         currency,
         amount: parseFloat(amount),
         paidBy,
-        split: split === 'Both' ? '均分' : split,
+        split: finalSplit,
         note: note.trim(),
       });
       setItem('');
@@ -439,26 +516,71 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
                   <button
                     type="button"
-                    onClick={() => setSplit('均分')}
+                    onClick={() => setSplitMode('weighted')}
                     className={`flex-1 min-w-[50px] py-1.5 rounded-lg transition-all cursor-pointer text-center whitespace-nowrap ${
-                      split === '均分' || split === 'Both' || split === '公用' ? 'bg-amber-400 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'
+                      splitMode === 'weighted' ? 'bg-amber-400 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    全體均分
+                    按人頭/權重分攤
                   </button>
                   {members.map((m) => (
                     <button
                       key={m}
                       type="button"
-                      onClick={() => setSplit(m)}
+                      onClick={() => {
+                        setSplitMode('single');
+                        setSelectedSingleMember(m);
+                      }}
                       className={`flex-1 min-w-[50px] py-1.5 rounded-lg transition-all cursor-pointer text-center whitespace-nowrap ${
-                        split === m ? 'bg-slate-100 text-slate-900 font-extrabold shadow-2xs' : 'text-slate-400 hover:text-slate-200'
+                        splitMode === 'single' && selectedSingleMember === m ? 'bg-slate-100 text-slate-900 font-extrabold shadow-2xs' : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       僅 {m}
                     </button>
                   ))}
                 </div>
+
+                {/* 人頭/權重微調控制區 (當選擇「按人頭/權重分攤」時顯示) */}
+                {splitMode === 'weighted' && (
+                  <div className="mt-2 bg-slate-800/90 border border-slate-700/60 p-2.5 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400">
+                      <span>調整成員負擔人頭 (如攜帶家人代付)</span>
+                      <span className="font-mono text-amber-300">
+                        總份數: {Object.values(memberWeights).reduce((a, b) => a + b, 0)} 份
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {members.map((m) => {
+                        const currentWeight = memberWeights[m] || 1;
+                        return (
+                          <div key={m} className="flex items-center justify-between bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                            <span className="text-xs font-bold text-slate-200 truncate">{m}</span>
+                            <div className="flex items-center space-x-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setMemberWeights(prev => ({ ...prev, [m]: Math.max(1, (prev[m] || 1) - 1) }))}
+                                className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold text-xs cursor-pointer select-none active:scale-95"
+                              >
+                                -
+                              </button>
+                              <span className="text-xs font-mono font-black text-amber-400 w-4 text-center">
+                                {currentWeight}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setMemberWeights(prev => ({ ...prev, [m]: (prev[m] || 1) + 1 }))}
+                                className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold text-xs cursor-pointer select-none active:scale-95"
+                              >
+                                +
+                              </button>
+                              <span className="text-[10px] text-slate-500 font-bold">人份</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -522,7 +644,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                           {exp.item}
                         </h4>
                         <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full whitespace-nowrap">
-                          {exp.paidBy || members[0]} 付 ({exp.split === 'Both' || exp.split === '均分' ? '全體均分' : `${exp.split} 分擔`})
+                          {exp.paidBy || members[0]} 付 ({formatSplitLabel(exp.split, members)})
                         </span>
                       </div>
                       {exp.note && (
