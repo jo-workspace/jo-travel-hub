@@ -421,6 +421,7 @@ export default function TripPage({ params }: PageProps) {
         hideVisited={hideVisited}
         onToggleHideVisited={() => setHideVisited(!hideVisited)}
         tripTitle={tripData.tripTitle || tripConfig.title}
+        customIcon={tripData.customIcon || tripData.svgIcon}
       />
 
       {/* Main Container */}
@@ -434,6 +435,7 @@ export default function TripPage({ params }: PageProps) {
           onShare={handleShare}
           isLoading={isLoading}
           tripTitle={tripData.tripTitle || tripConfig.title}
+          customIcon={tripData.customIcon || tripData.svgIcon}
         />
 
         {/* Top Back Link & Trip Title Bar */}

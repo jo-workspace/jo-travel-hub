@@ -11,6 +11,7 @@ interface HeaderProps {
   onShare?: () => void;
   isLoading?: boolean;
   tripTitle?: string;
+  customIcon?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   onShare,
   isLoading = false,
   tripTitle = '旅程總覽',
+  customIcon,
 }) => {
   // 算乾淨的 Badge 符號：若包含英文則取前兩個英文字母（如 LA），中文則用 Plane 圖示
   const englishMatches = tripTitle.match(/[A-Za-z]+/g);
@@ -31,8 +33,14 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Title */}
         <div className="flex items-center space-x-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs flex-shrink-0 select-none">
-            {badgeText ? badgeText : <Plane className="w-4 h-4 text-white" />}
+          <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs flex-shrink-0 select-none overflow-hidden">
+            {customIcon ? (
+              <img src={customIcon} alt="Icon" className="w-full h-full object-cover" />
+            ) : badgeText ? (
+              badgeText
+            ) : (
+              <Plane className="w-4 h-4 text-white" />
+            )}
           </div>
           <div className="min-w-0">
             <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight leading-none truncate">

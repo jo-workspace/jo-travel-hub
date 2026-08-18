@@ -11,6 +11,7 @@ interface SidebarProps {
   hideVisited: boolean;
   onToggleHideVisited: () => void;
   tripTitle?: string;
+  customIcon?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -19,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   hideVisited,
   onToggleHideVisited,
   tripTitle = '旅程總覽',
+  customIcon,
 }) => {
   const tabs = [
     { id: 'itinerary', label: '行程表', icon: Calendar },
@@ -36,8 +38,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-200 fixed left-0 top-0 bottom-0 z-50 p-4 border-r border-slate-800">
       {/* Brand Header */}
       <div className="flex items-center space-x-3 px-3 py-4 mb-6">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-sm flex items-center justify-center shadow-md flex-shrink-0 select-none">
-          {badgeText ? badgeText : <Plane className="w-5 h-5 text-slate-950" />}
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-sm flex items-center justify-center shadow-md flex-shrink-0 select-none overflow-hidden">
+          {customIcon ? (
+            <img src={customIcon} alt="Icon" className="w-full h-full object-cover" />
+          ) : badgeText ? (
+            badgeText
+          ) : (
+            <Plane className="w-5 h-5 text-slate-950" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="font-extrabold text-base text-white tracking-tight leading-tight truncate" title={tripTitle}>
