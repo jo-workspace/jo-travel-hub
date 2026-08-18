@@ -248,7 +248,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
                             {/* Person Badges (Only shown when multiple persons exist & viewing "全部") */}
                             {hasMultiplePersons && selectedPerson === '全部' &&
-                              pTokens.map((p) => {
+                              pTokens.map((p, idx) => {
                                 if (!p) return null;
                                 let colorClass = 'bg-slate-100 text-slate-600';
                                 if (p === 'Jo')
@@ -257,7 +257,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                                   colorClass = 'bg-amber-50 text-amber-700';
                                 return (
                                   <span
-                                    key={p}
+                                    key={`${p}-${idx}`}
                                     className={`inline-block ${colorClass} px-1.5 py-0.5 rounded text-[10px] font-extrabold ml-1`}
                                   >
                                     {p}

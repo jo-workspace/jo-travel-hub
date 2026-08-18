@@ -110,8 +110,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap gap-1 mb-1">
-                      {stores.map((store) => <span key={store} className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full whitespace-nowrap">{store}</span>)}
-                      {people.map((person) => <span key={person} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap">{person}</span>)}
+                      {stores.map((store, idx) => <span key={`${store}-${idx}`} className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full whitespace-nowrap">{store}</span>)}
+                      {people.map((person, idx) => <span key={`${person}-${idx}`} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap">{person}</span>)}
                     </div>
                     <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                       <h3 className={`text-base font-extrabold text-slate-900 leading-tight ${item.isDone || isOutOfStock ? 'line-through text-slate-400' : ''}`}>{item.item}</h3>
@@ -127,7 +127,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <button onClick={() => onOpenModal(item)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90" title="編輯"><Edit3 className="w-4 h-4" /></button>
                 {isOutOfStock && <button onClick={() => onToggleShopping(item.rowIndex, true)} className="text-[10px] font-bold text-amber-700 hover:text-amber-900" title="恢復為待購">恢復</button>}
-                <input type="checkbox" checked={item.isDone} disabled={isOutOfStock} onChange={(event) => onToggleShopping(item.rowIndex, !event.target.checked)} className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90 disabled:cursor-not-allowed" />
+                <input type="checkbox" checked={item.isDone} disabled={isOutOfStock} onChange={() => onToggleShopping(item.rowIndex, item.isDone)} className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90 disabled:cursor-not-allowed" />
               </div>
             </div>
           );
