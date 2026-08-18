@@ -134,19 +134,27 @@ export default function TripPage({ params }: PageProps) {
       metaTwitter.name = 'twitter:image';
       document.head.appendChild(metaTwitter);
     }
-    // 動態更新瀏覽器標籤頁 Favicon (若未上傳自訂圖示，預設全站使用 3.png 藍色地球標誌)
-    let linkIcon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-    if (!linkIcon) {
-      linkIcon = document.createElement('link');
-      linkIcon.rel = 'icon';
-      document.head.appendChild(linkIcon);
-    }
+    // 動態更新瀏覽器標籤頁 Favicon (強制移除舊 Link 標籤並重建全新元素，觸發 Chrome / Safari 即時更新 Tab Icon)
     const currentFavicon = (tripData.customIcon && tripData.customIcon.trim())
       ? tripData.customIcon.trim()
       : (tripData.svgIcon && tripData.svgIcon.trim())
         ? tripData.svgIcon.trim()
         : '/hub-logo.png';
-    linkIcon.href = currentFavicon;
+
+    document.querySelectorAll("link[rel*='icon'], link[rel*='apple-touch-icon']").forEach((el) => {
+      el.parentNode?.removeChild(el);
+    });
+
+    const newFaviconLink = document.createElement('link');
+    newFaviconLink.rel = 'icon';
+    newFaviconLink.type = currentFavicon.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png';
+    newFaviconLink.href = currentFavicon;
+    document.head.appendChild(newFaviconLink);
+
+    const newAppleLink = document.createElement('link');
+    newAppleLink.rel = 'apple-touch-icon';
+    newAppleLink.href = currentFavicon;
+    document.head.appendChild(newAppleLink);
 
     if (displayTitle) {
       document.title = `${displayTitle} - Jo Travel Hub`;
