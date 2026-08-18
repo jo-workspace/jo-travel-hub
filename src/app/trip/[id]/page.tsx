@@ -142,7 +142,7 @@ export default function TripPage({ params }: PageProps) {
         : '/hub-logo.png';
 
     document.querySelectorAll("link[rel*='icon'], link[rel*='apple-touch-icon']").forEach((el) => {
-      el.parentNode?.removeChild(el);
+      el.remove?.();
     });
 
     const newFaviconLink = document.createElement('link');

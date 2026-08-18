@@ -24,12 +24,16 @@ export function linkifyText(text: string): React.ReactNode[] {
     }
 
     if (start > lastIndex) {
-      parts.push(text.slice(lastIndex, start));
+      parts.push(
+        <span key={`text-${key++}`}>
+          {text.slice(lastIndex, start)}
+        </span>
+      );
     }
 
     parts.push(
       <a
-        key={key++}
+        key={`link-${key++}`}
         href={url}
         target="_blank"
         rel="noopener noreferrer"
@@ -39,12 +43,18 @@ export function linkifyText(text: string): React.ReactNode[] {
       </a>
     );
 
-    if (trailing) parts.push(trailing);
+    if (trailing) {
+      parts.push(<span key={`trail-${key++}`}>{trailing}</span>);
+    }
     lastIndex = start + match[0].length;
   }
 
   if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+    parts.push(
+      <span key={`text-${key++}`}>
+        {text.slice(lastIndex)}
+      </span>
+    );
   }
 
   return parts;
