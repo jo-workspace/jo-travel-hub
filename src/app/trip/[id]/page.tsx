@@ -111,7 +111,7 @@ export default function TripPage({ params }: PageProps) {
     timezone: 'Asia/Taipei',
   });
 
-  // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (供 iPhone 主畫面捷徑讀取)
+  // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (安全更新 href，切勿刪除 DOM 節點以免損壞 React 19 Fiber 樹)
   useEffect(() => {
     if (!tripConfig) return;
 
@@ -119,8 +119,8 @@ export default function TripPage({ params }: PageProps) {
     const displayDates = tripData.tripDates || tripConfig.dates || '';
     const ogBannerUrl = `/api/og?title=${encodeURIComponent(displayTitle)}&dates=${encodeURIComponent(displayDates)}`;
 
-    // 動態更新社群分享縮圖 (og:image & twitter:image)，使用 1200x630 滿版大卡片
-    let metaOg = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+    // 動態更新社群分享縮圖 (og:image & twitter:image)
+    let metaOg = document.querySelector("meta[property='og:image']") as HTMLMetaElement | null;
     if (!metaOg) {
       metaOg = document.createElement('meta');
       metaOg.setAttribute('property', 'og:image');
@@ -128,33 +128,42 @@ export default function TripPage({ params }: PageProps) {
     }
     metaOg.content = ogBannerUrl;
 
-    let metaTwitter = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+    let metaTwitter = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement | null;
     if (!metaTwitter) {
       metaTwitter = document.createElement('meta');
       metaTwitter.name = 'twitter:image';
       document.head.appendChild(metaTwitter);
     }
-    // 動態更新瀏覽器標籤頁 Favicon (強制移除舊 Link 標籤並重建全新元素，觸發 Chrome / Safari 即時更新 Tab Icon)
+    metaTwitter.content = ogBannerUrl;
+
+    // 動態更新瀏覽器標籤頁 Favicon (更新 href，不移除元素)
     const currentFavicon = (tripData.customIcon && tripData.customIcon.trim())
       ? tripData.customIcon.trim()
       : (tripData.svgIcon && tripData.svgIcon.trim())
         ? tripData.svgIcon.trim()
         : '/hub-logo.png';
 
-    document.querySelectorAll("link[rel*='icon'], link[rel*='apple-touch-icon']").forEach((el) => {
-      el.remove?.();
-    });
+    let iconLink = document.querySelector("link[rel*='icon']:not([rel*='apple'])") as HTMLLinkElement | null;
+    if (iconLink) {
+      iconLink.href = currentFavicon;
+      iconLink.type = currentFavicon.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png';
+    } else {
+      iconLink = document.createElement('link');
+      iconLink.rel = 'icon';
+      iconLink.type = currentFavicon.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png';
+      iconLink.href = currentFavicon;
+      document.head.appendChild(iconLink);
+    }
 
-    const newFaviconLink = document.createElement('link');
-    newFaviconLink.rel = 'icon';
-    newFaviconLink.type = currentFavicon.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png';
-    newFaviconLink.href = currentFavicon;
-    document.head.appendChild(newFaviconLink);
-
-    const newAppleLink = document.createElement('link');
-    newAppleLink.rel = 'apple-touch-icon';
-    newAppleLink.href = currentFavicon;
-    document.head.appendChild(newAppleLink);
+    let appleLink = document.querySelector("link[rel*='apple-touch-icon']") as HTMLLinkElement | null;
+    if (appleLink) {
+      appleLink.href = currentFavicon;
+    } else {
+      appleLink = document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      appleLink.href = currentFavicon;
+      document.head.appendChild(appleLink);
+    }
 
     if (displayTitle) {
       document.title = `${displayTitle} - Jo Travel Hub`;
