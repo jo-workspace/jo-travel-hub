@@ -134,12 +134,24 @@ export default function TripPage({ params }: PageProps) {
       metaTwitter.name = 'twitter:image';
       document.head.appendChild(metaTwitter);
     }
-    metaTwitter.content = ogBannerUrl;
+    // 動態更新瀏覽器標籤頁 Favicon (若未上傳自訂圖示，預設全站使用 3.png 藍色地球標誌)
+    let linkIcon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+    if (!linkIcon) {
+      linkIcon = document.createElement('link');
+      linkIcon.rel = 'icon';
+      document.head.appendChild(linkIcon);
+    }
+    const currentFavicon = (tripData.customIcon && tripData.customIcon.trim())
+      ? tripData.customIcon.trim()
+      : (tripData.svgIcon && tripData.svgIcon.trim())
+        ? tripData.svgIcon.trim()
+        : '/hub-logo.png';
+    linkIcon.href = currentFavicon;
 
     if (displayTitle) {
       document.title = `${displayTitle} - Jo Travel Hub`;
     }
-  }, [tripConfig, tripData.tripTitle, tripData.tripDates]);
+  }, [tripConfig, tripData.tripTitle, tripData.tripDates, tripData.customIcon, tripData.svgIcon]);
 
   // Modal states
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
