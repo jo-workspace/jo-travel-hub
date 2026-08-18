@@ -60,8 +60,8 @@ export default function HomePage() {
       <header className="border-b border-slate-800 bg-slate-950/60 backdrop-blur-md px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-lg flex items-center justify-center shadow-md">
-              <Compass className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-white text-slate-950 font-black text-lg flex items-center justify-center shadow-md p-1">
+              <img src="/hub-logo.png" alt="Jo Travel Hub" className="w-7 h-7 object-contain" />
             </div>
             <div>
               <h1 className="text-lg font-black tracking-tight text-white leading-none">

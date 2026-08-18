@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
-import { TRIPS, TripConfig, createPlaneSvg } from '@/config/trips';
+import { TRIPS, TripConfig } from '@/config/trips';
 import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
@@ -581,7 +581,7 @@ export default function TripPage({ params }: PageProps) {
         foreignCurrency={tripData.foreignCurrency || 'USD'}
         timezone={tripData.timezone}
         companions={tripData.companions}
-        svgIcon={tripData.svgIcon}
+        customIcon={tripData.customIcon || tripData.svgIcon}
       />
 
       <LightboxModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />

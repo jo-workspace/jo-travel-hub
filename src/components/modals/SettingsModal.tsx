@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut } from 'lucide-react';
+import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
-import { createPlaneSvg } from '@/config/trips';
 
 const TIMEZONE_PRESETS = ['Asia/Taipei', 'America/Los_Angeles', 'Asia/Tokyo', 'America/New_York', 'Europe/London'];
 
@@ -22,6 +21,7 @@ interface SettingsModalProps {
   foreignCurrency: string;
   companions?: string;
   timezone?: string;
+  customIcon?: string;
   svgIcon?: string;
 }
 
@@ -39,6 +39,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   foreignCurrency,
   companions,
   timezone,
+  customIcon,
   svgIcon,
 }) => {
   const [title, setTitle] = useState('');
@@ -50,7 +51,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [currency, setCurrency] = useState('USD');
   const [people, setPeople] = useState('Jo, Will');
   const [tz, setTz] = useState('Asia/Taipei');
-  const [svgCode, setSvgCode] = useState('');
+  const [iconDataUrl, setIconDataUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -73,12 +74,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setCurrency(foreignCurrency || 'USD');
       setPeople(companions || 'Jo, Will');
       setTz(timezone || 'Asia/Taipei');
-      setSvgCode(svgIcon || '');
+      setIconDataUrl(customIcon || svgIcon || '');
       setError('');
     }
-  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, svgIcon]);
+  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon]);
 
   if (!isOpen) return null;
+
+  // 圖片選擇後，透通 Canvas 自動裁切正方形並壓縮成 180x180 PNG Data URI
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, 180, 180);
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, 180, 180);
+          const pngData = canvas.toDataURL('image/png', 0.9);
+          setIconDataUrl(pngData);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +124,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         foreignCurrency: currency.trim().toUpperCase() || 'USD',
         companions: people.trim() || 'Jo, Will',
         timezone: tz.trim() || 'Asia/Taipei',
-        svgIcon: svgCode.trim(),
+        customIcon: iconDataUrl,
       });
       onSaved();
       onClose();
@@ -177,45 +206,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center justify-between">
-                  <span>旅程飛機圖示配色</span>
-                  <span className="text-slate-400 font-normal">（一鍵套用向量飛機圖示）</span>
+                  <span>上傳旅程專屬圖示 (PNG / JPG)</span>
+                  <span className="text-slate-400 font-normal">（自動壓縮 180x180 高畫質）</span>
                 </label>
-                <div className="flex items-center flex-wrap gap-1.5 mb-2.5">
-                  {[
-                    { label: '深藍金 ✈️', bg: '#0f172a', plane: '#f59e0b' },
-                    { label: '渡假綠 ✈️', bg: '#0d9488', plane: '#ffffff' },
-                    { label: '愛馬仕橘 ✈️', bg: '#d97706', plane: '#ffffff' },
-                    { label: '酷黑藍 ✈️', bg: '#18181b', plane: '#38bdf8' },
-                    { label: '珊瑚紅 ✈️', bg: '#e11d48', plane: '#ffffff' },
-                  ].map((preset) => (
+                {iconDataUrl ? (
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+                    <div className="flex items-center space-x-3">
+                      <img
+                        src={iconDataUrl}
+                        alt="旅程圖示預覽"
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs"
+                      />
+                      <div>
+                        <span className="text-xs font-extrabold text-slate-800 block">已設定專屬圖示</span>
+                        <span className="text-[10px] text-emerald-600 font-bold block">✓ 電腦分頁與 iPhone 桌面即時連動</span>
+                      </div>
+                    </div>
                     <button
-                      key={preset.label}
                       type="button"
-                      onClick={() => setSvgCode(createPlaneSvg(preset.bg, preset.plane))}
-                      className="px-2.5 py-1 text-xs font-extrabold rounded-lg border border-slate-200 hover:border-slate-400 transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5"
-                      style={{ backgroundColor: preset.bg, color: preset.plane }}
+                      onClick={() => setIconDataUrl('')}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer flex items-center space-x-1 text-xs font-bold"
+                      title="清除上傳圖示"
                     >
-                      <span>{preset.label}</span>
+                      <Trash2 className="w-4 h-4" />
+                      <span>清除</span>
                     </button>
-                  ))}
-                </div>
-
-                <textarea
-                  value={svgCode}
-                  onChange={(e) => setSvgCode(e.target.value)}
-                  placeholder="點擊上方按鈕生成飛機圖示，或自行貼上自訂 SVG Code..."
-                  rows={3}
-                  className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono resize-none"
-                />
-                {svgCode.trim() && (
-                  <div className="mt-2 flex items-center space-x-3 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                    <span className="text-[10px] font-bold text-slate-400">圖示預覽：</span>
-                    <div
-                      className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-slate-900 shadow-2xs p-1"
-                      dangerouslySetInnerHTML={{ __html: svgCode }}
-                    />
-                    <span className="text-[10px] text-emerald-600 font-bold">✓ 儲存後將自動套用至標籤頁與 iPhone 桌面</span>
                   </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/80 rounded-2xl transition-all cursor-pointer group p-3">
+                    <div className="flex items-center space-x-2 text-slate-400 group-hover:text-slate-700">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-xs font-extrabold">點擊選擇照片或圖片檔案</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 font-medium">支援格式：PNG, JPG, WebP（系統自動裁切為 180x180 滿格 PNG）</span>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
                 )}
               </div>
             </div>

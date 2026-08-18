@@ -187,25 +187,28 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const budgetTwd = settingsData?.budget_twd ? Number(settingsData.budget_twd) : 0;
     const rawTripNote = settingsData?.trip_note || '';
     let tripNote = rawTripNote;
-    let svgIcon = '';
+    let customIcon = '';
 
-    // 解析跨裝置同步的 SVG Icon（若包含在 tripNote 隱藏標籤中）
-    const svgMatch = rawTripNote.match(/<!--SVG_ICON_START-->([\s\S]*?)<!--SVG_ICON_END-->/);
-    if (svgMatch && svgMatch[1].trim()) {
-      const inner = svgMatch[1].trim();
+    // 解析跨裝置同步的自訂圖示（前台上傳之 PNG Data URI 或隱藏標籤）
+    const customIconMatch = rawTripNote.match(/<!--CUSTOM_ICON_START-->([\s\S]*?)<!--CUSTOM_ICON_END-->/) ||
+                            rawTripNote.match(/<!--SVG_ICON_START-->([\s\S]*?)<!--SVG_ICON_END-->/);
+    if (customIconMatch && customIconMatch[1].trim()) {
+      const inner = customIconMatch[1].trim();
       try {
-        svgIcon = decodeURIComponent(atob(inner));
+        customIcon = decodeURIComponent(atob(inner));
       } catch {
         try {
-          svgIcon = decodeURIComponent(inner);
+          customIcon = decodeURIComponent(inner);
         } catch {
-          svgIcon = inner;
+          customIcon = inner;
         }
       }
-      tripNote = rawTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
+      tripNote = rawTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/, '').trim();
     } else {
-      const localSvgIcon = typeof window !== 'undefined' ? localStorage.getItem(`svgIcon_${tripId}`) || '' : '';
-      svgIcon = settingsData?.svg_icon || localSvgIcon || '';
+      const localCustomIcon = typeof window !== 'undefined'
+        ? localStorage.getItem(`customIcon_${tripId}`) || localStorage.getItem(`svgIcon_${tripId}`) || ''
+        : '';
+      customIcon = settingsData?.custom_icon || settingsData?.svg_icon || localCustomIcon || '';
     }
 
     const foreignCurrency = settingsData?.foreign_currency || 'USD';
@@ -229,11 +232,12 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripTitle,
       tripDates,
       timezone,
-      svgIcon,
+      customIcon,
+      svgIcon: customIcon,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);
-    const localSvgIcon = typeof window !== 'undefined' ? localStorage.getItem(`svgIcon_${tripId}`) || '' : '';
+    const localCustomIcon = typeof window !== 'undefined' ? localStorage.getItem(`customIcon_${tripId}`) || '' : '';
     return {
       itinerary: [],
       todo: [],
@@ -249,7 +253,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripTitle: '',
       tripDates: '',
       timezone: TRIPS[tripId]?.timezone || 'Asia/Taipei',
-      svgIcon: localSvgIcon,
+      customIcon: localCustomIcon,
+      svgIcon: localCustomIcon,
     };
   }
 }
@@ -267,11 +272,14 @@ export async function updateTripSettings(
     timezone?: string;
     title?: string;
     dates?: string;
+    customIcon?: string;
     svgIcon?: string;
   }
 ): Promise<void> {
-  if (typeof window !== 'undefined' && settings.svgIcon !== undefined) {
-    localStorage.setItem(`svgIcon_${tripId}`, settings.svgIcon);
+  const iconToSave = settings.customIcon !== undefined ? settings.customIcon : settings.svgIcon;
+
+  if (typeof window !== 'undefined' && iconToSave !== undefined) {
+    localStorage.setItem(`customIcon_${tripId}`, iconToSave);
   }
 
   // 1. 查詢現有資料與欄位名稱
@@ -284,25 +292,25 @@ export async function updateTripSettings(
   const existingRow = list?.[0] || null;
   const dbKeys = existingRow ? Object.keys(existingRow) : [];
 
-  // 處理 trip_note 中跨裝置同步的 SVG Icon
+  // 處理 trip_note 中跨裝置同步的自訂上傳圖示 (PNG Data URI)
   let finalTripNote = settings.tripNote ?? '';
 
-  if (settings.svgIcon !== undefined) {
-    // 使用者明確編輯了 svgIcon 欄位
-    finalTripNote = finalTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim();
-    if (settings.svgIcon.trim()) {
+  if (iconToSave !== undefined) {
+    // 使用者明確編輯/上傳了圖示
+    finalTripNote = finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/, '').trim();
+    if (iconToSave.trim()) {
       try {
-        const encodedSvg = btoa(encodeURIComponent(settings.svgIcon.trim()));
-        finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${encodedSvg}<!--SVG_ICON_END-->`;
+        const encodedIcon = btoa(encodeURIComponent(iconToSave.trim()));
+        finalTripNote = `${finalTripNote}\n<!--CUSTOM_ICON_START-->${encodedIcon}<!--CUSTOM_ICON_END-->`;
       } catch {
-        finalTripNote = `${finalTripNote}\n<!--SVG_ICON_START-->${settings.svgIcon.trim()}<!--SVG_ICON_END-->`;
+        finalTripNote = `${finalTripNote}\n<!--CUSTOM_ICON_START-->${iconToSave.trim()}<!--CUSTOM_ICON_END-->`;
       }
     }
   } else {
-    // 使用者未填寫 svgIcon 欄位，保護並保留資料庫原本已有之隱藏標籤
-    const existingSvgMatch = existingRow?.trip_note?.match(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/);
-    if (existingSvgMatch) {
-      finalTripNote = `${finalTripNote.replace(/<!--SVG_ICON_START-->[\s\S]*?<!--SVG_ICON_END-->/, '').trim()}\n${existingSvgMatch[0]}`;
+    // 保留原始隱藏標籤
+    const existingIconMatch = existingRow?.trip_note?.match(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/);
+    if (existingIconMatch) {
+      finalTripNote = `${finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/, '').trim()}\n${existingIconMatch[0]}`;
     }
   }
 

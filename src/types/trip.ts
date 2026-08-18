@@ -69,5 +69,6 @@ export interface AllTripData {
   foreignCurrency?: string; // 外幣代碼，例如 USD / JPY / EUR
   companions?: string;    // 同行人員，例如 Jo, Will, 特特
   timezone?: string;      // 旅程目的地時區（IANA），例如 America/Los_Angeles
-  svgIcon?: string;       // 前台自訂 SVG 程式碼圖示
+  customIcon?: string;    // 前台上傳與壓縮之 180x180 PNG Data URI 圖示
+  svgIcon?: string;       // 相容舊版欄位
 }
