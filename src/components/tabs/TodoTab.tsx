@@ -57,64 +57,63 @@ export const TodoTab: React.FC<TodoTabProps> = ({
         </button>
       </div>
 
-      {/* Empty State */}
-      {filteredItems.length === 0 && (
+      {/* Empty State or Category Groups */}
+      {filteredItems.length === 0 ? (
         <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
           目前沒有待辦事項 ✨
         </div>
+      ) : (
+        Object.entries(groupedByCategory).map(([category, items]) => (
+          <div key={category} className="space-y-2">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">
+              {category}
+            </div>
+            <div className="space-y-2">
+              {items.map((item) => (
+                <div
+                  key={item.rowIndex}
+                  className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
+                    item.isDone
+                      ? 'border-slate-100 opacity-40 bg-slate-50'
+                      : 'border-slate-100 shadow-2xs hover:shadow-xs'
+                  }`}
+                >
+                  <div className="flex-1 pr-4 min-w-0">
+                    <h3
+                      className={`text-base font-extrabold text-slate-900 leading-tight ${
+                        item.isDone ? 'line-through text-slate-400' : ''
+                      }`}
+                    >
+                      <span>{item.task}</span>
+                    </h3>
+                    {item.note && (
+                      <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
+                        {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <button
+                      onClick={() => onOpenModal(item)}
+                      className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                      title="編輯"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="checkbox"
+                      checked={item.isDone}
+                      onChange={() => onToggleTodo(item.rowIndex, item.isDone)}
+                      className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
       )}
-
-      {/* Category Groups */}
-      {Object.entries(groupedByCategory).map(([category, items]) => (
-        <div key={category} className="space-y-2">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">
-            {category}
-          </div>
-          <div className="space-y-2">
-            {items.map((item) => (
-              <div
-                key={item.rowIndex}
-                className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
-                  item.isDone
-                    ? 'border-slate-100 opacity-40 bg-slate-50'
-                    : 'border-slate-100 shadow-2xs hover:shadow-xs'
-                }`}
-              >
-                <div className="flex-1 pr-4 min-w-0">
-                  <h3
-                    className={`text-base font-extrabold text-slate-900 leading-tight ${
-                      item.isDone ? 'line-through text-slate-400' : ''
-                    }`}
-                  >
-                    {item.task}
-                  </h3>
-                  {item.note && (
-                    <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
-                      {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <button
-                    onClick={() => onOpenModal(item)}
-                    className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                    title="編輯"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="checkbox"
-                    checked={item.isDone}
-                    onChange={(e) => onToggleTodo(item.rowIndex, !e.target.checked)}
-                    className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
     </div>
   );
 };

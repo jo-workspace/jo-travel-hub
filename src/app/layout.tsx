@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
+import "@/lib/dom-patch";
 
 const inter = Inter({
   subsets: ["latin"],
