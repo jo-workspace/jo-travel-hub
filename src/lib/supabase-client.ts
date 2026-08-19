@@ -26,13 +26,45 @@ const INITIAL_TRIPS: TripConfig[] = [
   },
 ];
 
+/** 依據進行狀態 (進行中 ➔ 籌備中 ➔ 已結束) 與旅程日期進行排序 */
+export function sortTrips(trips: TripConfig[]): TripConfig[] {
+  const getStatusRank = (badge: string) => {
+    if (badge.includes('進行中')) return 1;
+    if (badge.includes('籌備中')) return 2;
+    if (badge.includes('已結束') || badge.includes('完成')) return 3;
+    return 4;
+  };
+
+  const parseDate = (datesStr?: string) => {
+    if (!datesStr) return '9999-99-99';
+    const match = datesStr.match(/(\d{4})[./-](\d{1,2})/);
+    if (match) {
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      return `${year}-${month}-01`;
+    }
+    return datesStr;
+  };
+
+  return [...trips].sort((a, b) => {
+    const rankA = getStatusRank(a.badgeText || '');
+    const rankB = getStatusRank(b.badgeText || '');
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+    const dateA = parseDate(a.dates);
+    const dateB = parseDate(b.dates);
+    return dateA.localeCompare(dateB);
+  });
+}
+
 /** 確保預設旅程在資料庫中存在 */
 export async function ensureInitialTripsExist(): Promise<TripConfig[]> {
   try {
     const { data: existing, error } = await supabase.from('trips').select('*');
     if (error) {
       console.warn('Supabase trips fetch error:', error);
-      return INITIAL_TRIPS;
+      return sortTrips(INITIAL_TRIPS);
     }
     if (!existing || existing.length === 0) {
       // 種子資料寫入
@@ -46,9 +78,9 @@ export async function ensureInitialTripsExist(): Promise<TripConfig[]> {
           description: trip.description,
         });
       }
-      return INITIAL_TRIPS;
+      return sortTrips(INITIAL_TRIPS);
     }
-    return existing.map((row) => ({
+    const formatted = existing.map((row) => ({
       id: row.id,
       title: row.title,
       dates: row.dates || '',
@@ -57,9 +89,10 @@ export async function ensureInitialTripsExist(): Promise<TripConfig[]> {
       apiUrl: '',
       description: row.description || '',
     }));
+    return sortTrips(formatted);
   } catch (err) {
     console.error('ensureInitialTripsExist exception:', err);
-    return INITIAL_TRIPS;
+    return sortTrips(INITIAL_TRIPS);
   }
 }
 
