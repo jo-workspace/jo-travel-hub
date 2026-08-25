@@ -15,7 +15,8 @@ interface PackingModalProps {
   onDelete: (rowIndex: number) => Promise<void>;
 }
 
-const DEFAULT_PACKING_CATEGORIES = ['衣物', '3C電器', '美妝盥洗', '隨身', '行李', '藥品', '重要證件', '公用'];
+const DEFAULT_PACKING_CATEGORIES = ['衣物', '3C電器', '美妝盥洗', '藥品', '重要證件', '日常生活', '票券文件'];
+const INVALID_PACKING_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著'];
 const LOCATION_PRESETS = ['隨身', '托運', '手提', '穿著'];
 
 export const PackingModal: React.FC<PackingModalProps> = ({
@@ -35,12 +36,17 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   const [location, setLocation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 當前旅程類別清單（經典預設 + 當前旅程自訂類別）
+  // 當前旅程類別清單（排除誤歸為類別的位置或公用關鍵字）
   const categoryPresets = Array.from(
-    new Set([...DEFAULT_PACKING_CATEGORIES, ...existingCategories.map((c) => c.trim()).filter(Boolean)])
+    new Set([
+      ...DEFAULT_PACKING_CATEGORIES,
+      ...existingCategories
+        .map((c) => c.trim())
+        .filter((c) => c && !INVALID_PACKING_CATEGORIES.includes(c)),
+    ])
   );
 
-  // 當前旅程同行人員清單
+  // 當前旅程攜帶人員清單（僅限同行人員與攜帶歷史，並包含公用）
   const personPresets = Array.from(
     new Set([...companionsList.map((p) => p.trim()).filter(Boolean), '公用'])
   );

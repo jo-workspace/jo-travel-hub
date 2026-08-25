@@ -191,7 +191,7 @@ export default function TripPage({ params }: PageProps) {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  // 嚴格限定於「當前旅程」的同行人員名單
+  // 嚴格限定於「當前旅程同行人員 / 記帳分帳成員」
   const currentCompanions = useMemo(() => {
     const set = new Set<string>();
     const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
@@ -201,13 +201,26 @@ export default function TripPage({ params }: PageProps) {
         if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
       });
     }
-    // 從當前旅程已輸入的項目中補充人員
+    // 從記帳付款人與分帳人補充同行成員
     tripData.expenses.forEach((e) => {
       const p = (e.paidBy || '').trim();
       const s = (e.split || '').trim();
       if (p && !EXCLUDED_KEYWORDS.includes(p) && !p.includes(':') && !p.includes('：')) set.add(p);
       if (s && !EXCLUDED_KEYWORDS.includes(s) && !s.includes(':') && !s.includes('：')) set.add(s);
     });
+    return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
+  }, [tripData.companions, tripData.expenses]);
+
+  // 嚴格限定於「當前旅程攜帶人員」（只抓旅程同行設定 + 打包既有歷史人員，絕對不抓購物清單伴手禮對象）
+  const currentPackingPersons = useMemo(() => {
+    const set = new Set<string>();
+    const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
+    if (tripData.companions) {
+      tripData.companions.split(/[\n,，]+/).forEach((p) => {
+        const trimmed = p.trim();
+        if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+      });
+    }
     tripData.packing.forEach((p) => {
       if (p.person && p.person !== '公用') {
         p.person.split(/[\n,，]+/).forEach((name) => {
@@ -216,6 +229,19 @@ export default function TripPage({ params }: PageProps) {
         });
       }
     });
+    return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
+  }, [tripData.companions, tripData.packing]);
+
+  // 嚴格限定於「當前旅程購物幫買/對象」（包含同行人員 + 購物清單歷史對象）
+  const currentShoppingPersons = useMemo(() => {
+    const set = new Set<string>();
+    const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
+    if (tripData.companions) {
+      tripData.companions.split(/[\n,，]+/).forEach((p) => {
+        const trimmed = p.trim();
+        if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+      });
+    }
     tripData.shopping.forEach((s) => {
       if (s.forWhom && s.forWhom !== '公用') {
         s.forWhom.split(/[\n,，、+/]+/).forEach((name) => {
@@ -225,13 +251,17 @@ export default function TripPage({ params }: PageProps) {
       }
     });
     return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
-  }, [tripData.companions, tripData.expenses, tripData.packing, tripData.shopping]);
+  }, [tripData.companions, tripData.shopping]);
 
-  // 嚴格限定於「當前旅程」的打包類別
+  // 嚴格限定於「當前旅程」的打包類別（過濾掉誤填為類別的位置或公用關鍵字）
   const currentPackingCategories = useMemo(() => {
     const set = new Set<string>();
+    const INVALID_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著'];
     tripData.packing.forEach((p) => {
-      if (p.category && p.category.trim()) set.add(p.category.trim());
+      const cat = (p.category || '').trim();
+      if (cat && !INVALID_CATEGORIES.includes(cat)) {
+        set.add(cat);
+      }
     });
     return Array.from(set);
   }, [tripData.packing]);
@@ -651,7 +681,7 @@ export default function TripPage({ params }: PageProps) {
         item={activePackingItem}
         defaultPerson={defaultPackingPerson}
         existingCategories={currentPackingCategories}
-        companionsList={currentCompanions}
+        companionsList={currentPackingPersons}
         onClose={() => setPackingModalOpen(false)}
         onSave={handleSavePacking}
         onDelete={handleDeletePacking}
@@ -663,7 +693,7 @@ export default function TripPage({ params }: PageProps) {
         defaultStore={defaultShoppingStore}
         defaultForWhom={defaultShoppingPerson}
         existingStores={currentShoppingStores}
-        companionsList={currentCompanions}
+        companionsList={currentShoppingPersons}
         onClose={() => setShoppingModalOpen(false)}
         onSave={handleSaveShopping}
         onDelete={handleDeleteShopping}
