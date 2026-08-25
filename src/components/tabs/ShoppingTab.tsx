@@ -19,6 +19,16 @@ interface ShoppingTabProps {
 const ALL_STORES = '__all__';
 const splitTokens = (value: string) => value.split(/[\n,、+/]/).map((token) => token.trim()).filter(Boolean);
 
+export const parseShoppingQuantity = (quantity?: string): number => {
+  if (!quantity) return 1;
+  const parsed = parseFloat(quantity.replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+};
+
+export const getShoppingItemTotal = (item: ShoppingItem): number => {
+  return (item.price || 0) * parseShoppingQuantity(item.quantity);
+};
+
 export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   data,
   foreignCurrency = 'USD',
@@ -39,9 +49,9 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   const storePendingItems = isAllStores
     ? []
     : data.filter((item) => splitTokens(item.store).includes(selectedStore) && !item.isDone && item.purchaseStatus !== 'out_of_stock');
-  const plannedTotal = data.reduce((total, item) => total + (item.price || 0), 0);
+  const plannedTotal = data.reduce((total, item) => total + getShoppingItemTotal(item), 0);
   const plannedTotalTwd = Math.round(computeTwdAmount(plannedTotal, foreignCurrency, fxRate, foreignCurrency));
-  const selectedEstimate = data.reduce((total, item) => total + (item.isDone ? item.price || 0 : 0), 0);
+  const selectedEstimate = data.reduce((total, item) => total + (item.isDone ? getShoppingItemTotal(item) : 0), 0);
 
   return (
     <div className="space-y-4 pb-20">
@@ -99,6 +109,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
           const stores = splitTokens(item.store);
           const people = splitTokens(item.forWhom);
           const isOutOfStock = item.purchaseStatus === 'out_of_stock';
+          const itemQty = parseShoppingQuantity(item.quantity);
+          const itemTotal = getShoppingItemTotal(item);
           return (
             <div key={item.rowIndex} className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${isOutOfStock ? 'border-amber-200 bg-amber-50' : item.isDone ? 'border-slate-100 opacity-40 bg-slate-50' : 'border-slate-100 shadow-2xs hover:shadow-xs'}`}>
               <div className="flex-1 pr-4 min-w-0">
@@ -119,7 +131,16 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                     <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                       <h3 className={`text-base font-extrabold text-slate-900 leading-tight ${item.isDone || isOutOfStock ? 'line-through text-slate-400' : ''}`}>{item.item}</h3>
                       {item.quantity && item.quantity !== '1' && <span className="text-xs font-extrabold text-slate-800 bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded font-mono">×{item.quantity}</span>}
-                      {item.price !== undefined && item.price > 0 && <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-mono">{item.price.toLocaleString()} {foreignCurrency}</span>}
+                      {item.price !== undefined && item.price > 0 && (
+                        <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-mono">
+                          {item.price.toLocaleString()} {foreignCurrency}
+                          {itemQty > 1 && (
+                            <span className="text-[10px] text-emerald-600/80 font-bold ml-1">
+                              (共 {itemTotal.toLocaleString()})
+                            </span>
+                          )}
+                        </span>
+                      )}
                       {isOutOfStock && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">缺貨</span>}
                       {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700 transition-colors" title="商品連結"><LinkIcon className="w-4 h-4 ml-0.5 inline-block" /></a>}
                     </div>

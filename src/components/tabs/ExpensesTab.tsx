@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ExpenseItem, ShoppingItem } from '@/types/trip';
+import { getShoppingItemTotal } from '@/components/tabs/ShoppingTab';
 import { Plus, Trash2, Banknote, DollarSign, Users } from 'lucide-react';
 
 interface ExpensesTabProps {
@@ -131,7 +132,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const activeForeignCode = (foreignCurrency || 'USD').toUpperCase();
   const fxLabel = formatFxRateLabel(fxRate, activeForeignCode);
   const shoppingPlannedTwd = shopping.reduce(
-    (total, item) => total + computeTwdAmount(item.price || 0, activeForeignCode, fxRate, activeForeignCode),
+    (total, item) => total + computeTwdAmount(getShoppingItemTotal(item), activeForeignCode, fxRate, activeForeignCode),
     0,
   );
   const shoppingActualTwd = data.reduce(
