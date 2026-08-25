@@ -29,6 +29,33 @@ export const getShoppingItemTotal = (item: ShoppingItem): number => {
   return (item.price || 0) * parseShoppingQuantity(item.quantity);
 };
 
+export const sortShoppingItemsByPriceDesc = (a: ShoppingItem, b: ShoppingItem): number => {
+  // 1. 未勾選品項排在已勾選品項前面
+  if (a.isDone !== b.isDone) {
+    return a.isDone ? 1 : -1;
+  }
+  // 2. 缺貨品項排在正常品項之後
+  const aOutOfStock = a.purchaseStatus === 'out_of_stock';
+  const bOutOfStock = b.purchaseStatus === 'out_of_stock';
+  if (aOutOfStock !== bOutOfStock) {
+    return aOutOfStock ? 1 : -1;
+  }
+  // 3. 依總價 (價格 × 數量) 由高至低排序
+  const totalA = getShoppingItemTotal(a);
+  const totalB = getShoppingItemTotal(b);
+  if (totalB !== totalA) {
+    return totalB - totalA;
+  }
+  // 4. 總價相同時，依單價由高至低排序
+  const priceA = a.price || 0;
+  const priceB = b.price || 0;
+  if (priceB !== priceA) {
+    return priceB - priceA;
+  }
+  // 5. 若均相同，維持原本試算表輸入順序
+  return (a.rowIndex || 0) - (b.rowIndex || 0);
+};
+
 export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   data,
   foreignCurrency = 'USD',
@@ -42,10 +69,12 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   const [selectedStore, setSelectedStore] = useState(ALL_STORES);
   const storeList = Array.from(new Set(data.flatMap((item) => splitTokens(item.store))));
   const isAllStores = selectedStore === ALL_STORES;
-  const filteredItems = data.filter((item) => {
-    if (hideDone && item.isDone) return false;
-    return isAllStores || splitTokens(item.store).includes(selectedStore);
-  });
+  const filteredItems = data
+    .filter((item) => {
+      if (hideDone && item.isDone) return false;
+      return isAllStores || splitTokens(item.store).includes(selectedStore);
+    })
+    .sort(sortShoppingItemsByPriceDesc);
   const storePendingItems = isAllStores
     ? []
     : data.filter((item) => splitTokens(item.store).includes(selectedStore) && !item.isDone && item.purchaseStatus !== 'out_of_stock');
