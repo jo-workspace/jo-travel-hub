@@ -182,6 +182,7 @@ export default function TripPage({ params }: PageProps) {
 
   const [shoppingModalOpen, setShoppingModalOpen] = useState(false);
   const [activeShoppingItem, setActiveShoppingItem] = useState<ShoppingItem | null>(null);
+  const [defaultShoppingStore, setDefaultShoppingStore] = useState<string>('');
   const [checkoutStore, setCheckoutStore] = useState<string | null>(null);
   const [checkoutItems, setCheckoutItems] = useState<ShoppingItem[]>([]);
 
@@ -535,8 +536,9 @@ export default function TripPage({ params }: PageProps) {
                   fxRate={tripData.fxRate}
                   hideDone={hideVisited}
                   onToggleShopping={handleToggleShopping}
-                  onOpenModal={(item) => {
+                  onOpenModal={(item, defaultStore) => {
                     setActiveShoppingItem(item || null);
+                    setDefaultShoppingStore(defaultStore || '');
                     setShoppingModalOpen(true);
                   }}
                   onOpenLightbox={(img) => setLightboxUrl(img)}
@@ -582,6 +584,7 @@ export default function TripPage({ params }: PageProps) {
       <ShoppingModal
         isOpen={shoppingModalOpen}
         item={activeShoppingItem}
+        defaultStore={defaultShoppingStore}
         onClose={() => setShoppingModalOpen(false)}
         onSave={handleSaveShopping}
         onDelete={handleDeleteShopping}

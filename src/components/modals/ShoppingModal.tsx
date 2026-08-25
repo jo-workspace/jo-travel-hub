@@ -7,6 +7,7 @@ import { X, Trash2 } from 'lucide-react';
 interface ShoppingModalProps {
   isOpen: boolean;
   item?: ShoppingItem | null;
+  defaultStore?: string;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number) => Promise<void>;
@@ -15,6 +16,7 @@ interface ShoppingModalProps {
 export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   isOpen,
   item,
+  defaultStore = '',
   onClose,
   onSave,
   onDelete,
@@ -40,7 +42,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setUrl(item.url || '');
       setNote(item.note || '');
     } else {
-      setStore('Walmart');
+      setStore(defaultStore || '');
       setForWhom('Jo');
       setItemName('');
       setQuantity('1');
@@ -49,7 +51,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setUrl('');
       setNote('');
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, defaultStore]);
 
   if (!isOpen) return null;
 

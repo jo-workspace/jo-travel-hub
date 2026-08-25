@@ -11,7 +11,7 @@ interface ShoppingTabProps {
   fxRate: number;
   hideDone: boolean;
   onToggleShopping: (rowIndex: number, currentStatus: boolean) => void;
-  onOpenModal: (item?: ShoppingItem) => void;
+  onOpenModal: (item?: ShoppingItem, defaultStore?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
   onCheckoutStore: (store: string, items: ShoppingItem[]) => void;
 }
@@ -69,9 +69,12 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
             </button>
           ))}
         </div>
-        <button onClick={() => onOpenModal()} className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0">
+        <button
+          onClick={() => onOpenModal(undefined, isAllStores ? undefined : selectedStore)}
+          className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
+        >
           <Plus className="w-3.5 h-3.5" />
-          <span>新增購物</span>
+          <span>新增</span>
         </button>
       </div>
 
