@@ -8,7 +8,7 @@ interface PackingTabProps {
   data: PackingItem[];
   hidePacked: boolean;
   onTogglePacking: (rowIndex: number, currentStatus: boolean) => void;
-  onOpenModal: (item?: PackingItem) => void;
+  onOpenModal: (item?: PackingItem, defaultPerson?: string) => void;
 }
 
 const PACKING_EMOJIS: Record<string, string> = {
@@ -164,7 +164,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
         {/* Inline Add Button (+ 新增) */}
         <button
-          onClick={() => onOpenModal()}
+          onClick={() => onOpenModal(undefined, selectedPerson !== '全部' ? selectedPerson : undefined)}
           className="px-3 py-1.5 text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl cursor-pointer select-none whitespace-nowrap shadow-2xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0 ml-auto"
         >
           <Plus className="w-4 h-4" />

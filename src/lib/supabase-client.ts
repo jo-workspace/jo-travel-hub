@@ -705,12 +705,16 @@ export async function checkoutShoppingStore(
     store,
     amount,
     currency,
+    paidBy,
+    split,
     purchasedRowIndexes,
     outOfStockRowIndexes,
   }: {
     store: string;
     amount: number;
     currency: string;
+    paidBy?: string;
+    split?: string;
     purchasedRowIndexes: number[];
     outOfStockRowIndexes: number[];
   },
@@ -721,8 +725,8 @@ export async function checkoutShoppingStore(
     item: `購物：${store}`,
     amount,
     currency,
-    paidBy: 'Jo',
-    split: 'Jo',
+    paidBy: paidBy || 'Jo',
+    split: split || '均分',
     note: '由購物清單結帳建立',
   }, tripId);
 

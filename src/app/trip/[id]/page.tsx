@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, use } from 'react';
+import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
 import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem } from '@/types/trip';
@@ -179,6 +179,7 @@ export default function TripPage({ params }: PageProps) {
 
   const [packingModalOpen, setPackingModalOpen] = useState(false);
   const [activePackingItem, setActivePackingItem] = useState<PackingItem | null>(null);
+  const [defaultPackingPerson, setDefaultPackingPerson] = useState<string>('');
 
   const [shoppingModalOpen, setShoppingModalOpen] = useState(false);
   const [activeShoppingItem, setActiveShoppingItem] = useState<ShoppingItem | null>(null);
@@ -189,6 +190,74 @@ export default function TripPage({ params }: PageProps) {
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // 嚴格限定於「當前旅程」的同行人員名單
+  const currentCompanions = useMemo(() => {
+    const set = new Set<string>();
+    const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
+    if (tripData.companions) {
+      tripData.companions.split(/[\n,，]+/).forEach((p) => {
+        const trimmed = p.trim();
+        if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+      });
+    }
+    // 從當前旅程已輸入的項目中補充人員
+    tripData.expenses.forEach((e) => {
+      const p = (e.paidBy || '').trim();
+      const s = (e.split || '').trim();
+      if (p && !EXCLUDED_KEYWORDS.includes(p) && !p.includes(':') && !p.includes('：')) set.add(p);
+      if (s && !EXCLUDED_KEYWORDS.includes(s) && !s.includes(':') && !s.includes('：')) set.add(s);
+    });
+    tripData.packing.forEach((p) => {
+      if (p.person && p.person !== '公用') {
+        p.person.split(/[\n,，]+/).forEach((name) => {
+          const trimmed = name.trim();
+          if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+        });
+      }
+    });
+    tripData.shopping.forEach((s) => {
+      if (s.forWhom && s.forWhom !== '公用') {
+        s.forWhom.split(/[\n,，、+/]+/).forEach((name) => {
+          const trimmed = name.trim();
+          if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+        });
+      }
+    });
+    return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
+  }, [tripData.companions, tripData.expenses, tripData.packing, tripData.shopping]);
+
+  // 嚴格限定於「當前旅程」的打包類別
+  const currentPackingCategories = useMemo(() => {
+    const set = new Set<string>();
+    tripData.packing.forEach((p) => {
+      if (p.category && p.category.trim()) set.add(p.category.trim());
+    });
+    return Array.from(set);
+  }, [tripData.packing]);
+
+  // 嚴格限定於「當前旅程」的待辦分類
+  const currentTodoCategories = useMemo(() => {
+    const set = new Set<string>();
+    tripData.todo.forEach((t) => {
+      if (t.category && t.category.trim()) set.add(t.category.trim());
+    });
+    return Array.from(set);
+  }, [tripData.todo]);
+
+  // 嚴格限定於「當前旅程」的購物店家
+  const currentShoppingStores = useMemo(() => {
+    const set = new Set<string>();
+    tripData.shopping.forEach((s) => {
+      if (s.store) {
+        s.store.split(/[\n,、+/]+/).forEach((store) => {
+          const trimmed = store.trim();
+          if (trimmed) set.add(trimmed);
+        });
+      }
+    });
+    return Array.from(set);
+  }, [tripData.shopping]);
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -511,8 +580,9 @@ export default function TripPage({ params }: PageProps) {
                   data={tripData.packing}
                   hidePacked={hideVisited}
                   onTogglePacking={handleTogglePacking}
-                  onOpenModal={(item) => {
+                  onOpenModal={(item, defaultPerson) => {
                     setActivePackingItem(item || null);
+                    setDefaultPackingPerson(defaultPerson || '');
                     setPackingModalOpen(true);
                   }}
                 />
@@ -570,6 +640,7 @@ export default function TripPage({ params }: PageProps) {
       <TodoModal
         isOpen={todoModalOpen}
         item={activeTodoItem}
+        existingCategories={currentTodoCategories}
         onClose={() => setTodoModalOpen(false)}
         onSave={handleSaveTodo}
         onDelete={handleDeleteTodo}
@@ -578,6 +649,9 @@ export default function TripPage({ params }: PageProps) {
       <PackingModal
         isOpen={packingModalOpen}
         item={activePackingItem}
+        defaultPerson={defaultPackingPerson}
+        existingCategories={currentPackingCategories}
+        companionsList={currentCompanions}
         onClose={() => setPackingModalOpen(false)}
         onSave={handleSavePacking}
         onDelete={handleDeletePacking}
@@ -588,6 +662,8 @@ export default function TripPage({ params }: PageProps) {
         item={activeShoppingItem}
         defaultStore={defaultShoppingStore}
         defaultForWhom={defaultShoppingPerson}
+        existingStores={currentShoppingStores}
+        companionsList={currentCompanions}
         onClose={() => setShoppingModalOpen(false)}
         onSave={handleSaveShopping}
         onDelete={handleDeleteShopping}
@@ -599,6 +675,7 @@ export default function TripPage({ params }: PageProps) {
           store={checkoutStore}
           items={checkoutItems}
           currency={tripData.foreignCurrency || 'USD'}
+          companionsList={currentCompanions}
           onClose={() => setCheckoutStore(null)}
           onConfirm={handleCheckoutShoppingStore}
         />

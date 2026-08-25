@@ -9,10 +9,13 @@ interface ShoppingCheckoutModalProps {
   store: string | null;
   items: ShoppingItem[];
   currency: string;
+  companionsList?: string[];
   onClose: () => void;
   onConfirm: (data: {
     store: string;
     amount: number;
+    paidBy?: string;
+    split?: string;
     purchasedRowIndexes: number[];
     outOfStockRowIndexes: number[];
   }) => Promise<void>;
@@ -23,10 +26,15 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
   store,
   items,
   currency,
+  companionsList = [],
   onClose,
   onConfirm,
 }) => {
+  const members = companionsList.length > 0 ? companionsList : ['Jo', 'Will'];
   const [amount, setAmount] = useState('');
+  const [paidBy, setPaidBy] = useState<string>(members[0] || 'Jo');
+  const [splitMode, setSplitMode] = useState<'all' | 'single'>('all');
+  const [splitMember, setSplitMember] = useState<string>(members[0] || 'Jo');
   const [purchased, setPurchased] = useState<Set<number>>(() => new Set(items.map((item) => item.rowIndex)));
   const [outOfStock, setOutOfStock] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,6 +79,8 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
       await onConfirm({
         store,
         amount: parsedAmount,
+        paidBy,
+        split: splitMode === 'all' ? '均分' : splitMember,
         purchasedRowIndexes: Array.from(purchased),
         outOfStockRowIndexes: Array.from(outOfStock),
       });
@@ -86,7 +96,7 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-lg font-extrabold text-slate-900">{store} 結帳確認</h3>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">付款人與分攤對象將預設為 Jo</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">將自動更新購買狀態並建立一筆記帳項目</p>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer" aria-label="關閉">
             <X className="w-5 h-5" />
@@ -109,6 +119,63 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
                 className="w-full bg-slate-50 border border-slate-200 text-lg font-black font-mono px-3.5 py-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
               />
               <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-500">{currency}</span>
+            </div>
+          </div>
+
+          {/* 付款人與分攤對象選擇 */}
+          <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <div>
+              <label className="block text-[11px] font-extrabold text-slate-500 mb-1.5">付款人</label>
+              <div className="flex flex-wrap gap-1">
+                {members.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPaidBy(m)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      paidBy === m
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-extrabold text-slate-500 mb-1.5">分攤對象</label>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSplitMode('all')}
+                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                    splitMode === 'all'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  全體均分
+                </button>
+                {members.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setSplitMode('single');
+                      setSplitMember(m);
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      splitMode === 'single' && splitMember === m
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    僅 {m}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

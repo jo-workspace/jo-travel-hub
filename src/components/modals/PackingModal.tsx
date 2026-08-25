@@ -7,26 +7,43 @@ import { X, Trash2 } from 'lucide-react';
 interface PackingModalProps {
   isOpen: boolean;
   item?: PackingItem | null;
+  defaultPerson?: string;
+  existingCategories?: string[];
+  companionsList?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number) => Promise<void>;
 }
 
+const DEFAULT_PACKING_CATEGORIES = ['衣物', '3C電器', '美妝盥洗', '隨身', '行李', '藥品', '重要證件', '公用'];
 const LOCATION_PRESETS = ['隨身', '托運', '手提', '穿著'];
 
 export const PackingModal: React.FC<PackingModalProps> = ({
   isOpen,
   item,
+  defaultPerson = '',
+  existingCategories = [],
+  companionsList = [],
   onClose,
   onSave,
   onDelete,
 }) => {
   const [category, setCategory] = useState('衣物');
-  const [person, setPerson] = useState('Jo');
+  const [person, setPerson] = useState(defaultPerson || '');
   const [itemName, setItemName] = useState('');
   const [note, setNote] = useState('');
   const [location, setLocation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 當前旅程類別清單（經典預設 + 當前旅程自訂類別）
+  const categoryPresets = Array.from(
+    new Set([...DEFAULT_PACKING_CATEGORIES, ...existingCategories.map((c) => c.trim()).filter(Boolean)])
+  );
+
+  // 當前旅程同行人員清單
+  const personPresets = Array.from(
+    new Set([...companionsList.map((p) => p.trim()).filter(Boolean), '公用'])
+  );
 
   useEffect(() => {
     if (item) {
@@ -37,12 +54,12 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       setLocation(item.location || '');
     } else {
       setCategory('衣物');
-      setPerson('');
+      setPerson(defaultPerson || '');
       setItemName('');
       setNote('');
       setLocation('');
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, defaultPerson]);
 
   if (!isOpen) return null;
 
@@ -102,28 +119,61 @@ export const PackingModal: React.FC<PackingModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">類別</label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="如 衣物, 3C電器"
-                required
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-              />
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">類別</label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="輸入或點選下方快捷標籤..."
+              required
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-1.5"
+            />
+            <div className="flex items-center flex-wrap gap-1.5">
+              {categoryPresets.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setCategory(preset)}
+                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                    category === preset
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">攜帶人員 (選填)</label>
-              <input
-                type="text"
-                value={person}
-                onChange={(e) => setPerson(e.target.value)}
-                placeholder="如 Jo, Will, 公用"
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-              />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">攜帶人員 (選填)</label>
+            <input
+              type="text"
+              value={person}
+              onChange={(e) => setPerson(e.target.value)}
+              placeholder="輸入或點選下方同行人員..."
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-1.5"
+            />
+            {personPresets.length > 0 && (
+              <div className="flex items-center flex-wrap gap-1.5">
+                {personPresets.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPerson(person === p ? '' : p)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      person === p
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                        : 'bg-indigo-50/70 text-indigo-700 border-indigo-100/80 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

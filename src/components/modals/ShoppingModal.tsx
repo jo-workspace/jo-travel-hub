@@ -9,6 +9,8 @@ interface ShoppingModalProps {
   item?: ShoppingItem | null;
   defaultStore?: string;
   defaultForWhom?: string;
+  existingStores?: string[];
+  companionsList?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number) => Promise<void>;
@@ -19,12 +21,14 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   item,
   defaultStore = '',
   defaultForWhom = 'Jo',
+  existingStores = [],
+  companionsList = [],
   onClose,
   onSave,
   onDelete,
 }) => {
   const [store, setStore] = useState('');
-  const [forWhom, setForWhom] = useState('Jo');
+  const [forWhom, setForWhom] = useState(defaultForWhom || 'Jo');
   const [itemName, setItemName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [price, setPrice] = useState('');
@@ -32,6 +36,16 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   const [url, setUrl] = useState('');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 當前旅程店家清單（去重）
+  const storePresets = Array.from(
+    new Set(existingStores.map((s) => s.trim()).filter(Boolean))
+  );
+
+  // 當前旅程同行人員 / 曾買對象清單（去重）
+  const personPresets = Array.from(
+    new Set([...companionsList.map((p) => p.trim()).filter(Boolean)])
+  );
 
   useEffect(() => {
     if (item) {
@@ -117,29 +131,64 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">購買地點/店家</label>
-              <input
-                type="text"
-                value={store}
-                onChange={(e) => setStore(e.target.value)}
-                placeholder="如 Walmart, Target"
-                required
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">幫誰買 / 對象</label>
-              <input
-                type="text"
-                value={forWhom}
-                onChange={(e) => setForWhom(e.target.value)}
-                placeholder="如 Jo, Will, 特特"
-                required
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">購買地點/店家</label>
+            <input
+              type="text"
+              value={store}
+              onChange={(e) => setStore(e.target.value)}
+              placeholder="輸入或點選下方店家..."
+              required
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-1.5"
+            />
+            {storePresets.length > 0 && (
+              <div className="flex items-center flex-wrap gap-1.5">
+                {storePresets.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStore(s)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      store === s
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">幫誰買 / 對象</label>
+            <input
+              type="text"
+              value={forWhom}
+              onChange={(e) => setForWhom(e.target.value)}
+              placeholder="輸入或點選對象/同行人員..."
+              required
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-1.5"
+            />
+            {personPresets.length > 0 && (
+              <div className="flex items-center flex-wrap gap-1.5">
+                {personPresets.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setForWhom(p)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      forWhom === p
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                        : 'bg-indigo-50/70 text-indigo-700 border-indigo-100/80 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

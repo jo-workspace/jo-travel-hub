@@ -8,6 +8,7 @@ import { X, Trash2 } from 'lucide-react';
 interface TodoModalProps {
   isOpen: boolean;
   item?: TodoItem | null;
+  existingCategories?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number) => Promise<void>;
@@ -16,6 +17,7 @@ interface TodoModalProps {
 export const TodoModal: React.FC<TodoModalProps> = ({
   isOpen,
   item,
+  existingCategories = [],
   onClose,
   onSave,
   onDelete,
@@ -24,6 +26,11 @@ export const TodoModal: React.FC<TodoModalProps> = ({
   const [task, setTask] = useState('');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 當前旅程待辦分類清單（預設 + 當前旅程自訂類別）
+  const categoryPresets = Array.from(
+    new Set([...TODO_CATEGORY_PRESETS, ...existingCategories.map((c) => c.trim()).filter(Boolean)])
+  );
 
   useEffect(() => {
     if (item) {
@@ -104,7 +111,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
             />
             {/* Quick Presets */}
             <div className="flex items-center flex-wrap gap-1.5">
-              {TODO_CATEGORY_PRESETS.map((preset) => (
+              {categoryPresets.map((preset) => (
                 <button
                   key={preset}
                   type="button"
