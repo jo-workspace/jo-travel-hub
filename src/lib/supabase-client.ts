@@ -135,7 +135,17 @@ export async function deleteTrip(tripId: string): Promise<void> {
 /** 獲取單一旅程的所有資料 (行程, 待辦, 行李, 花費, 購物, 設定) */
 export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promise<AllTripData> {
   try {
-    const [itineraryRes, todoRes, packingRes, expenseRes, shoppingRes, settingsRes, tripRes] = await Promise.all([
+    const [
+      itineraryRes,
+      todoRes,
+      packingRes,
+      expenseRes,
+      shoppingRes,
+      settingsRes,
+      tripRes,
+      allPackingCatsRes,
+      allTodoCatsRes,
+    ] = await Promise.all([
       supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
       supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
       supabase.from('packing_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
@@ -150,6 +160,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         .select('*')
         .eq('id', tripId)
         .limit(1),
+      supabase.from('packing_items').select('category'),
+      supabase.from('todo_items').select('category'),
     ]);
 
     const itinerary: ItineraryItem[] = (itineraryRes.data || []).map((row, idx) => ({
@@ -250,6 +262,19 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const tripDates = settingsData?.dates || tripData?.dates || '';
     const timezone = settingsData?.timezone || TRIPS[tripId]?.timezone || 'Asia/Taipei';
 
+    // 跨旅程歷史分類聚合（去重並過濾無效關鍵字）
+    const INVALID_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著', '其他', '全部'];
+    const historicalPackingCategories = Array.from(new Set(
+      (allPackingCatsRes.data || [])
+        .map((r: any) => (r.category || '').trim())
+        .filter((c: string) => c && !INVALID_CATEGORIES.includes(c))
+    ));
+    const historicalTodoCategories = Array.from(new Set(
+      (allTodoCatsRes.data || [])
+        .map((r: any) => (r.category || '').trim())
+        .filter((c: string) => c && !INVALID_CATEGORIES.includes(c))
+    ));
+
     return {
       itinerary,
       todo,
@@ -267,6 +292,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       timezone,
       customIcon,
       svgIcon: customIcon,
+      historicalPackingCategories,
+      historicalTodoCategories,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);

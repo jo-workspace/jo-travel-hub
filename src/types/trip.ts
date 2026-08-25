@@ -71,4 +71,6 @@ export interface AllTripData {
   timezone?: string;      // 旅程目的地時區（IANA），例如 America/Los_Angeles
   customIcon?: string;    // 前台上傳與壓縮之 180x180 PNG Data URI 圖示
   svgIcon?: string;       // 相容舊版欄位
+  historicalPackingCategories?: string[]; // 跨旅程歷史打包類別
+  historicalTodoCategories?: string[];    // 跨旅程歷史待辦分類
 }

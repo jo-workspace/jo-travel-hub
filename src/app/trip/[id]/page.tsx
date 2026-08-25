@@ -253,10 +253,14 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
   }, [tripData.companions, tripData.shopping]);
 
-  // 嚴格限定於「當前旅程」的打包類別（過濾掉誤填為類別的位置或公用關鍵字）
+  // 跨旅程歷史打包類別（純歷史資料，過濾掉誤填為類別的位置或公用關鍵字）
   const currentPackingCategories = useMemo(() => {
     const set = new Set<string>();
-    const INVALID_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著'];
+    const INVALID_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著', '其他', '全部'];
+    (tripData.historicalPackingCategories || []).forEach((cat) => {
+      const trimmed = cat.trim();
+      if (trimmed && !INVALID_CATEGORIES.includes(trimmed)) set.add(trimmed);
+    });
     tripData.packing.forEach((p) => {
       const cat = (p.category || '').trim();
       if (cat && !INVALID_CATEGORIES.includes(cat)) {
@@ -264,16 +268,24 @@ export default function TripPage({ params }: PageProps) {
       }
     });
     return Array.from(set);
-  }, [tripData.packing]);
+  }, [tripData.packing, tripData.historicalPackingCategories]);
 
-  // 嚴格限定於「當前旅程」的待辦分類
+  // 跨旅程歷史待辦分類（純歷史資料）
   const currentTodoCategories = useMemo(() => {
     const set = new Set<string>();
+    const INVALID_CATEGORIES = ['其他', '全部'];
+    (tripData.historicalTodoCategories || []).forEach((cat) => {
+      const trimmed = cat.trim();
+      if (trimmed && !INVALID_CATEGORIES.includes(trimmed)) set.add(trimmed);
+    });
     tripData.todo.forEach((t) => {
-      if (t.category && t.category.trim()) set.add(t.category.trim());
+      const cat = (t.category || '').trim();
+      if (cat && !INVALID_CATEGORIES.includes(cat)) {
+        set.add(cat);
+      }
     });
     return Array.from(set);
-  }, [tripData.todo]);
+  }, [tripData.todo, tripData.historicalTodoCategories]);
 
   // 嚴格限定於「當前旅程」的購物店家
   const currentShoppingStores = useMemo(() => {

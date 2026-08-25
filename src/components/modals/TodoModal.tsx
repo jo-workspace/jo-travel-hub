@@ -27,9 +27,9 @@ export const TodoModal: React.FC<TodoModalProps> = ({
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 當前旅程待辦分類清單（預設 + 當前旅程自訂類別）
+  // 跨旅程歷史待辦分類清單（純歷史紀錄）
   const categoryPresets = Array.from(
-    new Set([...TODO_CATEGORY_PRESETS, ...existingCategories.map((c) => c.trim()).filter(Boolean)])
+    new Set(existingCategories.map((c) => c.trim()).filter((c) => c && c !== '其他' && c !== '全部'))
   );
 
   useEffect(() => {
