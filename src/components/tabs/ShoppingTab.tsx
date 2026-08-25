@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ShoppingItem } from '@/types/trip';
 import { computeTwdAmount } from '@/components/tabs/ExpensesTab';
-import { Plus, Edit3, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit3, Link as LinkIcon, User } from 'lucide-react';
 
 interface ShoppingTabProps {
   data: ShoppingItem[];
@@ -11,12 +11,13 @@ interface ShoppingTabProps {
   fxRate: number;
   hideDone: boolean;
   onToggleShopping: (rowIndex: number, currentStatus: boolean) => void;
-  onOpenModal: (item?: ShoppingItem, defaultStore?: string) => void;
+  onOpenModal: (item?: ShoppingItem, defaultStore?: string, defaultForWhom?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
   onCheckoutStore: (store: string, items: ShoppingItem[]) => void;
 }
 
 const ALL_STORES = '__all__';
+const ALL_PEOPLE = '__all__';
 const splitTokens = (value: string) => value.split(/[\n,、+/]/).map((token) => token.trim()).filter(Boolean);
 
 export const parseShoppingQuantity = (quantity?: string): number => {
@@ -67,14 +68,23 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   onCheckoutStore,
 }) => {
   const [selectedStore, setSelectedStore] = useState(ALL_STORES);
+  const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
+
   const storeList = Array.from(new Set(data.flatMap((item) => splitTokens(item.store))));
+  const personList = Array.from(new Set(data.flatMap((item) => splitTokens(item.forWhom))));
+
   const isAllStores = selectedStore === ALL_STORES;
+  const isAllPeople = selectedPerson === ALL_PEOPLE;
+
   const filteredItems = data
     .filter((item) => {
       if (hideDone && item.isDone) return false;
-      return isAllStores || splitTokens(item.store).includes(selectedStore);
+      const matchStore = isAllStores || splitTokens(item.store).includes(selectedStore);
+      const matchPerson = isAllPeople || splitTokens(item.forWhom).includes(selectedPerson);
+      return matchStore && matchPerson;
     })
     .sort(sortShoppingItemsByPriceDesc);
+
   const storePendingItems = isAllStores
     ? []
     : data.filter((item) => splitTokens(item.store).includes(selectedStore) && !item.isDone && item.purchaseStatus !== 'out_of_stock');
@@ -96,25 +106,56 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-1">
-        <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-          {[ALL_STORES, ...storeList].map((store) => (
-            <button
-              key={store}
-              onClick={() => setSelectedStore(store)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${selectedStore === store ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
-            >
-              {store === ALL_STORES ? '全部' : store}
-            </button>
-          ))}
+      <div className="space-y-2">
+        {/* 1st Layer: Store Filter + Add Button */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
+            {[ALL_STORES, ...storeList].map((store) => (
+              <button
+                key={store}
+                onClick={() => setSelectedStore(store)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${selectedStore === store ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
+              >
+                {store === ALL_STORES ? '全部店家' : store}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => onOpenModal(undefined, isAllStores ? undefined : selectedStore, isAllPeople ? undefined : selectedPerson)}
+            className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>新增</span>
+          </button>
         </div>
-        <button
-          onClick={() => onOpenModal(undefined, isAllStores ? undefined : selectedStore)}
-          className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>新增</span>
-        </button>
+
+        {/* 2nd Layer: Recipient / Person Filter */}
+        {personList.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex items-center gap-1 text-[11px] font-extrabold text-slate-400 pl-1 pr-1 flex-shrink-0 select-none">
+              <User className="w-3.5 h-3.5 text-indigo-500" />
+              <span>對象</span>
+            </div>
+            <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
+              {[ALL_PEOPLE, ...personList].map((person) => {
+                const isSelected = selectedPerson === person;
+                return (
+                  <button
+                    key={person}
+                    onClick={() => setSelectedPerson(person)}
+                    className={`px-2.5 py-1 text-xs font-extrabold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'bg-indigo-50/70 text-indigo-700 border border-indigo-100/60 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {person === ALL_PEOPLE ? '全部' : person}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {!isAllStores && (
@@ -130,7 +171,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       )}
 
       {filteredItems.length === 0 && (
-        <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">目前沒有購物清單</div>
+        <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">目前沒有符合條件的購物清單</div>
       )}
 
       <div className="space-y-2.5">

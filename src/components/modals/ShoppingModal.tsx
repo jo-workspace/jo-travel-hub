@@ -8,6 +8,7 @@ interface ShoppingModalProps {
   isOpen: boolean;
   item?: ShoppingItem | null;
   defaultStore?: string;
+  defaultForWhom?: string;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number) => Promise<void>;
@@ -17,6 +18,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   isOpen,
   item,
   defaultStore = '',
+  defaultForWhom = 'Jo',
   onClose,
   onSave,
   onDelete,
@@ -43,7 +45,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setNote(item.note || '');
     } else {
       setStore(defaultStore || '');
-      setForWhom('Jo');
+      setForWhom(defaultForWhom || 'Jo');
       setItemName('');
       setQuantity('1');
       setPrice('');
@@ -51,7 +53,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setUrl('');
       setNote('');
     }
-  }, [item, isOpen, defaultStore]);
+  }, [item, isOpen, defaultStore, defaultForWhom]);
 
   if (!isOpen) return null;
 
