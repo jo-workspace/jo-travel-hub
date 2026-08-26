@@ -193,16 +193,16 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Sticky Header Container: Freeze at top during scroll */}
-      <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
+      {/* Sticky Header Container: Freeze right below top header during scroll */}
+      <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
         {/* Top Filter Controls: Dynamic Transition between Expanded & Compact Single Row */}
         <div className={`bg-white/95 rounded-2xl border border-slate-200/70 shadow-2xs transition-all duration-200 ${
           isScrolled ? 'p-1.5' : 'p-2.5 space-y-2'
         }`}>
           {isScrolled ? (
-            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll */
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5 px-0.5 text-xs">
-              <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 ml-0.5" />
+            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules */
+            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 px-1 text-xs">
+              <span className="text-[11px] font-black text-slate-400 select-none pl-1 flex-shrink-0">類別</span>
               {categoryList.map((cat) => {
                 const isSelected = selectedCategory === cat;
                 const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
@@ -213,10 +213,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                       setSelectedCategory(cat);
                       if (showCategoryError) setShowCategoryError(false);
                     }}
-                    className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                    className={`px-3 py-1 text-xs font-black rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                       isSelected
-                        ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 border border-slate-200/70 hover:bg-slate-200'
                     }`}
                   >
                     {emoji}{cat}
@@ -227,18 +227,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               {/* Person Badges */}
               {hasMultiplePersons && (
                 <>
-                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                  <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <div className="h-4 w-px bg-slate-200 flex-shrink-0 mx-1" />
+                  <span className="text-[11px] font-black text-slate-400 select-none flex-shrink-0">人員</span>
                   {personList.map((person) => {
                     const isSelected = selectedPerson === person;
                     return (
                       <button
                         key={`scroll-p-${person}`}
                         onClick={() => setSelectedPerson(person)}
-                        className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                        className={`px-2.5 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                           isSelected
-                            ? 'bg-indigo-600 text-white shadow-2xs'
-                            : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-indigo-50/70 text-indigo-700 border border-indigo-200/60 hover:bg-indigo-100'
                         }`}
                       >
                         {person}
@@ -251,18 +251,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               {/* Location Badges */}
               {locationList.length > 1 && (
                 <>
-                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                  <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <div className="h-4 w-px bg-slate-200 flex-shrink-0 mx-1" />
+                  <span className="text-[11px] font-black text-slate-400 select-none flex-shrink-0">位置</span>
                   {locationList.map((loc) => {
                     const isSelected = selectedLocation === loc;
                     return (
                       <button
                         key={`scroll-loc-${loc}`}
                         onClick={() => setSelectedLocation(loc)}
-                        className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                        className={`px-2.5 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                           isSelected
-                            ? 'bg-amber-600 text-white shadow-2xs'
-                            : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-amber-50/70 text-amber-700 border border-amber-200/60 hover:bg-amber-100'
                         }`}
                       >
                         {loc}
