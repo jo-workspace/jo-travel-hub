@@ -209,31 +209,25 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
           </button>
         </div>
 
-        {/* 2nd Layer: Recipient / Person Filter */}
+        {/* 2nd Layer: Recipient / Person Filter (Subtle Tint without border for visual hierarchy) */}
         {personList.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <div className="flex items-center gap-1 text-[11px] font-extrabold text-slate-400 pl-1 pr-1 flex-shrink-0 select-none">
-              <User className="w-3.5 h-3.5 text-indigo-500" />
-              <span>對象</span>
-            </div>
-            <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-              {[ALL_PEOPLE, ...personList].map((person) => {
-                const isSelected = selectedPerson === person;
-                return (
-                  <button
-                    key={person}
-                    onClick={() => setSelectedPerson(person)}
-                    className={`px-2.5 py-1 text-xs font-extrabold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white shadow-2xs'
-                        : 'bg-indigo-50/70 text-indigo-700 border border-indigo-100/60 hover:bg-indigo-100'
-                    }`}
-                  >
-                    {person === ALL_PEOPLE ? '全部' : person}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[ALL_PEOPLE, ...personList].map((person) => {
+              const isSelected = selectedPerson === person;
+              return (
+                <button
+                  key={person}
+                  onClick={() => setSelectedPerson(person)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    isSelected
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                  }`}
+                >
+                  {person === ALL_PEOPLE ? '全部對象' : person}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

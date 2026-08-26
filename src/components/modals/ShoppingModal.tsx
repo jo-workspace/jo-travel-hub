@@ -30,6 +30,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
 }) => {
   const [store, setStore] = useState('');
   const [recipientTags, setRecipientTags] = useState<RecipientTag[]>([{ name: 'Jo', isProxy: false, quantity: 1 }]);
+  const [isProxy, setIsProxy] = useState(false);
   const [customPerson, setCustomPerson] = useState('');
   const [itemName, setItemName] = useState('');
   const [price, setPrice] = useState('');
@@ -55,7 +56,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   useEffect(() => {
     if (item) {
       setStore(item.store || '');
-      setRecipientTags(parseRecipientTags(item.forWhom || defaultForWhom || 'Jo'));
+      const parsed = parseRecipientTags(item.forWhom || defaultForWhom || 'Jo');
+      setRecipientTags(parsed);
+      setIsProxy(parsed.some((t) => t.isProxy));
       setItemName(item.item || '');
       setPrice(item.price ? String(item.price) : '');
       setImage(item.image || '');
@@ -63,7 +66,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setNote(item.note || '');
     } else {
       setStore(defaultStore || '');
-      setRecipientTags(parseRecipientTags(defaultForWhom || 'Jo'));
+      const parsed = parseRecipientTags(defaultForWhom || 'Jo');
+      setRecipientTags(parsed);
+      setIsProxy(false);
       setItemName('');
       setPrice('');
       setImage('');
@@ -76,7 +81,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
 
   const totalQuantity = recipientTags.reduce((sum, t) => sum + t.quantity, 0) || 1;
 
-  const handleAddPerson = (name: string, isProxy = false) => {
+  const handleAddPerson = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     setRecipientTags((prev) => {
@@ -92,26 +97,6 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     setCustomPerson('');
   };
 
-  const handleToggleProxy = (index: number) => {
-    setRecipientTags((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], isProxy: !updated[index].isProxy };
-      return updated;
-    });
-  };
-
-  const handleUpdateQty = (index: number, delta: number) => {
-    setRecipientTags((prev) => {
-      const updated = [...prev];
-      const newQty = updated[index].quantity + delta;
-      if (newQty <= 0) {
-        return prev.filter((_, idx) => idx !== index);
-      }
-      updated[index] = { ...updated[index], quantity: newQty };
-      return updated;
-    });
-  };
-
   const handleRemoveTag = (index: number) => {
     setRecipientTags((prev) => prev.filter((_, idx) => idx !== index));
   };
@@ -120,7 +105,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     e.preventDefault();
     if (!itemName.trim()) return;
 
-    const finalForWhom = serializeRecipientTags(recipientTags.length > 0 ? recipientTags : [{ name: 'Jo', isProxy: false, quantity: 1 }]);
+    const baseTags = recipientTags.length > 0 ? recipientTags : [{ name: 'Jo', isProxy: false, quantity: 1 }];
+    const normalizedTags = baseTags.map((t) => ({ ...t, isProxy }));
+    const finalForWhom = serializeRecipientTags(normalizedTags);
 
     setIsSubmitting(true);
     try {
@@ -180,7 +167,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* Store Input */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">購買地點/店家</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">地點/店家</label>
             <input
               type="text"
               value={store}
@@ -209,69 +196,61 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             )}
           </div>
 
-          {/* Multi-Recipient Tag Manager */}
-          <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black text-slate-700 flex items-center space-x-1">
-                <User className="w-3.5 h-3.5 text-indigo-600" />
-                <span>購買對象 (點擊切換自用/代購 · 重複點擊累加)</span>
-              </label>
-              <span className="text-[11px] font-extrabold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200/70">
-                總數量：<strong className="text-slate-900 font-mono text-xs">{totalQuantity}</strong>
-              </span>
+          {/* Multi-Recipient Tag Manager (Clean structure matching store) */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-500">對象 (重複點擊累加)</label>
+              <div className="flex items-center space-x-2.5">
+                <label className="flex items-center space-x-1.5 text-xs font-bold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isProxy}
+                    onChange={(e) => setIsProxy(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 cursor-pointer accent-amber-500"
+                  />
+                  <span className={isProxy ? 'text-amber-700 font-extrabold' : 'text-slate-500'}>代購</span>
+                </label>
+                <span className="text-[11px] font-bold font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                  共 {totalQuantity} 件
+                </span>
+              </div>
             </div>
 
-            {/* Selected Recipient Pills (No complex steppers) */}
-            <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center">
-              {recipientTags.length === 0 && (
-                <span className="text-xs text-slate-400">尚未選擇對象（點擊下方加入）</span>
-              )}
-              {recipientTags.map((tag, idx) => (
-                <div
-                  key={`${tag.name}-${idx}`}
-                  className={`inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl text-xs font-bold transition-all border shadow-2xs ${
-                    tag.isProxy
-                      ? 'bg-amber-50 text-amber-950 border-amber-300/80'
-                      : 'bg-white text-slate-800 border-slate-200'
-                  }`}
-                >
-                  {/* Toggle Proxy Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleProxy(idx)}
-                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer select-none ${
-                      tag.isProxy
-                        ? 'bg-amber-500 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+            {/* Selected Recipient Pills */}
+            {recipientTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2 min-h-[30px] items-center">
+                {recipientTags.map((tag, idx) => (
+                  <div
+                    key={`${tag.name}-${idx}`}
+                    className={`inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-xl text-xs font-bold transition-all border shadow-2xs ${
+                      isProxy
+                        ? 'bg-amber-50 text-amber-950 border-amber-300/80'
+                        : 'bg-white text-slate-800 border-slate-200'
                     }`}
-                    title={tag.isProxy ? '點擊切換為自用' : '點擊切換為代購'}
                   >
-                    {tag.isProxy ? '代購' : '自用'}
-                  </button>
+                    <span
+                      onClick={() => handleAddPerson(tag.name)}
+                      className="font-bold cursor-pointer hover:opacity-75 select-none"
+                      title="點擊可增加數量"
+                    >
+                      {tag.name} {tag.quantity > 1 ? `×${tag.quantity}` : ''}
+                    </span>
 
-                  <span
-                    onClick={() => handleAddPerson(tag.name, tag.isProxy)}
-                    className="font-bold cursor-pointer hover:opacity-75 select-none"
-                    title="點擊可增加數量"
-                  >
-                    {tag.name} {tag.quantity > 1 ? `×${tag.quantity}` : ''}
-                  </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(idx)}
+                      className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5 rounded-full hover:bg-slate-100 transition-colors"
+                      title="移除"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {/* Remove Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(idx)}
-                    className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5 rounded-full hover:bg-slate-100 transition-colors"
-                    title="移除"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Recipient Segmented Control & Custom Input (Matching store preset style) */}
-            <div className="flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
+            {/* Recipient Segmented Control & Custom Input */}
+            <div className="inline-flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
               {personPresets.map((p) => {
                 const existing = recipientTags.find((t) => t.name === p);
                 return (
