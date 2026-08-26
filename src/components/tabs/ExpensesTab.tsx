@@ -283,57 +283,75 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     if (creditor.amount <= 1) cIdx++;
   }
 
-  // 抓取購物清單中「已購買 (isDone = true) 且是代購 (isProxy = true)」的項目
+  // 解析購物清單中所有代購項目（含已買與待買）
   interface ProxyReceivableItem {
     itemName: string;
     quantity: number;
     unitPrice: number;
     totalForeign: number;
     totalTwd: number;
+    isDone: boolean;
   }
 
   const [copiedPerson, setCopiedPerson] = useState<string | null>(null);
   const proxyReceivables: Record<string, ProxyReceivableItem[]> = {};
   let totalProxyTwd = 0;
   let totalProxyForeign = 0;
+  let purchasedProxyTwd = 0;
+  let purchasedProxyForeign = 0;
+  let personalShoppingPlannedTwd = 0;
 
   shopping.forEach((sItem) => {
-    if (!sItem.isDone) return; // 只有實際已購買的才產生
     const tags = parseRecipientTags(sItem.forWhom);
     const price = sItem.price || 0;
 
     tags.forEach((tag) => {
-      if (!tag.isProxy) return; // 只有代購的才算進請款清冊
-      const personName = tag.name.trim();
-      if (!personName) return;
-
       const itemForeign = price * tag.quantity;
       const itemTwd = Math.round(computeTwdAmount(itemForeign, activeForeignCode, fxRate, activeForeignCode));
 
-      if (!proxyReceivables[personName]) {
-        proxyReceivables[personName] = [];
+      if (tag.isProxy) {
+        const personName = tag.name.trim();
+        if (!personName) return;
+
+        if (!proxyReceivables[personName]) {
+          proxyReceivables[personName] = [];
+        }
+
+        proxyReceivables[personName].push({
+          itemName: sItem.item,
+          quantity: tag.quantity,
+          unitPrice: price,
+          totalForeign: itemForeign,
+          totalTwd: itemTwd,
+          isDone: !!sItem.isDone,
+        });
+
+        totalProxyForeign += itemForeign;
+        totalProxyTwd += itemTwd;
+        if (sItem.isDone) {
+          purchasedProxyForeign += itemForeign;
+          purchasedProxyTwd += itemTwd;
+        }
+      } else {
+        personalShoppingPlannedTwd += itemTwd;
       }
-
-      proxyReceivables[personName].push({
-        itemName: sItem.item,
-        quantity: tag.quantity,
-        unitPrice: price,
-        totalForeign: itemForeign,
-        totalTwd: itemTwd,
-      });
-
-      totalProxyForeign += itemForeign;
-      totalProxyTwd += itemTwd;
     });
   });
 
+  const hasProxyItems = Object.keys(proxyReceivables).length > 0;
+
   const handleCopyProxyMessage = (personName: string, items: ProxyReceivableItem[]) => {
-    const personForeignTotal = items.reduce((s, i) => s + i.totalForeign, 0);
-    const personTwdTotal = items.reduce((s, i) => s + i.totalTwd, 0);
+    const purchasedItems = items.filter((i) => i.isDone);
+    const targetItems = purchasedItems.length > 0 ? purchasedItems : items;
+    const personForeignTotal = targetItems.reduce((s, i) => s + i.totalForeign, 0);
+    const personTwdTotal = targetItems.reduce((s, i) => s + i.totalTwd, 0);
 
     const lines = [
       `【代購請款明細 - ${personName}】`,
-      ...items.map((i, idx) => `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD)`),
+      ...targetItems.map(
+        (i, idx) =>
+          `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD)${i.isDone ? ' [已買✓]' : ' [待購]'}`
+      ),
       `───────────────`,
       `合計應付：$${personTwdTotal.toLocaleString()} TWD (${personForeignTotal.toLocaleString()} ${activeForeignCode})`,
     ];
@@ -469,23 +487,73 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
             })}
           </div>
 
+          {/* Shopping & Proxy Stats Grid (3-Card Uniform Centered Layout) */}
+          <div className="grid grid-cols-3 gap-2">
+            {/* 1. 自用伴手禮預估 */}
+            <div className="bg-white border border-slate-100 p-3 rounded-2xl text-center shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+                自用伴手禮
+              </span>
+              <span className="text-sm font-mono font-black text-slate-900 mt-0.5 block truncate">
+                ${personalShoppingPlannedTwd.toLocaleString()}
+              </span>
+              <span className="text-[9px] font-bold text-slate-400 block mt-0.5 truncate">
+                預算估算
+              </span>
+            </div>
+
+            {/* 2. 代購待請款 */}
+            <div className="bg-amber-50/70 border border-amber-200/70 p-3 rounded-2xl text-center shadow-2xs">
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block truncate">
+                代購待請款
+              </span>
+              <span className="text-sm font-mono font-black text-amber-900 mt-0.5 block truncate">
+                ${purchasedProxyTwd.toLocaleString()}
+              </span>
+              <span className="text-[9px] font-bold text-amber-600/90 block mt-0.5 truncate">
+                {totalProxyTwd > purchasedProxyTwd ? `預估 $${totalProxyTwd.toLocaleString()}` : '已全部購得'}
+              </span>
+            </div>
+
+            {/* 3. 實際已購 */}
+            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-center shadow-2xs">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block truncate">
+                實際已購
+              </span>
+              <span className="text-sm font-mono font-black text-emerald-700 mt-0.5 block truncate">
+                ${Math.round(shoppingActualTwd).toLocaleString()}
+              </span>
+              <span className="text-[9px] font-bold text-emerald-600/80 block mt-0.5 truncate">
+                已記帳支出
+              </span>
+            </div>
+          </div>
+
           {/* Proxy Receivables Settlement Section (代購請款清冊) */}
-          {Object.keys(proxyReceivables).length > 0 && (
+          {hasProxyItems ? (
             <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1.5 text-amber-900 font-extrabold text-xs">
                   <HandCoins className="w-4 h-4 text-amber-700" />
-                  <span>🤝 代購請款清冊 (已購代墊)</span>
+                  <span>🤝 代購請款清冊</span>
                 </div>
-                <span className="text-[11px] font-black text-amber-900 font-mono">
-                  共 ${totalProxyTwd.toLocaleString()} TWD
-                </span>
+                <div className="text-right">
+                  <span className="text-xs font-black text-amber-900 font-mono">
+                    已買待收 ${purchasedProxyTwd.toLocaleString()}
+                  </span>
+                  {totalProxyTwd > purchasedProxyTwd && (
+                    <span className="text-[10px] text-amber-600/80 font-bold block">
+                      (預估共 ${totalProxyTwd.toLocaleString()})
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
                 {Object.entries(proxyReceivables).map(([personName, pItems]) => {
+                  const purchasedList = pItems.filter((i) => i.isDone);
                   const personTwd = pItems.reduce((s, i) => s + i.totalTwd, 0);
-                  const personForeign = pItems.reduce((s, i) => s + i.totalForeign, 0);
+                  const personPurchasedTwd = purchasedList.reduce((s, i) => s + i.totalTwd, 0);
                   const isCopied = copiedPerson === personName;
 
                   return (
@@ -494,12 +562,12 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                         <div className="flex items-center space-x-1.5">
                           <span className="text-xs font-black text-slate-900">👤 {personName}</span>
                           <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded">
-                            {pItems.length} 項商品
+                            {purchasedList.length}/{pItems.length} 已買
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-xs font-black font-mono text-amber-950">
-                            ${personTwd.toLocaleString()} TWD
+                            ${personPurchasedTwd.toLocaleString()} TWD
                           </span>
                           <button
                             type="button"
@@ -521,9 +589,11 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       <div className="text-[11px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
                         {pItems.map((pItem, idx) => (
                           <div key={idx} className="flex items-center justify-between">
-                            <span className="truncate pr-2">{pItem.itemName} ×{pItem.quantity}</span>
-                            <span className="font-mono text-slate-700 flex-shrink-0">
-                              {pItem.totalForeign.toLocaleString()} {activeForeignCode}
+                            <span className={`truncate pr-2 ${pItem.isDone ? 'text-slate-900 font-semibold' : 'text-slate-400 line-through'}`}>
+                              {pItem.isDone ? '✓ ' : '⏳ '}{pItem.itemName} ×{pItem.quantity}
+                            </span>
+                            <span className="font-mono text-slate-700 flex-shrink-0 text-[10px]">
+                              {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd})
                             </span>
                           </div>
                         ))}
@@ -533,18 +603,12 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 })}
               </div>
             </div>
+          ) : (
+            <div className="bg-amber-50/40 border border-dashed border-amber-200/70 p-3 rounded-2xl text-center text-xs text-amber-800/80 flex items-center justify-center space-x-1.5">
+              <HandCoins className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+              <span>目前尚無代購項目（在購物清單點擊 🤝 切換為代購即可在此分人請款）</span>
+            </div>
           )}
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">購物預估</span>
-              <span className="text-sm font-mono font-black text-slate-900 mt-0.5 block">${Math.round(shoppingPlannedTwd).toLocaleString()} TWD</span>
-            </div>
-            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl shadow-2xs">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">實際已購</span>
-              <span className="text-sm font-mono font-black text-emerald-700 mt-0.5 block">${Math.round(shoppingActualTwd).toLocaleString()} TWD</span>
-            </div>
-          </div>
 
           {/* Quick Expense Form */}
           <form
