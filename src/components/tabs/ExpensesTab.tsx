@@ -177,7 +177,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [currency, setCurrency] = useState<string>(activeForeignCode);
   const [category, setCategory] = useState('🍔');
   const [paidBy, setPaidBy] = useState<string>(members[0] || 'Jo');
-  const [splitMode, setSplitMode] = useState<'weighted' | 'exact' | 'single'>('weighted');
+  const [splitMode, setSplitMode] = useState<'equal' | 'weighted' | 'exact' | 'single'>('equal');
   const [selectedSingleMember, setSelectedSingleMember] = useState<string>(members[0] || 'Jo');
   const [memberWeights, setMemberWeights] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
@@ -379,7 +379,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     if (!item.trim() || !amount || parseFloat(amount) <= 0) return;
 
     let finalSplit = '均分';
-    if (splitMode === 'single') {
+    if (splitMode === 'equal') {
+      finalSplit = '均分';
+    } else if (splitMode === 'single') {
       finalSplit = selectedSingleMember;
     } else if (splitMode === 'exact') {
       // 實際指定金額分攤模式
@@ -605,74 +607,123 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 </div>
               </div>
 
-              {/* Split Mode Selector */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-400 text-[10px] uppercase">分攤方式</label>
-                  <div className="flex items-center space-x-1">
-                    <button
-                      type="button"
-                      onClick={() => setSplitMode('weighted')}
-                      className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
-                        splitMode === 'weighted'
-                          ? 'bg-slate-700 text-amber-300 font-bold'
-                          : 'text-slate-500 hover:text-slate-400'
-                      }`}
-                    >
-                      比例/均分
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSplitMode('exact')}
-                      className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
-                        splitMode === 'exact'
-                          ? 'bg-slate-700 text-amber-300 font-bold'
-                          : 'text-slate-500 hover:text-slate-400'
-                      }`}
-                    >
-                      自訂金額
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSplitMode('single')}
-                      className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
-                        splitMode === 'single'
-                          ? 'bg-slate-700 text-amber-300 font-bold'
-                          : 'text-slate-500 hover:text-slate-400'
-                      }`}
-                    >
-                      單人負擔
-                    </button>
-                  </div>
+              {/* Split Mode Selector (4 Full-width Direct Tabs) */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-1 bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setSplitMode('equal')}
+                    className={`py-1.5 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      splitMode === 'equal'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    均分
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitMode('weighted')}
+                    className={`py-1.5 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      splitMode === 'weighted'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    比例
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitMode('exact')}
+                    className={`py-1.5 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      splitMode === 'exact'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    自訂金額
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitMode('single')}
+                    className={`py-1.5 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      splitMode === 'single'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    單人
+                  </button>
                 </div>
 
+                {/* Conditional Sub-panel */}
                 {splitMode === 'single' ? (
-                  <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
+                  <div className="flex items-center space-x-1.5 bg-slate-800/60 p-1.5 rounded-xl overflow-x-auto no-scrollbar">
                     {members.map((m) => (
                       <button
                         key={`single-${m}`}
                         type="button"
                         onClick={() => setSelectedSingleMember(m)}
-                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer whitespace-nowrap ${
+                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold text-center transition-all cursor-pointer whitespace-nowrap ${
                           selectedSingleMember === m
-                            ? 'bg-indigo-600 text-white font-black shadow-xs'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                            : 'text-slate-400 hover:text-white bg-slate-800'
                         }`}
                       >
                         {m}
                       </button>
                     ))}
                   </div>
+                ) : splitMode === 'weighted' ? (
+                  <div className="bg-slate-800/60 p-2.5 rounded-xl space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {members.map((m) => {
+                        const currentWeight = memberWeights[m] ?? 1;
+                        return (
+                          <div
+                            key={`weight-${m}`}
+                            className="flex items-center justify-between bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/50"
+                          >
+                            <span className="text-xs font-bold text-slate-200 truncate mr-2">{m}</span>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (currentWeight > 0) {
+                                    setMemberWeights((prev) => ({ ...prev, [m]: currentWeight - 1 }));
+                                  }
+                                }}
+                                className="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 active:bg-slate-500 rounded-lg text-white font-bold text-base cursor-pointer active:scale-95 transition-all select-none"
+                              >
+                                -
+                              </button>
+                              <span className="font-mono text-amber-400 font-black text-sm w-4 text-center">
+                                {currentWeight}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMemberWeights((prev) => ({ ...prev, [m]: currentWeight + 1 }));
+                                }}
+                                className="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 active:bg-slate-500 rounded-lg text-white font-bold text-base cursor-pointer active:scale-95 transition-all select-none"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : splitMode === 'exact' ? (
-                  /* 自訂實際金額分攤 UI */
                   <div className="space-y-2 bg-slate-800/60 p-2.5 rounded-xl">
                     {(() => {
                       const totalAllocated = members.reduce((sum, m) => sum + (parseFloat(memberAmounts[m]) || 0), 0);
                       const remaining = Math.round((parsedAmount - totalAllocated) * 100) / 100;
                       return (
                         <>
-                          <div className="flex items-center justify-between text-[10px] px-1 font-bold">
-                            <span className="text-slate-400">輸入各人分擔之金額 ({currency})</span>
+                          <div className="flex items-center justify-between text-[11px] px-1 font-bold">
+                            <span className="text-slate-400">各人分擔金額 ({currency})</span>
                             <span
                               className={
                                 Math.abs(remaining) < 0.01 && parsedAmount > 0
@@ -683,12 +734,12 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                               }
                             >
                               {parsedAmount <= 0
-                                ? '請先在上方輸入金額'
+                                ? '請先輸入金額'
                                 : Math.abs(remaining) < 0.01
-                                ? '✓ 金額已完全吻合'
+                                ? '✓ 金額完全吻合'
                                 : remaining > 0
-                                ? `未分配: $${remaining.toLocaleString()} ${currency}`
-                                : `超出總額: $${Math.abs(remaining).toLocaleString()} ${currency}`}
+                                ? `未分配: $${remaining.toLocaleString()}`
+                                : `超出總額: $${Math.abs(remaining).toLocaleString()}`}
                             </span>
                           </div>
 
@@ -696,7 +747,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                             {members.map((m) => {
                               const currentVal = memberAmounts[m] || '';
                               return (
-                                <div key={`exact-${m}`} className="flex items-center justify-between bg-slate-800 px-3 py-1.5 rounded-lg gap-2">
+                                <div key={`exact-${m}`} className="flex items-center justify-between bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/50 gap-2">
                                   <span className="text-xs font-bold text-slate-300 truncate min-w-[50px]">{m}</span>
                                   <div className="flex items-center space-x-1.5 flex-1 justify-end">
                                     <input
@@ -709,7 +760,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                                         setMemberAmounts((prev) => ({ ...prev, [m]: val }));
                                       }}
                                       placeholder="0"
-                                      className="w-24 bg-slate-900 text-white font-mono font-bold text-xs px-2.5 py-1 rounded-md outline-none border border-slate-700 focus:border-amber-400 text-right"
+                                      className="w-24 bg-slate-900 text-white font-mono font-bold text-xs px-2.5 py-1 rounded-lg outline-none border border-slate-700 focus:border-amber-400 text-right"
                                     />
                                     {remaining > 0 && (!currentVal || parseFloat(currentVal) === 0) && (
                                       <button
@@ -720,7 +771,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                                             [m]: String(remaining),
                                           }));
                                         }}
-                                        className="text-[10px] font-bold bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 px-2 py-1 rounded transition-all cursor-pointer whitespace-nowrap"
+                                        className="text-[11px] font-bold bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 px-2 py-1 rounded-md transition-all cursor-pointer whitespace-nowrap"
                                       >
                                         填入剩餘
                                       </button>
@@ -734,60 +785,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       );
                     })()}
                   </div>
-                ) : (
-                  <div className="space-y-1.5 bg-slate-800/60 p-2 rounded-xl">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
-                      <span>各人分擔份數 (設為 0 代表不分擔)</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const reset: Record<string, number> = {};
-                          members.forEach((m) => { reset[m] = 1; });
-                          setMemberWeights(reset);
-                        }}
-                        className="text-amber-400 hover:underline cursor-pointer"
-                      >
-                        重置為全員均分
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {members.map((m) => {
-                        const currentWeight = memberWeights[m] ?? 1;
-                        return (
-                          <div key={`weight-${m}`} className="flex items-center justify-between bg-slate-800 px-2.5 py-1 rounded-lg">
-                            <span className="text-slate-300 truncate mr-1">{m}</span>
-                            <div className="flex items-center space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (currentWeight > 0) {
-                                    setMemberWeights((prev) => ({ ...prev, [m]: currentWeight - 1 }));
-                                  }
-                                }}
-                                className="w-5 h-5 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-slate-300 font-mono text-xs cursor-pointer active:scale-95"
-                              >
-                                -
-                              </button>
-                              <span className="font-mono text-amber-300 text-xs w-4 text-center">
-                                {currentWeight}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMemberWeights((prev) => ({ ...prev, [m]: currentWeight + 1 }));
-                                }}
-                                className="w-5 h-5 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-slate-300 font-mono text-xs cursor-pointer active:scale-95"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
 
