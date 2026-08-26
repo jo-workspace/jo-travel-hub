@@ -15,6 +15,10 @@ interface PackingTabProps {
 const stripEmoji = (str: string) =>
   str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|\p{Extended_Pictographic}/gu, '').trim();
 
+const ALL_CATEGORIES = '全類別';
+const ALL_PERSONS = '全人員';
+const ALL_LOCATIONS = '全位置';
+
 export const PackingTab: React.FC<PackingTabProps> = ({
   data,
   hidePacked,
@@ -22,9 +26,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   onOpenModal,
   onQuickAdd,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('全部');
-  const [selectedPerson, setSelectedPerson] = useState<string>('全部');
-  const [selectedLocation, setSelectedLocation] = useState<string>('全部');
+  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
+  const [selectedPerson, setSelectedPerson] = useState<string>(ALL_PERSONS);
+  const [selectedLocation, setSelectedLocation] = useState<string>(ALL_LOCATIONS);
 
   const [quickItemName, setQuickItemName] = useState('');
   const [showCategoryError, setShowCategoryError] = useState(false);
@@ -59,7 +63,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     }
   });
 
-  const categoryList = ['全部', ...Array.from(categorySet).sort((a, b) => {
+  const categoryList = [ALL_CATEGORIES, ...Array.from(categorySet).sort((a, b) => {
     const idxA = PREFERRED_CATEGORY_ORDER.indexOf(a);
     const idxB = PREFERRED_CATEGORY_ORDER.indexOf(b);
     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
@@ -70,8 +74,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   // Auto-reset category selection if the active category was deleted/renamed
   useEffect(() => {
-    if (selectedCategory !== '全部' && !categoryList.includes(selectedCategory)) {
-      setSelectedCategory('全部');
+    if (selectedCategory !== ALL_CATEGORIES && !categoryList.includes(selectedCategory)) {
+      setSelectedCategory(ALL_CATEGORIES);
     }
   }, [categoryList, selectedCategory]);
 
@@ -85,7 +89,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       });
     }
   });
-  const personList = ['全部', ...Array.from(personSet).sort((a, b) => {
+  const personList = [ALL_PERSONS, ...Array.from(personSet).sort((a, b) => {
     const idxA = PREFERRED_PERSON_ORDER.indexOf(a);
     const idxB = PREFERRED_PERSON_ORDER.indexOf(b);
     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
@@ -102,7 +106,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       if (trimmed) locationSet.add(trimmed);
     }
   });
-  const locationList = ['全部', ...Array.from(locationSet).sort((a, b) => {
+  const locationList = [ALL_LOCATIONS, ...Array.from(locationSet).sort((a, b) => {
     const idxA = PREFERRED_LOCATION_ORDER.indexOf(a);
     const idxB = PREFERRED_LOCATION_ORDER.indexOf(b);
     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
@@ -119,16 +123,16 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     if (hidePacked && item.isPacked) return;
 
     const cleanCat = item.category ? stripEmoji(item.category) : '其他';
-    if (selectedCategory !== '全部') {
+    if (selectedCategory !== ALL_CATEGORIES) {
       if (cleanCat !== selectedCategory) return;
     }
 
-    if (hasMultiplePersons && selectedPerson !== '全部') {
+    if (hasMultiplePersons && selectedPerson !== ALL_PERSONS) {
       const pTokens = item.person ? item.person.split(/[\n,，]+/).map((t) => t.trim()) : [];
       if (!pTokens.includes(selectedPerson)) return;
     }
 
-    if (selectedLocation !== '全部') {
+    if (selectedLocation !== ALL_LOCATIONS) {
       const itemLoc = item.location ? stripEmoji(item.location) : '';
       if (itemLoc !== selectedLocation) return;
     }
@@ -144,7 +148,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   // Quick Add submit handler
   const handleQuickSubmit = async (isMobile = false) => {
-    if (selectedCategory === '全部') {
+    if (selectedCategory === ALL_CATEGORIES) {
       setShowCategoryError(true);
       setTimeout(() => setShowCategoryError(false), 3000);
       if (isMobile) mobileInputRef.current?.focus();
@@ -160,8 +164,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       await onQuickAdd({
         item: trimmed,
         category: selectedCategory,
-        person: selectedPerson !== '全部' ? selectedPerson : '',
-        location: selectedLocation !== '全部' ? selectedLocation : '',
+        person: selectedPerson !== ALL_PERSONS ? selectedPerson : '',
+        location: selectedLocation !== ALL_LOCATIONS ? selectedLocation : '',
       });
       setQuickItemName('');
     } finally {
@@ -192,7 +196,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           {isScrolled ? (
             /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules */
             <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 px-1 text-xs">
-              <span className="text-[11px] font-black text-slate-400 select-none pl-1 flex-shrink-0">類別</span>
               {categoryList.map((cat) => {
                 const isSelected = selectedCategory === cat;
                 return (
@@ -202,10 +205,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                       setSelectedCategory(cat);
                       if (showCategoryError) setShowCategoryError(false);
                     }}
-                    className={`px-3 py-1 text-xs font-black rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                       isSelected
                         ? 'bg-slate-900 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-600 border border-slate-200/70 hover:bg-slate-200'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     {cat}
@@ -213,21 +216,20 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 );
               })}
 
-              {/* Person Badges */}
+              {/* Person Badges (Subtle Tint) */}
               {hasMultiplePersons && (
                 <>
-                  <div className="h-4 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                  <span className="text-[11px] font-black text-slate-400 select-none flex-shrink-0">人員</span>
+                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
                   {personList.map((person) => {
                     const isSelected = selectedPerson === person;
                     return (
                       <button
                         key={`scroll-p-${person}`}
                         onClick={() => setSelectedPerson(person)}
-                        className={`px-2.5 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                           isSelected
-                            ? 'bg-indigo-600 text-white shadow-xs'
-                            : 'bg-indigo-50/70 text-indigo-700 border border-indigo-200/60 hover:bg-indigo-100'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                         }`}
                       >
                         {person}
@@ -237,21 +239,20 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 </>
               )}
 
-              {/* Location Badges */}
+              {/* Location Badges (Subtle Tint) */}
               {locationList.length > 1 && (
                 <>
-                  <div className="h-4 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                  <span className="text-[11px] font-black text-slate-400 select-none flex-shrink-0">位置</span>
+                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
                   {locationList.map((loc) => {
                     const isSelected = selectedLocation === loc;
                     return (
                       <button
                         key={`scroll-loc-${loc}`}
                         onClick={() => setSelectedLocation(loc)}
-                        className={`px-2.5 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                           isSelected
-                            ? 'bg-amber-600 text-white shadow-xs'
-                            : 'bg-amber-50/70 text-amber-700 border border-amber-200/60 hover:bg-amber-100'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                         }`}
                       >
                         {loc}
@@ -262,84 +263,79 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               )}
             </div>
           ) : (
-            /* Normal Top state: Full multi-row wrap */
+            /* Normal Top state: Multi-row wrap */
             <>
-              {/* Row 1: Category Filter Chips */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                <div className="flex items-center gap-1 flex-wrap">
-                  {categoryList.map((cat) => {
-                    const isSelected = selectedCategory === cat;
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                          if (showCategoryError) setShowCategoryError(false);
-                        }}
-                        className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                          isSelected
-                            ? 'bg-slate-900 text-white shadow-2xs'
-                            : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* Row 1: Category Filter Chips (Outlined) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                {categoryList.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        if (showCategoryError) setShowCategoryError(false);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                        isSelected
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Row 2: Person & Location Sub-filters (if present) */}
+              {/* Row 2: Person & Location Sub-filters (Subtle Tint without border) */}
               {(hasMultiplePersons || locationList.length > 1) && (
-                <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-100 text-xs">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 border-t border-slate-100 pt-2">
                   {/* Person Filter */}
                   {hasMultiplePersons && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {personList.map((person) => {
-                          const isSelected = selectedPerson === person;
-                          return (
-                            <button
-                              key={person}
-                              onClick={() => setSelectedPerson(person)}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                                isSelected
-                                  ? 'bg-indigo-600 text-white shadow-2xs'
-                                  : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
-                              }`}
-                            >
-                              {person}
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+                      {personList.map((person) => {
+                        const isSelected = selectedPerson === person;
+                        return (
+                          <button
+                            key={person}
+                            onClick={() => setSelectedPerson(person)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                              isSelected
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                            }`}
+                          >
+                            {person}
+                          </button>
+                        );
+                      })}
                     </div>
+                  )}
+
+                  {hasMultiplePersons && locationList.length > 1 && (
+                    <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-0.5" />
                   )}
 
                   {/* Location Filter */}
                   {locationList.length > 1 && (
-                    <div className={`flex items-center gap-1.5 flex-wrap ${hasMultiplePersons ? 'pl-2 border-l border-slate-200/80' : ''}`}>
-                      <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {locationList.map((loc) => {
-                          const isSelected = selectedLocation === loc;
-                          return (
-                            <button
-                              key={loc}
-                              onClick={() => setSelectedLocation(loc)}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                                isSelected
-                                  ? 'bg-amber-600 text-white shadow-2xs'
-                                  : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
-                              }`}
-                            >
-                              {loc}
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+                      {locationList.map((loc) => {
+                        const isSelected = selectedLocation === loc;
+                        return (
+                          <button
+                            key={loc}
+                            onClick={() => setSelectedLocation(loc)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                              isSelected
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                            }`}
+                          >
+                            {loc}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -367,7 +363,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               }}
               onKeyDown={(e) => handleKeyDown(e, false)}
               placeholder={
-                selectedCategory !== '全部'
+                selectedCategory !== ALL_CATEGORIES
                   ? `新增至「${selectedCategory}」... (按 Enter 新增)`
                   : '請先在上方點選類別以快速新增...'
               }
@@ -381,9 +377,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 onClick={() =>
                   onOpenModal(
                     undefined,
-                    selectedPerson !== '全部' ? selectedPerson : undefined,
-                    selectedCategory !== '全部' ? selectedCategory : undefined,
-                    selectedLocation !== '全部' ? selectedLocation : undefined
+                    selectedPerson !== ALL_PERSONS ? selectedPerson : undefined,
+                    selectedCategory !== ALL_CATEGORIES ? selectedCategory : undefined,
+                    selectedLocation !== ALL_LOCATIONS ? selectedLocation : undefined
                   )
                 }
                 className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
@@ -398,7 +394,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 onClick={() => handleQuickSubmit(false)}
                 disabled={isQuickAdding}
                 className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-xl transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95 shadow-2xs ${
-                  selectedCategory === '全部'
+                  selectedCategory === ALL_CATEGORIES
                     ? 'bg-slate-400 hover:bg-slate-500'
                     : 'bg-emerald-600 hover:bg-emerald-700'
                 }`}
@@ -483,7 +479,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                             </span>
 
                             {/* Person Badges */}
-                            {hasMultiplePersons && selectedPerson === '全部' &&
+                            {hasMultiplePersons && selectedPerson === ALL_PERSONS &&
                               pTokens.map((p, idx) => {
                                 if (!p) return null;
                                 let colorClass = 'bg-slate-100 text-slate-600';
@@ -502,7 +498,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                               })}
 
                             {/* Location Badge */}
-                            {selectedLocation === '全部' && cleanLoc && (
+                            {selectedLocation === ALL_LOCATIONS && cleanLoc && (
                               <span className="inline-flex items-center bg-slate-100/80 text-slate-500 border border-slate-200/50 px-1.5 py-0.5 rounded text-[10px] font-bold ml-1">
                                 {cleanLoc}
                               </span>
@@ -563,7 +559,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
             }}
             onKeyDown={(e) => handleKeyDown(e, true)}
             placeholder={
-              selectedCategory !== '全部'
+              selectedCategory !== ALL_CATEGORIES
                 ? `新增至「${selectedCategory}」... (按 Enter 新增)`
                 : '請先在上方點選類別以快速新增...'
             }
@@ -576,9 +572,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               onClick={() =>
                 onOpenModal(
                   undefined,
-                  selectedPerson !== '全部' ? selectedPerson : undefined,
-                  selectedCategory !== '全部' ? selectedCategory : undefined,
-                  selectedLocation !== '全部' ? selectedLocation : undefined
+                  selectedPerson !== ALL_PERSONS ? selectedPerson : undefined,
+                  selectedCategory !== ALL_CATEGORIES ? selectedCategory : undefined,
+                  selectedLocation !== ALL_LOCATIONS ? selectedLocation : undefined
                 )
               }
               className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
