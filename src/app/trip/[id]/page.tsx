@@ -18,7 +18,6 @@ import { ItineraryModal } from '@/components/modals/ItineraryModal';
 import { TodoModal } from '@/components/modals/TodoModal';
 import { PackingModal } from '@/components/modals/PackingModal';
 import { ShoppingModal } from '@/components/modals/ShoppingModal';
-import { ShoppingCheckoutModal } from '@/components/modals/ShoppingCheckoutModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { LightboxModal } from '@/components/modals/LightboxModal';
 
@@ -187,8 +186,6 @@ export default function TripPage({ params }: PageProps) {
   const [activeShoppingItem, setActiveShoppingItem] = useState<ShoppingItem | null>(null);
   const [defaultShoppingStore, setDefaultShoppingStore] = useState<string>('');
   const [defaultShoppingPerson, setDefaultShoppingPerson] = useState<string>('Jo');
-  const [checkoutStore, setCheckoutStore] = useState<string | null>(null);
-  const [checkoutItems, setCheckoutItems] = useState<ShoppingItem[]>([]);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -577,20 +574,24 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
-  const handleCheckoutShoppingStore = async (data: {
-    store: string;
-    amount: number;
-    purchasedRowIndexes: number[];
-    outOfStockRowIndexes: number[];
-  }) => {
+  const handleUpdateShoppingPrice = async (rowIndex: number, newPrice: number) => {
+    // 樂觀更新
+    setTripData((prev) => ({
+      ...prev,
+      shopping: prev.shopping.map((item) =>
+        item.rowIndex === rowIndex ? { ...item, price: newPrice } : item
+      ),
+    }));
+
+    const targetItem = tripData.shopping.find((item) => item.rowIndex === rowIndex);
+    if (!targetItem) return;
+
     try {
-      showToast('正在記錄購物結帳…');
-      await checkoutShoppingStore({ ...data, currency: tripData.foreignCurrency || 'USD' }, tripId);
-      showToast('結帳已加入記帳頁');
-      await fetchData(true);
+      await saveShoppingData({ ...targetItem, price: String(newPrice) }, tripId);
+      showToast('單價已更新！');
     } catch (err: any) {
-      showToast(`結帳儲存失敗：${err.message}`);
-      throw err;
+      showToast(`價格更新失敗: ${err.message}`);
+      fetchData(false);
     }
   };
 
@@ -694,6 +695,7 @@ export default function TripPage({ params }: PageProps) {
                   companions={tripData.companions}
                   onAddExpense={handleAddExpense}
                   onDeleteExpense={handleDeleteExpense}
+                  onUpdateShoppingPrice={handleUpdateShoppingPrice}
                 />
               )}
 
@@ -711,10 +713,6 @@ export default function TripPage({ params }: PageProps) {
                     setShoppingModalOpen(true);
                   }}
                   onOpenLightbox={(img) => setLightboxUrl(img)}
-                  onCheckoutStore={(store, items) => {
-                    setCheckoutStore(store);
-                    setCheckoutItems(items);
-                  }}
                 />
               )}
             </>
@@ -767,18 +765,6 @@ export default function TripPage({ params }: PageProps) {
         onSave={handleSaveShopping}
         onDelete={handleDeleteShopping}
       />
-
-      {checkoutStore && (
-        <ShoppingCheckoutModal
-          isOpen
-          store={checkoutStore}
-          items={checkoutItems}
-          currency={tripData.foreignCurrency || 'USD'}
-          companionsList={currentCompanions}
-          onClose={() => setCheckoutStore(null)}
-          onConfirm={handleCheckoutShoppingStore}
-        />
-      )}
 
       <SettingsModal
         isOpen={settingsModalOpen}

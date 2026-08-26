@@ -13,7 +13,7 @@ interface ShoppingTabProps {
   onToggleShopping: (rowIndex: number, currentStatus: boolean) => void;
   onOpenModal: (item?: ShoppingItem, defaultStore?: string, defaultForWhom?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
-  onCheckoutStore: (store: string, items: ShoppingItem[]) => void;
+  onCheckoutStore?: (store: string, items: ShoppingItem[]) => void;
 }
 
 export interface RecipientTag {
@@ -100,7 +100,6 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   onToggleShopping,
   onOpenModal,
   onOpenLightbox,
-  onCheckoutStore,
 }) => {
   const [selectedStore, setSelectedStore] = useState(ALL_STORES);
   const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
@@ -122,10 +121,6 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       return matchStore && matchPerson;
     })
     .sort(sortShoppingItemsByPriceDesc);
-
-  const storePendingItems = isAllStores
-    ? []
-    : data.filter((item) => splitTokens(item.store).includes(selectedStore) && !item.isDone && item.purchaseStatus !== 'out_of_stock');
 
   // 計算自用伴手禮 vs 代購金額
   let personalPlannedTotal = 0;
@@ -242,18 +237,6 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
           </div>
         )}
       </div>
-
-      {!isAllStores && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-extrabold text-emerald-900 truncate">{selectedStore}</p>
-            <p className="text-[11px] font-bold text-emerald-700">{storePendingItems.length} 項待購可結帳</p>
-          </div>
-          <button onClick={() => onCheckoutStore(selectedStore, storePendingItems)} disabled={storePendingItems.length === 0} className="px-3 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all cursor-pointer disabled:bg-emerald-200 disabled:cursor-not-allowed whitespace-nowrap">
-            結帳
-          </button>
-        </div>
-      )}
 
       {filteredItems.length === 0 && (
         <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">目前沒有符合條件的購物清單</div>

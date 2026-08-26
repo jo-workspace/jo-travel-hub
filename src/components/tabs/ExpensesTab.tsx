@@ -13,6 +13,7 @@ interface ExpensesTabProps {
   companions?: string;
   onAddExpense: (formData: any) => Promise<void>;
   onDeleteExpense: (rowIndex: number) => Promise<void>;
+  onUpdateShoppingPrice?: (rowIndex: number, newPrice: number) => Promise<void>;
 }
 
 const CATEGORY_EMOJIS: Record<string, string> = {
@@ -128,6 +129,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   companions = 'Jo, Will',
   onAddExpense,
   onDeleteExpense,
+  onUpdateShoppingPrice,
 }) => {
   const activeForeignCode = (foreignCurrency || 'USD').toUpperCase();
   const fxLabel = formatFxRateLabel(fxRate, activeForeignCode);
@@ -285,6 +287,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
   // 解析購物清單中所有代購項目（含已買與待買）
   interface ProxyReceivableItem {
+    rowIndex: number;
     itemName: string;
     quantity: number;
     unitPrice: number;
@@ -294,6 +297,8 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   }
 
   const [copiedPerson, setCopiedPerson] = useState<string | null>(null);
+  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
+  const [editPriceVal, setEditPriceVal] = useState<string>('');
   const proxyReceivables: Record<string, ProxyReceivableItem[]> = {};
   let totalProxyTwd = 0;
   let totalProxyForeign = 0;
@@ -318,6 +323,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
         }
 
         proxyReceivables[personName].push({
+          rowIndex: sItem.rowIndex,
           itemName: sItem.item,
           quantity: tag.quantity,
           unitPrice: price,
@@ -759,16 +765,61 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                         </div>
                       </div>
 
-                      {/* Items breakdown */}
-                      <div className="text-[11px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
+                      {/* Items breakdown with click-to-edit unit price */}
+                      <div className="text-[11px] text-slate-500 space-y-1 pt-1 border-t border-slate-100">
                         {pItems.map((pItem, idx) => (
-                          <div key={idx} className="flex items-center justify-between">
-                            <span className={`truncate pr-2 ${pItem.isDone ? 'text-slate-900 font-semibold' : 'text-slate-400 line-through'}`}>
+                          <div key={idx} className="flex items-center justify-between gap-2">
+                            <span className={`truncate flex-1 min-w-0 ${pItem.isDone ? 'text-slate-900 font-semibold' : 'text-slate-400 line-through'}`}>
                               {pItem.isDone ? '✓ ' : '⏳ '}{pItem.itemName} ×{pItem.quantity}
                             </span>
-                            <span className="font-mono text-slate-700 flex-shrink-0 text-[10px]">
-                              {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd})
-                            </span>
+
+                            {editingRowIndex === pItem.rowIndex ? (
+                              <form
+                                onSubmit={async (e) => {
+                                  e.preventDefault();
+                                  const num = parseFloat(editPriceVal);
+                                  if (!isNaN(num) && num >= 0 && onUpdateShoppingPrice) {
+                                    await onUpdateShoppingPrice(pItem.rowIndex, num);
+                                  }
+                                  setEditingRowIndex(null);
+                                }}
+                                className="inline-flex items-center space-x-1 flex-shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="number"
+                                  autoFocus
+                                  min="0"
+                                  step="any"
+                                  value={editPriceVal}
+                                  onChange={(e) => setEditPriceVal(e.target.value)}
+                                  onBlur={async () => {
+                                    const num = parseFloat(editPriceVal);
+                                    if (!isNaN(num) && num >= 0 && onUpdateShoppingPrice) {
+                                      await onUpdateShoppingPrice(pItem.rowIndex, num);
+                                    }
+                                    setEditingRowIndex(null);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') setEditingRowIndex(null);
+                                  }}
+                                  className="w-18 bg-amber-50 border border-amber-400 rounded px-1.5 py-0.5 text-xs font-mono font-black text-amber-950 outline-none shadow-2xs text-right"
+                                />
+                                <span className="text-[10px] text-slate-400">{activeForeignCode}</span>
+                              </form>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingRowIndex(pItem.rowIndex);
+                                  setEditPriceVal(String(pItem.unitPrice || ''));
+                                }}
+                                className="font-mono text-slate-700 flex-shrink-0 text-[10px] hover:text-amber-950 hover:bg-amber-100/80 px-1.5 py-0.5 rounded transition-all cursor-pointer select-none"
+                                title="點擊直接修改實際單價"
+                              >
+                                {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd})
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
