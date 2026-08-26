@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem } from '@/types/trip';
 import { Plus, Edit3, Briefcase, User, Layers, CornerDownLeft } from 'lucide-react';
 
@@ -43,7 +43,20 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [quickItemName, setQuickItemName] = useState('');
   const [showCategoryError, setShowCategoryError] = useState(false);
   const [isQuickAdding, setIsQuickAdding] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Listen to window scroll to collapse header into single horizontal scroll row
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 40);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // Custom sorting order for Categories, Persons and Locations
   const PREFERRED_CATEGORY_ORDER = ['衣物', '3C', '美妝盥洗', '隨身', '藥品', '重要證件', '行李', '特特行李', '車用', '球場裝備', '其他'];
@@ -181,89 +194,169 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   return (
     <div className="space-y-4 pb-20">
       {/* Sticky Header Container: Freeze at top during scroll */}
-      <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md pt-1 pb-3 space-y-2.5 border-b border-slate-200/50 shadow-xs">
-        {/* Top Filter Controls: Category, Person & Location */}
-        <div className="bg-white/90 p-2.5 rounded-2xl border border-slate-200/70 space-y-2 shadow-2xs">
-          {/* Row 1: Category Filter Chips */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-            <div className="flex items-center gap-1 flex-wrap">
+      <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
+        {/* Top Filter Controls: Dynamic Transition between Expanded & Compact Single Row */}
+        <div className={`bg-white/95 rounded-2xl border border-slate-200/70 shadow-2xs transition-all duration-200 ${
+          isScrolled ? 'p-1.5' : 'p-2.5 space-y-2'
+        }`}>
+          {isScrolled ? (
+            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll */
+            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5 px-0.5 text-xs">
+              <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 ml-0.5" />
               {categoryList.map((cat) => {
                 const isSelected = selectedCategory === cat;
                 const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
                 return (
                   <button
-                    key={cat}
+                    key={`scroll-cat-${cat}`}
                     onClick={() => {
                       setSelectedCategory(cat);
                       if (showCategoryError) setShowCategoryError(false);
                     }}
-                    className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                       isSelected
                         ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                        : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
                     }`}
                   >
                     {emoji}{cat}
                   </button>
                 );
               })}
-            </div>
-          </div>
 
-          {/* Row 2: Person & Location Sub-filters (if present) */}
-          {(hasMultiplePersons || locationList.length > 1) && (
-            <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-100 text-xs">
-              {/* Person Filter */}
+              {/* Person Badges */}
               {hasMultiplePersons && (
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <>
+                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
                   <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {personList.map((person) => {
-                      const isSelected = selectedPerson === person;
-                      return (
-                        <button
-                          key={person}
-                          onClick={() => setSelectedPerson(person)}
-                          className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white shadow-2xs'
-                              : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
-                          }`}
-                        >
-                          {person}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  {personList.map((person) => {
+                    const isSelected = selectedPerson === person;
+                    return (
+                      <button
+                        key={`scroll-p-${person}`}
+                        onClick={() => setSelectedPerson(person)}
+                        className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                        }`}
+                      >
+                        {person}
+                      </button>
+                    );
+                  })}
+                </>
               )}
 
-              {/* Location Filter */}
+              {/* Location Badges */}
               {locationList.length > 1 && (
-                <div className={`flex items-center gap-1.5 flex-wrap ${hasMultiplePersons ? 'pl-2 border-l border-slate-200/80' : ''}`}>
+                <>
+                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
                   <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {locationList.map((loc) => {
-                      const isSelected = selectedLocation === loc;
-                      return (
-                        <button
-                          key={loc}
-                          onClick={() => setSelectedLocation(loc)}
-                          className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                            isSelected
-                              ? 'bg-amber-600 text-white shadow-2xs'
-                              : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
-                          }`}
-                        >
-                          {loc}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  {locationList.map((loc) => {
+                    const isSelected = selectedLocation === loc;
+                    return (
+                      <button
+                        key={`scroll-loc-${loc}`}
+                        onClick={() => setSelectedLocation(loc)}
+                        className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-amber-600 text-white shadow-2xs'
+                            : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    );
+                  })}
+                </>
               )}
             </div>
+          ) : (
+            /* Normal Top state: Full multi-row wrap */
+            <>
+              {/* Row 1: Category Filter Chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <div className="flex items-center gap-1 flex-wrap">
+                  {categoryList.map((cat) => {
+                    const isSelected = selectedCategory === cat;
+                    const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          if (showCategoryError) setShowCategoryError(false);
+                        }}
+                        className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                          isSelected
+                            ? 'bg-slate-900 text-white shadow-2xs'
+                            : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                        }`}
+                      >
+                        {emoji}{cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 2: Person & Location Sub-filters (if present) */}
+              {(hasMultiplePersons || locationList.length > 1) && (
+                <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-100 text-xs">
+                  {/* Person Filter */}
+                  {hasMultiplePersons && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {personList.map((person) => {
+                          const isSelected = selectedPerson === person;
+                          return (
+                            <button
+                              key={person}
+                              onClick={() => setSelectedPerson(person)}
+                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white shadow-2xs'
+                                  : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                              }`}
+                            >
+                              {person}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Location Filter */}
+                  {locationList.length > 1 && (
+                    <div className={`flex items-center gap-1.5 flex-wrap ${hasMultiplePersons ? 'pl-2 border-l border-slate-200/80' : ''}`}>
+                      <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {locationList.map((loc) => {
+                          const isSelected = selectedLocation === loc;
+                          return (
+                            <button
+                              key={loc}
+                              onClick={() => setSelectedLocation(loc)}
+                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                                isSelected
+                                  ? 'bg-amber-600 text-white shadow-2xs'
+                                  : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                              }`}
+                            >
+                              {loc}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 
