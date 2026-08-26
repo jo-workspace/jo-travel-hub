@@ -231,26 +231,49 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
   }, [tripData.companions, tripData.packing]);
 
-  // 嚴格限定於「當前旅程購物幫買/對象」（包含同行人員 + 購物清單歷史對象）
+  // 嚴格限定於「當前旅程購物幫買/對象」（同行人員固定排前 ＋ 其餘對象按名字自然排序）
   const currentShoppingPersons = useMemo(() => {
-    const set = new Set<string>();
     const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
+    const companionSet = new Set<string>();
+    const companionList: string[] = [];
+
     if (tripData.companions) {
       tripData.companions.split(/[\n,，]+/).forEach((p) => {
         const trimmed = p.trim();
-        if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+        if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed) && !companionSet.has(trimmed)) {
+          companionSet.add(trimmed);
+          companionList.push(trimmed);
+        }
       });
     }
+
+    if (companionList.length === 0) {
+      ['Jo', 'Will'].forEach((c) => {
+        if (!companionSet.has(c)) {
+          companionSet.add(c);
+          companionList.push(c);
+        }
+      });
+    }
+
+    const otherPersonsSet = new Set<string>();
     tripData.shopping.forEach((s) => {
       if (s.forWhom && s.forWhom !== '公用') {
         const tags = parseRecipientTags(s.forWhom);
         tags.forEach((tag) => {
           const cleanName = tag.name.trim();
-          if (cleanName && !EXCLUDED_KEYWORDS.includes(cleanName)) set.add(cleanName);
+          if (cleanName && !EXCLUDED_KEYWORDS.includes(cleanName) && !companionSet.has(cleanName)) {
+            otherPersonsSet.add(cleanName);
+          }
         });
       }
     });
-    return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
+
+    const sortedOtherPersons = Array.from(otherPersonsSet).sort((a, b) =>
+      a.localeCompare(b, 'zh-Hant', { numeric: true, sensitivity: 'base' })
+    );
+
+    return [...companionList, ...sortedOtherPersons];
   }, [tripData.companions, tripData.shopping]);
 
   // 跨旅程歷史打包類別（純歷史資料，過濾掉誤填為類別的位置或公用關鍵字）

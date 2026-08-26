@@ -107,7 +107,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   const storeList = Array.from(new Set(data.flatMap((item) => splitTokens(item.store))));
   const personList = Array.from(
     new Set(data.flatMap((item) => parseRecipientTags(item.forWhom).map((t) => t.name)))
-  );
+  ).sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true, sensitivity: 'base' }));
 
   const isAllStores = selectedStore === ALL_STORES;
   const isAllPeople = selectedPerson === ALL_PEOPLE;
