@@ -50,7 +50,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   }, []);
 
   // Custom sorting order for Categories, Persons and Locations
-  const PREFERRED_CATEGORY_ORDER = ['衣物', '3C', '美妝盥洗', '隨身', '藥品', '重要證件', '行李', '特特行李', '車用', '球場裝備', '其他'];
+  const PREFERRED_CATEGORY_ORDER = ['證件', '重要證件', '衣物', '3C', '藥品', '盥洗', '美妝盥洗'];
   const PREFERRED_PERSON_ORDER = ['Jo', 'Will', '公用', '特特'];
   const PREFERRED_LOCATION_ORDER = ['託運', '托運', '手提', '隨身', '穿著'];
 
@@ -194,8 +194,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           isScrolled ? 'p-1.5' : 'p-2.5 space-y-2'
         }`}>
           {isScrolled ? (
-            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules */
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 px-1 text-xs">
+            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules with Edge Fade */
+            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 px-1 text-xs [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
               {categoryList.map((cat) => {
                 const isSelected = selectedCategory === cat;
                 return (
@@ -265,8 +265,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           ) : (
             /* Normal Top state: Multi-row wrap */
             <>
-              {/* Row 1: Category Filter Chips (Outlined) */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {/* Row 1: Category Filter Chips (Outlined) with Subtle Edge Fade */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
                 {categoryList.map((cat) => {
                   const isSelected = selectedCategory === cat;
                   return (
@@ -288,10 +288,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 })}
               </div>
 
-              {/* Row 2: Person & Location Sub-filters (Subtle Tint without border) */}
+              {/* Row 2 & 3: Person & Location Sub-filters (Dedicated rows on mobile, inline on desktop) */}
               {(hasMultiplePersons || locationList.length > 1) && (
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 border-t border-slate-100 pt-2">
-                  {/* Person Filter */}
+                <div className="flex flex-col md:flex-row md:items-center gap-2 border-t border-slate-100 pt-2">
+                  {/* Person Filter (Full Row on mobile) */}
                   {hasMultiplePersons && (
                     <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
                       {personList.map((person) => {
@@ -300,7 +300,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                           <button
                             key={person}
                             onClick={() => setSelectedPerson(person)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                               isSelected
                                 ? 'bg-slate-900 text-white shadow-xs'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
@@ -313,11 +313,12 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                     </div>
                   )}
 
+                  {/* Divider visible only on desktop when both exist */}
                   {hasMultiplePersons && locationList.length > 1 && (
-                    <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-0.5" />
+                    <div className="hidden md:block h-3.5 w-px bg-slate-200 flex-shrink-0 mx-0.5" />
                   )}
 
-                  {/* Location Filter */}
+                  {/* Location Filter (Full Row on mobile) */}
                   {locationList.length > 1 && (
                     <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
                       {locationList.map((loc) => {
@@ -326,7 +327,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                           <button
                             key={loc}
                             onClick={() => setSelectedLocation(loc)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                               isSelected
                                 ? 'bg-slate-900 text-white shadow-xs'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
