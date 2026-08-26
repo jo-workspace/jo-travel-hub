@@ -183,19 +183,19 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
               onChange={(e) => setStore(e.target.value)}
               placeholder="輸入或點選下方店家..."
               required
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-1.5"
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-2"
             />
             {storePresets.length > 0 && (
-              <div className="flex items-center flex-wrap gap-1.5">
+              <div className="inline-flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
                 {storePresets.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => setStore(s)}
-                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                    className={`text-xs px-3 py-1 rounded-lg transition-all cursor-pointer select-none font-bold ${
                       store === s
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                   >
                     {s}
@@ -210,14 +210,14 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-slate-700 flex items-center space-x-1">
                 <User className="w-3.5 h-3.5 text-indigo-600" />
-                <span>購買對象 (可多人 / 點擊切換代購或自用)</span>
+                <span>購買對象 (點擊切換自用/代購 · 重複點擊累加)</span>
               </label>
               <span className="text-[11px] font-extrabold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200/70">
                 總數量：<strong className="text-slate-900 font-mono text-xs">{totalQuantity}</strong>
               </span>
             </div>
 
-            {/* Selected Recipient Pills */}
+            {/* Selected Recipient Pills (No complex steppers) */}
             <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center">
               {recipientTags.length === 0 && (
                 <span className="text-xs text-slate-400">尚未選擇對象（點擊下方加入）</span>
@@ -225,9 +225,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
               {recipientTags.map((tag, idx) => (
                 <div
                   key={`${tag.name}-${idx}`}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border shadow-2xs ${
+                  className={`inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl text-xs font-bold transition-all border shadow-2xs ${
                     tag.isProxy
-                      ? 'bg-amber-100 text-amber-950 border-amber-300'
+                      ? 'bg-amber-50 text-amber-950 border-amber-300/80'
                       : 'bg-white text-slate-800 border-slate-200'
                   }`}
                 >
@@ -235,44 +235,32 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleToggleProxy(idx)}
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer select-none ${
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer select-none ${
                       tag.isProxy
-                        ? 'bg-amber-600 text-white shadow-2xs'
+                        ? 'bg-amber-500 text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                     }`}
-                    title={tag.isProxy ? '點擊切換為自用/伴手禮' : '點擊標記為幫人代購'}
+                    title={tag.isProxy ? '點擊切換為自用' : '點擊切換為代購'}
                   >
-                    <span>{tag.isProxy ? '代購' : '自用'}</span>
+                    {tag.isProxy ? '代購' : '自用'}
                   </button>
 
-                  <span className="font-bold">{tag.name}</span>
-
-                  {/* Quantity Stepper */}
-                  <div className="flex items-center space-x-0.5 bg-slate-200/60 rounded px-1">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateQty(idx, -1)}
-                      className="text-slate-600 hover:text-slate-900 font-mono text-xs px-0.5 cursor-pointer"
-                    >
-                      -
-                    </button>
-                    <span className="font-mono text-xs font-extrabold px-0.5">{tag.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateQty(idx, 1)}
-                      className="text-slate-600 hover:text-slate-900 font-mono text-xs px-0.5 cursor-pointer"
-                    >
-                      +
-                    </button>
-                  </div>
+                  <span
+                    onClick={() => handleAddPerson(tag.name, tag.isProxy)}
+                    className="font-bold cursor-pointer hover:opacity-75 select-none"
+                    title="點擊可增加數量"
+                  >
+                    {tag.name} {tag.quantity > 1 ? `×${tag.quantity}` : ''}
+                  </span>
 
                   {/* Remove Button */}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(idx)}
-                    className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5"
+                    className="text-slate-400 hover:text-rose-600 cursor-pointer p-0.5 rounded-full hover:bg-slate-100 transition-colors"
+                    title="移除"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
@@ -282,19 +270,20 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             <div className="pt-1.5 border-t border-slate-200/60 flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-bold text-slate-400">快速加入：</span>
               {personPresets.map((p) => {
-                const isSelected = recipientTags.some((t) => t.name === p);
+                const existing = recipientTags.find((t) => t.name === p);
                 return (
                   <button
                     key={p}
                     type="button"
                     onClick={() => handleAddPerson(p)}
-                    className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer select-none font-bold ${
-                      isSelected
-                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      existing
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
+                    title={existing ? `已加入 ${existing.quantity} 個，點擊再 +1` : `點擊加入 ${p}`}
                   >
-                    + {p}
+                    + {p}{existing ? ` (${existing.quantity})` : ''}
                   </button>
                 );
               })}
@@ -312,15 +301,15 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                     }
                   }}
                   placeholder="+ 自訂對象名..."
-                  className="bg-white border border-slate-200 text-xs px-2 py-0.5 rounded-lg outline-none w-24 focus:w-32 focus:ring-1 focus:ring-slate-900 transition-all"
+                  className="bg-white border border-slate-200 text-xs px-2.5 py-1 rounded-lg outline-none w-24 focus:w-32 focus:ring-1 focus:ring-slate-900 transition-all font-medium"
                 />
                 {customPerson.trim() && (
                   <button
                     type="button"
                     onClick={() => handleAddPerson(customPerson)}
-                    className="p-1 bg-slate-900 text-white rounded-lg text-xs"
+                    className="p-1 bg-slate-900 text-white rounded-lg text-xs cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -354,36 +343,39 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">圖片 URL</label>
-            <input
-              type="url"
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              placeholder="https://example.com/item.jpg"
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-            />
+          {/* URLs: 雙欄合併 + 底線風格 */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-0.5">圖片 URL</label>
+              <input
+                type="url"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                placeholder="https://.../item.jpg"
+                className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-slate-900 rounded-none px-0.5 py-1 text-xs outline-none transition-colors placeholder:text-slate-400 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-0.5">參考連結 URL</label>
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://.../product"
+                className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-slate-900 rounded-none px-0.5 py-1 text-xs outline-none transition-colors placeholder:text-slate-400 font-mono"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">商品參考連結 URL</label>
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.target.com/..."
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">備註</label>
+          {/* 備註: 底線風格 */}
+          <div className="pt-0.5">
+            <label className="block text-[11px] font-bold text-slate-500 mb-0.5">備註</label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="規格、顏色或代購細節..."
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-slate-900 rounded-none px-0.5 py-1 text-xs outline-none transition-colors placeholder:text-slate-400 font-medium"
             />
           </div>
 
