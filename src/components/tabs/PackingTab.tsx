@@ -298,6 +298,15 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           );
         })}
       </div>
+
+      {/* Mobile Floating Action Button */}
+      <button
+        onClick={() => onOpenModal()}
+        className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer transition-all active:scale-90 md:hidden"
+        aria-label="新增打包項目"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </div>
   );
 };

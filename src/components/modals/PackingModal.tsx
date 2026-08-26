@@ -73,15 +73,30 @@ export const PackingModal: React.FC<PackingModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onSave({
-        rowIndex: item?.rowIndex || 0,
-        category: category.trim(),
-        person: person.trim(),
-        item: itemName.trim(),
-        note: note.trim(),
-        location: location.trim(),
-        isPacked: item?.isPacked || false,
-      });
+      if (!item) {
+        // New mode: support batch input (one item per line)
+        const items = itemName.split('\n').map((s) => s.trim()).filter(Boolean);
+        await onSave({
+          rowIndex: 0,
+          category: category.trim(),
+          person: person.trim(),
+          batchItems: items,
+          note: note.trim(),
+          location: location.trim(),
+          isPacked: false,
+        });
+      } else {
+        // Edit mode: single item
+        await onSave({
+          rowIndex: item.rowIndex,
+          category: category.trim(),
+          person: person.trim(),
+          item: itemName.trim(),
+          note: note.trim(),
+          location: location.trim(),
+          isPacked: item.isPacked,
+        });
+      }
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -180,17 +195,34 @@ export const PackingModal: React.FC<PackingModalProps> = ({
             )}
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">物品名稱</label>
-            <input
-              type="text"
-              value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
-              placeholder="準備帶的物品..."
-              required
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-            />
-          </div>
+          {!item ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">
+                物品名稱
+                <span className="text-slate-400 font-medium ml-1.5">每行一項，可批次新增</span>
+              </label>
+              <textarea
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                placeholder={"護照\n充電器\n行動電源\n盥洗包"}
+                required
+                rows={4}
+                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold resize-none leading-relaxed"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">物品名稱</label>
+              <input
+                type="text"
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                placeholder="準備帶的物品..."
+                required
+                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              />
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -251,7 +283,13 @@ export const PackingModal: React.FC<PackingModalProps> = ({
               disabled={isSubmitting}
               className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-50"
             >
-              {isSubmitting ? '處理中...' : '儲存'}
+              {isSubmitting ? '處理中...' : (() => {
+                if (!item) {
+                  const count = itemName.split('\n').map((s) => s.trim()).filter(Boolean).length;
+                  return count > 1 ? `儲存 ${count} 項` : '儲存';
+                }
+                return '儲存';
+              })()}
             </button>
           </div>
         </form>

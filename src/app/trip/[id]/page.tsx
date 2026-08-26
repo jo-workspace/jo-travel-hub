@@ -442,8 +442,16 @@ export default function TripPage({ params }: PageProps) {
 
   const handleSavePacking = async (formData: any) => {
     try {
-      showToast('正在儲存打包項...');
-      await savePackingData(formData, tripId);
+      if (formData.batchItems && Array.isArray(formData.batchItems)) {
+        const count = formData.batchItems.length;
+        showToast(`正在儲存 ${count} 個打包項...`);
+        for (const itemName of formData.batchItems) {
+          await savePackingData({ ...formData, item: itemName, batchItems: undefined }, tripId);
+        }
+      } else {
+        showToast('正在儲存打包項...');
+        await savePackingData(formData, tripId);
+      }
       showToast('打包項儲存成功！');
       fetchData(true);
     } catch (err: any) {
