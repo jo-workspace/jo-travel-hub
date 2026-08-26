@@ -239,6 +239,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       <div className="space-y-2.5">
         {filteredItems.map((item) => {
           const stores = splitTokens(item.store);
+          const displayStores = isAllStores ? stores : stores.filter((s) => s !== selectedStore);
           const recipientTags = parseRecipientTags(item.forWhom);
           const isOutOfStock = item.purchaseStatus === 'out_of_stock';
           const totalQty = recipientTags.reduce((sum, t) => sum + t.quantity, 0) || parseShoppingQuantity(item.quantity);
@@ -259,7 +260,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                   <div className="flex-1 min-w-0">
                     {/* Store & Multi-Recipient Capsules */}
                     <div className="flex flex-wrap items-center gap-1 mb-1">
-                      {stores.map((store, idx) => (
+                      {displayStores.map((store, idx) => (
                         <span key={`${store}-${idx}`} className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {store}
                         </span>
@@ -270,7 +271,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                           className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap flex items-center space-x-1 ${
                             tag.isProxy
                               ? 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-100/60'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200/70'
                           }`}
                         >
                           <span>{tag.name}</span>
