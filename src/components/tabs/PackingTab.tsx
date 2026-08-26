@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem } from '@/types/trip';
@@ -50,7 +50,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const PREFERRED_PERSON_ORDER = ['Jo', 'Will', '公用', '特特'];
   const PREFERRED_LOCATION_ORDER = ['託運', '托運', '手提', '隨身', '穿著'];
 
-  // Extract unique categories (include data categories + common defaults)
+  // Extract unique categories (strictly from existing data)
   const categorySet = new Set<string>();
   data.forEach((item) => {
     if (item.category) {
@@ -58,7 +58,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       if (trimmed) categorySet.add(trimmed);
     }
   });
-  ['衣物', '3C', '美妝盥洗', '藥品', '重要證件'].forEach((c) => categorySet.add(c));
 
   const categoryList = ['全部', ...Array.from(categorySet).sort((a, b) => {
     const idxA = PREFERRED_CATEGORY_ORDER.indexOf(a);
@@ -68,6 +67,13 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     if (idxB !== -1) return 1;
     return a.localeCompare(b, 'zh-Hant');
   })];
+
+  // Auto-reset category selection if the active category was deleted/renamed
+  useEffect(() => {
+    if (selectedCategory !== '全部' && !categoryList.includes(selectedCategory)) {
+      setSelectedCategory('全部');
+    }
+  }, [categoryList, selectedCategory]);
 
   // Extract unique persons
   const personSet = new Set<string>();
