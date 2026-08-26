@@ -99,12 +99,18 @@ export function parseSplitWeights(splitStr: string, members: string[]): Record<s
   return weights;
 }
 
-/** 格式化費用列表顯示之分擔標籤 (例如 "全體均分" 或 "Jo 2份, Will 1份") */
+/** 格式化費用列表顯示之分擔標籤 (例如 "全體均分"、"Jo $9,200, Will $5,800" 或 "Jo 2份, Will 1份") */
 export function formatSplitLabel(splitStr: string, members: string[]): string {
   const weights = parseSplitWeights(splitStr, members);
   const activeMembers = Object.keys(weights).filter((m) => weights[m] > 0);
 
   if (activeMembers.length === 0) return '全體均分';
+
+  // 判斷是否為實際指定金額格式（任一數值 >= 10 或含小數）
+  const isAmountFormat = activeMembers.some((m) => weights[m] >= 10 || !Number.isInteger(weights[m]));
+  if (isAmountFormat) {
+    return activeMembers.map((m) => `${m} $${weights[m].toLocaleString()}`).join(', ');
+  }
 
   const isAllEqual = activeMembers.length === members.length && activeMembers.every((m) => weights[m] === weights[activeMembers[0]]);
   if (isAllEqual) {
@@ -171,13 +177,14 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [currency, setCurrency] = useState<string>(activeForeignCode);
   const [category, setCategory] = useState('🍔');
   const [paidBy, setPaidBy] = useState<string>(members[0] || 'Jo');
-  const [splitMode, setSplitMode] = useState<'weighted' | 'single'>('weighted');
+  const [splitMode, setSplitMode] = useState<'weighted' | 'exact' | 'single'>('weighted');
   const [selectedSingleMember, setSelectedSingleMember] = useState<string>(members[0] || 'Jo');
   const [memberWeights, setMemberWeights] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     members.forEach((m) => { initial[m] = 1; });
     return initial;
   });
+  const [memberAmounts, setMemberAmounts] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -374,8 +381,19 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     let finalSplit = '均分';
     if (splitMode === 'single') {
       finalSplit = selectedSingleMember;
+    } else if (splitMode === 'exact') {
+      // 實際指定金額分攤模式
+      const activeAmounts = members
+        .filter((m) => (parseFloat(memberAmounts[m]) || 0) > 0)
+        .map((m) => `${m}:${parseFloat(memberAmounts[m]) || 0}`);
+
+      if (activeAmounts.length === 0) {
+        alert('請至少填寫一位成員的分攤金額');
+        return;
+      }
+      finalSplit = activeAmounts.join(',');
     } else {
-      // 權重分攤模式
+      // 權重/比例分攤模式
       const activeWeights = members.map((m) => `${m}:${memberWeights[m] || 1}`);
       const isAllOnes = members.every((m) => (memberWeights[m] || 1) === 1);
       if (isAllOnes) {
@@ -398,6 +416,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       });
       setItem('');
       setAmount('');
+      setMemberAmounts({});
       setNote('');
     } finally {
       setIsSubmitting(false);
@@ -604,6 +623,17 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     </button>
                     <button
                       type="button"
+                      onClick={() => setSplitMode('exact')}
+                      className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        splitMode === 'exact'
+                          ? 'bg-slate-700 text-amber-300 font-bold'
+                          : 'text-slate-500 hover:text-slate-400'
+                      }`}
+                    >
+                      自訂金額
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setSplitMode('single')}
                       className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
                         splitMode === 'single'
@@ -632,6 +662,77 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                         {m}
                       </button>
                     ))}
+                  </div>
+                ) : splitMode === 'exact' ? (
+                  /* 自訂實際金額分攤 UI */
+                  <div className="space-y-2 bg-slate-800/60 p-2.5 rounded-xl">
+                    {(() => {
+                      const totalAllocated = members.reduce((sum, m) => sum + (parseFloat(memberAmounts[m]) || 0), 0);
+                      const remaining = Math.round((parsedAmount - totalAllocated) * 100) / 100;
+                      return (
+                        <>
+                          <div className="flex items-center justify-between text-[10px] px-1 font-bold">
+                            <span className="text-slate-400">輸入各人分擔之金額 ({currency})</span>
+                            <span
+                              className={
+                                Math.abs(remaining) < 0.01 && parsedAmount > 0
+                                  ? 'text-emerald-400 font-mono font-black'
+                                  : remaining > 0
+                                  ? 'text-amber-300 font-mono'
+                                  : 'text-rose-400 font-mono'
+                              }
+                            >
+                              {parsedAmount <= 0
+                                ? '請先在上方輸入金額'
+                                : Math.abs(remaining) < 0.01
+                                ? '✓ 金額已完全吻合'
+                                : remaining > 0
+                                ? `未分配: $${remaining.toLocaleString()} ${currency}`
+                                : `超出總額: $${Math.abs(remaining).toLocaleString()} ${currency}`}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {members.map((m) => {
+                              const currentVal = memberAmounts[m] || '';
+                              return (
+                                <div key={`exact-${m}`} className="flex items-center justify-between bg-slate-800 px-3 py-1.5 rounded-lg gap-2">
+                                  <span className="text-xs font-bold text-slate-300 truncate min-w-[50px]">{m}</span>
+                                  <div className="flex items-center space-x-1.5 flex-1 justify-end">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="any"
+                                      value={currentVal}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setMemberAmounts((prev) => ({ ...prev, [m]: val }));
+                                      }}
+                                      placeholder="0"
+                                      className="w-24 bg-slate-900 text-white font-mono font-bold text-xs px-2.5 py-1 rounded-md outline-none border border-slate-700 focus:border-amber-400 text-right"
+                                    />
+                                    {remaining > 0 && (!currentVal || parseFloat(currentVal) === 0) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setMemberAmounts((prev) => ({
+                                            ...prev,
+                                            [m]: String(remaining),
+                                          }));
+                                        }}
+                                        className="text-[10px] font-bold bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 px-2 py-1 rounded transition-all cursor-pointer whitespace-nowrap"
+                                      >
+                                        填入剩餘
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="space-y-1.5 bg-slate-800/60 p-2 rounded-xl">
