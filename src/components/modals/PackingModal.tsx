@@ -8,6 +8,8 @@ interface PackingModalProps {
   isOpen: boolean;
   item?: PackingItem | null;
   defaultPerson?: string;
+  defaultCategory?: string;
+  defaultLocation?: string;
   existingCategories?: string[];
   companionsList?: string[];
   onClose: () => void;
@@ -22,6 +24,8 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   isOpen,
   item,
   defaultPerson = '',
+  defaultCategory = '',
+  defaultLocation = '',
   existingCategories = [],
   companionsList = [],
   onClose,
@@ -37,11 +41,11 @@ export const PackingModal: React.FC<PackingModalProps> = ({
     )
   );
 
-  const [category, setCategory] = useState(categoryPresets[0] || '衣物');
+  const [category, setCategory] = useState(defaultCategory || categoryPresets[0] || '衣物');
   const [person, setPerson] = useState(defaultPerson || '');
   const [itemName, setItemName] = useState('');
   const [note, setNote] = useState('');
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState(defaultLocation || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 當前旅程攜帶人員清單（僅限同行人員與攜帶歷史，並包含公用）
@@ -51,19 +55,19 @@ export const PackingModal: React.FC<PackingModalProps> = ({
 
   useEffect(() => {
     if (item) {
-      setCategory(item.category || categoryPresets[0] || '衣物');
+      setCategory(item.category || defaultCategory || categoryPresets[0] || '衣物');
       setPerson(item.person || '');
       setItemName(item.item || '');
       setNote(item.note || '');
       setLocation(item.location || '');
     } else {
-      setCategory(categoryPresets[0] || '衣物');
+      setCategory(defaultCategory || categoryPresets[0] || '衣物');
       setPerson(defaultPerson || '');
       setItemName('');
       setNote('');
-      setLocation('');
+      setLocation(defaultLocation || '');
     }
-  }, [item, isOpen, defaultPerson]);
+  }, [item, isOpen, defaultPerson, defaultCategory, defaultLocation]);
 
   if (!isOpen) return null;
 

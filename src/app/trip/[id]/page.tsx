@@ -180,6 +180,8 @@ export default function TripPage({ params }: PageProps) {
   const [packingModalOpen, setPackingModalOpen] = useState(false);
   const [activePackingItem, setActivePackingItem] = useState<PackingItem | null>(null);
   const [defaultPackingPerson, setDefaultPackingPerson] = useState<string>('');
+  const [defaultPackingCategory, setDefaultPackingCategory] = useState<string>('');
+  const [defaultPackingLocation, setDefaultPackingLocation] = useState<string>('');
 
   const [shoppingModalOpen, setShoppingModalOpen] = useState(false);
   const [activeShoppingItem, setActiveShoppingItem] = useState<ShoppingItem | null>(null);
@@ -459,6 +461,48 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleQuickAddPacking = async (newItem: {
+    item: string;
+    category: string;
+    person: string;
+    location: string;
+  }) => {
+    const tempRowIndex = (tripData.packing[tripData.packing.length - 1]?.rowIndex || 1) + 1;
+    const optimisticItem: PackingItem = {
+      rowIndex: tempRowIndex,
+      category: newItem.category,
+      person: newItem.person,
+      item: newItem.item,
+      note: '',
+      location: newItem.location,
+      isPacked: false,
+    };
+
+    setTripData((prev) => ({
+      ...prev,
+      packing: [...prev.packing, optimisticItem],
+    }));
+
+    try {
+      await savePackingData(
+        {
+          rowIndex: 0,
+          category: newItem.category,
+          person: newItem.person,
+          item: newItem.item,
+          note: '',
+          location: newItem.location,
+          isPacked: false,
+        },
+        tripId
+      );
+      fetchData(false);
+    } catch (err: any) {
+      showToast(`新增失敗: ${err.message}`);
+      fetchData(false);
+    }
+  };
+
   const handleDeletePacking = async (rowIndex: number) => {
     try {
       showToast('正在刪除打包項...');
@@ -630,9 +674,12 @@ export default function TripPage({ params }: PageProps) {
                   data={tripData.packing}
                   hidePacked={hideVisited}
                   onTogglePacking={handleTogglePacking}
-                  onOpenModal={(item, defaultPerson) => {
+                  onQuickAdd={handleQuickAddPacking}
+                  onOpenModal={(item, defaultPerson, defaultCategory, defaultLocation) => {
                     setActivePackingItem(item || null);
                     setDefaultPackingPerson(defaultPerson || '');
+                    setDefaultPackingCategory(defaultCategory || '');
+                    setDefaultPackingLocation(defaultLocation || '');
                     setPackingModalOpen(true);
                   }}
                 />
@@ -700,6 +747,8 @@ export default function TripPage({ params }: PageProps) {
         isOpen={packingModalOpen}
         item={activePackingItem}
         defaultPerson={defaultPackingPerson}
+        defaultCategory={defaultPackingCategory}
+        defaultLocation={defaultPackingLocation}
         existingCategories={currentPackingCategories}
         companionsList={currentPackingPersons}
         onClose={() => setPackingModalOpen(false)}
