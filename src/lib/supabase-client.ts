@@ -609,6 +609,39 @@ export async function savePackingData(formData: any, tripId = 'la-2026'): Promis
   return '儲存成功';
 }
 
+/** 批次匯入行李清單 (跨旅程複製用) */
+export async function batchSavePackingData(
+  items: Array<{ category: string; person: string; item: string; note?: string; location?: string }>,
+  tripId = 'la-2026'
+): Promise<string> {
+  if (!items || items.length === 0) return '無項目可匯入';
+
+  const { data: list } = await supabase
+    .from('packing_items')
+    .select('*')
+    .eq('trip_id', tripId)
+    .limit(1);
+
+  const sampleRow = list?.[0] || null;
+  const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['packed', 'is_packed', 'Is_Packed', 'is_done'].includes(k)) || 'packed';
+
+  const payloads = items.map((it) => {
+    const map: Record<string, [any, ...string[]]> = {
+      category: [it.category || '個人物品', 'category', 'Category'],
+      person: [it.person || '全員', 'owner', 'person', 'Person'],
+      item: [it.item || '物品', 'item_name', 'item', 'Item'],
+      note: [it.note || '', 'note', 'Note'],
+      location: [it.location || '', 'location', 'Location', 'place', 'storage'],
+    };
+    const payload = matchDbPayload(sampleRow, map, tripId);
+    return { ...payload, [statusKey]: false };
+  });
+
+  const { error } = await supabase.from('packing_items').insert(payloads);
+  if (error) throw new Error(`批次匯入行李失敗: ${error.message}`);
+  return `成功匯入 ${items.length} 項`;
+}
+
 export async function deletePackingData(rowIndex: number, tripId = 'la-2026'): Promise<string> {
   const { data } = await supabase.from('packing_items').select('id').eq('trip_id', tripId).order('created_at', { ascending: true });
   if (data && data[rowIndex - 2]) {

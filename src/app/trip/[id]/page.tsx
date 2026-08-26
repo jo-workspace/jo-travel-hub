@@ -17,6 +17,7 @@ import { ShoppingTab, parseRecipientTags } from '@/components/tabs/ShoppingTab';
 import { ItineraryModal } from '@/components/modals/ItineraryModal';
 import { TodoModal } from '@/components/modals/TodoModal';
 import { PackingModal } from '@/components/modals/PackingModal';
+import { ImportPackingModal } from '@/components/modals/ImportPackingModal';
 import { ShoppingModal } from '@/components/modals/ShoppingModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { LightboxModal } from '@/components/modals/LightboxModal';
@@ -30,6 +31,7 @@ import {
   deleteTodoData,
   toggleTodoStatus,
   savePackingData,
+  batchSavePackingData,
   deletePackingData,
   togglePackingStatus,
   addExpenseData,
@@ -177,6 +179,7 @@ export default function TripPage({ params }: PageProps) {
   const [activeTodoItem, setActiveTodoItem] = useState<TodoItem | null>(null);
 
   const [packingModalOpen, setPackingModalOpen] = useState(false);
+  const [importPackingModalOpen, setImportPackingModalOpen] = useState(false);
   const [activePackingItem, setActivePackingItem] = useState<PackingItem | null>(null);
   const [defaultPackingPerson, setDefaultPackingPerson] = useState<string>('');
   const [defaultPackingCategory, setDefaultPackingCategory] = useState<string>('');
@@ -535,6 +538,17 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleBatchImportPacking = async (items: Array<{ category: string; person: string; item: string; note?: string; location?: string }>) => {
+    try {
+      showToast(`正在匯入 ${items.length} 項行李...`);
+      await batchSavePackingData(items, tripId);
+      showToast(`成功匯入 ${items.length} 項行李！`);
+      fetchData(true);
+    } catch (err: any) {
+      showToast(`匯入失敗: ${err.message}`);
+    }
+  };
+
   // Expense Handlers
   const handleAddExpense = async (formData: any) => {
     try {
@@ -700,6 +714,7 @@ export default function TripPage({ params }: PageProps) {
                   hidePacked={hideVisited}
                   onTogglePacking={handleTogglePacking}
                   onQuickAdd={handleQuickAddPacking}
+                  onOpenImportModal={() => setImportPackingModalOpen(true)}
                   onOpenModal={(item, defaultPerson, defaultCategory, defaultLocation) => {
                     setActivePackingItem(item || null);
                     setDefaultPackingPerson(defaultPerson || '');
@@ -776,6 +791,14 @@ export default function TripPage({ params }: PageProps) {
         onClose={() => setPackingModalOpen(false)}
         onSave={handleSavePacking}
         onDelete={handleDeletePacking}
+      />
+
+      <ImportPackingModal
+        isOpen={importPackingModalOpen}
+        currentTripId={tripId}
+        existingItems={tripData.packing}
+        onClose={() => setImportPackingModalOpen(false)}
+        onImport={handleBatchImportPacking}
       />
 
       <ShoppingModal

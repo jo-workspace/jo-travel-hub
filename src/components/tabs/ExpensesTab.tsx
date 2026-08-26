@@ -497,17 +497,13 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
           <div className={`grid gap-2.5 ${members.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {members.map((m) => {
               const share = Math.round(shareTWD[m] || 0);
-              const paid = Math.round(paidTWD[m] || 0);
               return (
                 <div key={m} className="bg-white border border-slate-100 p-3 rounded-2xl text-center shadow-2xs">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
                     {m} 應負擔
                   </span>
-                  <span className="text-sm font-mono font-black text-slate-900 mt-0.5 block truncate">
+                  <span className="text-base font-mono font-black text-slate-900 mt-0.5 block truncate">
                     ${share.toLocaleString()}
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-400 block mt-0.5">
-                    已付 ${paid.toLocaleString()}
                   </span>
                 </div>
               );

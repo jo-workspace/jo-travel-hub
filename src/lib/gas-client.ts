@@ -120,6 +120,13 @@ export async function savePackingData(formData: any, overrideUrl?: string): Prom
   return callGasApi<string>('savePackingData', [formData], overrideUrl);
 }
 
+export async function batchSavePackingData(items: any[], overrideUrl?: string): Promise<string> {
+  for (const it of items) {
+    await savePackingData({ ...it, rowIndex: 0, isPacked: false }, overrideUrl);
+  }
+  return `成功匯入 ${items.length} 項`;
+}
+
 export async function deletePackingData(rowIndex: number, overrideUrl?: string): Promise<string> {
   return callGasApi<string>('deletePackingData', [rowIndex], overrideUrl);
 }

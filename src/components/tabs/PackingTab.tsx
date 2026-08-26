@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem } from '@/types/trip';
-import { Plus, Edit3, Copy, Briefcase, User, Layers, CornerDownLeft } from 'lucide-react';
+import { Plus, Edit3, Copy, Download, CornerDownLeft } from 'lucide-react';
 
 interface PackingTabProps {
   data: PackingItem[];
   hidePacked: boolean;
   onTogglePacking: (rowIndex: number, currentStatus: boolean) => void;
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
+  onOpenImportModal?: () => void;
   onQuickAdd: (newItem: { item: string; category: string; person: string; location: string }) => Promise<void>;
 }
 
@@ -24,6 +25,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   hidePacked,
   onTogglePacking,
   onOpenModal,
+  onOpenImportModal,
   onQuickAdd,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
@@ -373,6 +375,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {onOpenImportModal && (
+                <button
+                  type="button"
+                  onClick={onOpenImportModal}
+                  className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                  title="從其他旅程複製清單"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>匯入</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() =>
@@ -408,7 +422,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
           {showCategoryError && (
             <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pl-2">
-              ⚠️ 請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
+              請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
             </p>
           )}
         </div>
@@ -417,8 +431,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       {/* Main Content Layout: Frameless High-Density Clean Items List */}
       <div className="w-full p-2 md:p-4 space-y-6">
         {categories.length === 0 && (
-          <div className="text-center py-16 text-slate-400 text-sm">
-            目前沒有符合條件的打包項目！🧳✨
+          <div className="text-center py-16 text-slate-400 text-sm space-y-3">
+            <p className="font-medium text-slate-500">目前沒有符合條件的打包項目</p>
+            {onOpenImportModal && (
+              <button
+                type="button"
+                onClick={onOpenImportModal}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>從其他旅程匯入打包清單</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -568,6 +592,17 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           />
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {onOpenImportModal && (
+              <button
+                type="button"
+                onClick={onOpenImportModal}
+                className="p-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                title="從其他旅程複製清單"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() =>
@@ -589,7 +624,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               onClick={() => handleQuickSubmit(true)}
               disabled={isQuickAdding}
               className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-xl transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95 shadow-xs ${
-                selectedCategory === '全部'
+                selectedCategory === ALL_CATEGORIES
                   ? 'bg-slate-400 hover:bg-slate-500'
                   : 'bg-emerald-600 hover:bg-emerald-700'
               }`}
@@ -602,7 +637,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
         {showCategoryError && (
           <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pt-1 pl-2">
-            ⚠️ 請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
+            請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
           </p>
         )}
       </div>
