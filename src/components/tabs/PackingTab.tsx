@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem } from '@/types/trip';
@@ -11,20 +11,6 @@ interface PackingTabProps {
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
   onQuickAdd: (newItem: { item: string; category: string; person: string; location: string }) => Promise<void>;
 }
-
-const PACKING_EMOJIS: Record<string, string> = {
-  衣物: '👕',
-  '3C': '📱',
-  美妝盥洗: '🧴',
-  隨身: '👜',
-  行李: '🧳',
-  藥品: '💊',
-  重要證件: '🪪',
-  特特行李: '🐕‍🦺',
-  球場裝備: '⚾',
-  車用: '🚗',
-  文件: '🪪',
-};
 
 const stripEmoji = (str: string) =>
   str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|\p{Extended_Pictographic}/gu, '').trim();
@@ -44,7 +30,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [showCategoryError, setShowCategoryError] = useState(false);
   const [isQuickAdding, setIsQuickAdding] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const desktopInputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
 
   // Listen to window scroll to collapse header into single horizontal scroll row
   useEffect(() => {
@@ -67,11 +54,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const categorySet = new Set<string>();
   data.forEach((item) => {
     if (item.category) {
-      const trimmed = item.category.trim();
+      const trimmed = stripEmoji(item.category);
       if (trimmed) categorySet.add(trimmed);
     }
   });
-  // Ensure common essentials exist
   ['衣物', '3C', '美妝盥洗', '藥品', '重要證件'].forEach((c) => categorySet.add(c));
 
   const categoryList = ['全部', ...Array.from(categorySet).sort((a, b) => {
@@ -126,25 +112,22 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   data.forEach((item) => {
     if (hidePacked && item.isPacked) return;
 
-    // Category filter
+    const cleanCat = item.category ? stripEmoji(item.category) : '其他';
     if (selectedCategory !== '全部') {
-      const itemCat = item.category || '其他';
-      if (itemCat !== selectedCategory) return;
+      if (cleanCat !== selectedCategory) return;
     }
 
-    // Person filter
     if (hasMultiplePersons && selectedPerson !== '全部') {
       const pTokens = item.person ? item.person.split(/[\n,，]+/).map((t) => t.trim()) : [];
       if (!pTokens.includes(selectedPerson)) return;
     }
 
-    // Location filter
     if (selectedLocation !== '全部') {
       const itemLoc = item.location ? stripEmoji(item.location) : '';
       if (itemLoc !== selectedLocation) return;
     }
 
-    const cat = item.category || '其他';
+    const cat = cleanCat;
     if (!groupedByCategory[cat]) groupedByCategory[cat] = [];
     groupedByCategory[cat].push(item);
   });
@@ -154,11 +137,12 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   );
 
   // Quick Add submit handler
-  const handleQuickSubmit = async () => {
+  const handleQuickSubmit = async (isMobile = false) => {
     if (selectedCategory === '全部') {
       setShowCategoryError(true);
       setTimeout(() => setShowCategoryError(false), 3000);
-      inputRef.current?.focus();
+      if (isMobile) mobileInputRef.current?.focus();
+      else desktopInputRef.current?.focus();
       return;
     }
 
@@ -176,23 +160,23 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       setQuickItemName('');
     } finally {
       setIsQuickAdding(false);
-      // Keep focus on input for seamless rapid typing
       setTimeout(() => {
-        inputRef.current?.focus();
+        if (isMobile) mobileInputRef.current?.focus();
+        else desktopInputRef.current?.focus();
       }, 50);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, isMobile = false) => {
     if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleQuickSubmit();
+      handleQuickSubmit(isMobile);
     }
   };
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-36 md:pb-20">
       {/* Sticky Header Container: Freeze right below top header during scroll */}
       <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
         {/* Top Filter Controls: Dynamic Transition between Expanded & Compact Single Row */}
@@ -205,7 +189,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               <span className="text-[11px] font-black text-slate-400 select-none pl-1 flex-shrink-0">類別</span>
               {categoryList.map((cat) => {
                 const isSelected = selectedCategory === cat;
-                const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
                 return (
                   <button
                     key={`scroll-cat-${cat}`}
@@ -219,7 +202,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                         : 'bg-slate-100 text-slate-600 border border-slate-200/70 hover:bg-slate-200'
                     }`}
                   >
-                    {emoji}{cat}
+                    {cat}
                   </button>
                 );
               })}
@@ -281,7 +264,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 <div className="flex items-center gap-1 flex-wrap">
                   {categoryList.map((cat) => {
                     const isSelected = selectedCategory === cat;
-                    const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
                     return (
                       <button
                         key={cat}
@@ -295,7 +277,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                             : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
                         }`}
                       >
-                        {emoji}{cat}
+                        {cat}
                       </button>
                     );
                   })}
@@ -360,8 +342,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           )}
         </div>
 
-        {/* Inline Quick-Add Bar */}
-        <div className="space-y-1">
+        {/* Desktop Inline Quick-Add Bar (Hidden on Mobile) */}
+        <div className="hidden md:block space-y-1">
           <div
             className={`bg-white p-1.5 pl-3 rounded-2xl border transition-all flex items-center gap-2 shadow-2xs ${
               showCategoryError
@@ -369,19 +351,15 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 : 'border-slate-200/90 focus-within:border-slate-800 focus-within:ring-2 focus-within:ring-slate-100'
             }`}
           >
-            <span className="text-base select-none flex-shrink-0">
-              {selectedCategory !== '全部' ? (PACKING_EMOJIS[selectedCategory] || '🏷️') : '✏️'}
-            </span>
-
             <input
-              ref={inputRef}
+              ref={desktopInputRef}
               type="text"
               value={quickItemName}
               onChange={(e) => {
                 setQuickItemName(e.target.value);
                 if (showCategoryError) setShowCategoryError(false);
               }}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => handleKeyDown(e, false)}
               placeholder={
                 selectedCategory !== '全部'
                   ? `新增至「${selectedCategory}」... (按 Enter 新增)`
@@ -392,7 +370,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              {/* [+ 詳細] opens modal with preselected attributes */}
               <button
                 type="button"
                 onClick={() =>
@@ -410,10 +387,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 <span>詳細</span>
               </button>
 
-              {/* [↵ 新增] submit button */}
               <button
                 type="button"
-                onClick={handleQuickSubmit}
+                onClick={() => handleQuickSubmit(false)}
                 disabled={isQuickAdding}
                 className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-xl transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95 shadow-2xs ${
                   selectedCategory === '全部'
@@ -449,22 +425,13 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           const packedCount = items.filter((i) => i.isPacked).length;
           const allItemsPacked = items.length > 0 && packedCount === items.length;
 
-          let emoji = '📦';
-          const lowerCat = cat.toLowerCase();
-          for (const [key, val] of Object.entries(PACKING_EMOJIS)) {
-            if (lowerCat.includes(key.toLowerCase())) {
-              emoji = val;
-              break;
-            }
-          }
-
           return (
             <div key={cat} className="space-y-1.5">
-              {/* Borderless Minimalist Category Header */}
+              {/* Minimalist Category Header without emoji */}
               <div className="flex items-center justify-between px-1 py-1 select-none border-b border-slate-100 pb-1.5 mb-1">
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-black text-slate-900 tracking-wide">
-                    {emoji} {cat}
+                    {cat}
                   </span>
                   <span className="text-[11px] font-extrabold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                     {packedCount}/{items.length}
@@ -477,7 +444,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 )}
               </div>
 
-              {/* Items List - Borderless Clean Grid Layout (1 col mobile, 2 col tablet, 3 col desktop) */}
+              {/* Items List - Clean Grid Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
                 {items.map((item) => {
                   const pTokens = item.person ? item.person.split(/[\n,，]+/).map((t) => t.trim()) : [];
@@ -509,7 +476,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                               {item.item}
                             </span>
 
-                            {/* Person Badges (Only shown when multiple persons exist & viewing "全部") */}
+                            {/* Person Badges */}
                             {hasMultiplePersons && selectedPerson === '全部' &&
                               pTokens.map((p, idx) => {
                                 if (!p) return null;
@@ -528,7 +495,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                                 );
                               })}
 
-                            {/* Location Badge (Clean text only, hidden when filtering by location) */}
+                            {/* Location Badge */}
                             {selectedLocation === '全部' && cleanLoc && (
                               <span className="inline-flex items-center bg-slate-100/80 text-slate-500 border border-slate-200/50 px-1.5 py-0.5 rounded text-[10px] font-bold ml-1">
                                 {cleanLoc}
@@ -561,8 +528,72 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           );
         })}
       </div>
+
+      {/* Mobile Bottom-Docked Quick-Add Bar (Floats right above MobileNav) */}
+      <div className="md:hidden fixed bottom-14 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 shadow-lg">
+        <div
+          className={`bg-slate-50 p-1.5 pl-3 rounded-2xl border transition-all flex items-center gap-2 ${
+            showCategoryError
+              ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/40'
+              : 'border-slate-200 focus-within:border-slate-800 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-100'
+          }`}
+        >
+          <input
+            ref={mobileInputRef}
+            type="text"
+            value={quickItemName}
+            onChange={(e) => {
+              setQuickItemName(e.target.value);
+              if (showCategoryError) setShowCategoryError(false);
+            }}
+            onKeyDown={(e) => handleKeyDown(e, true)}
+            placeholder={
+              selectedCategory !== '全部'
+                ? `新增至「${selectedCategory}」... (按 Enter 新增)`
+                : '請先在上方點選類別以快速新增...'
+            }
+            className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
+          />
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                onOpenModal(
+                  undefined,
+                  selectedPerson !== '全部' ? selectedPerson : undefined,
+                  selectedCategory !== '全部' ? selectedCategory : undefined,
+                  selectedLocation !== '全部' ? selectedLocation : undefined
+                )
+              }
+              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>詳細</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickSubmit(true)}
+              disabled={isQuickAdding}
+              className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-xl transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95 shadow-xs ${
+                selectedCategory === '全部'
+                  ? 'bg-slate-400 hover:bg-slate-500'
+                  : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+            >
+              <CornerDownLeft className="w-3.5 h-3.5" />
+              <span>{isQuickAdding ? '新增中...' : '新增'}</span>
+            </button>
+          </div>
+        </div>
+
+        {showCategoryError && (
+          <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pt-1 pl-2">
+            ⚠️ 請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
+          </p>
+        )}
+      </div>
     </div>
   );
 };
-
-
