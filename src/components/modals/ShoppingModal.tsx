@@ -210,7 +210,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-slate-700 flex items-center space-x-1">
                 <User className="w-3.5 h-3.5 text-indigo-600" />
-                <span>購買對象 (可多人 / 點擊 🤝 切換代購)</span>
+                <span>購買對象 (可多人 / 點擊切換代購或自用)</span>
               </label>
               <span className="text-[11px] font-extrabold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200/70">
                 總數量：<strong className="text-slate-900 font-mono text-xs">{totalQuantity}</strong>
@@ -235,14 +235,13 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleToggleProxy(idx)}
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer select-none flex items-center space-x-0.5 ${
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer select-none ${
                       tag.isProxy
                         ? 'bg-amber-600 text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                     }`}
                     title={tag.isProxy ? '點擊切換為自用/伴手禮' : '點擊標記為幫人代購'}
                   >
-                    <span>🤝</span>
                     <span>{tag.isProxy ? '代購' : '自用'}</span>
                   </button>
 

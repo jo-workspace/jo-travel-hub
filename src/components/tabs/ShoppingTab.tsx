@@ -169,19 +169,13 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       {/* Top Stat Cards: 自用伴手禮預估 vs 代購代墊預估 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         <div className="bg-white border border-slate-200/70 rounded-2xl p-3 shadow-2xs">
-          <div className="flex items-center space-x-1 text-slate-400">
-            <span className="text-xs">🛍️</span>
-            <p className="text-[10px] font-bold uppercase tracking-wider">伴手禮/自用</p>
-          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">伴手禮 / 自用</p>
           <p className="mt-1 text-base font-black font-mono text-slate-900">{personalPlannedTotal.toLocaleString()} {foreignCurrency}</p>
           <p className="mt-0.5 text-[10px] font-bold font-mono text-slate-400">約 ${personalPlannedTwd.toLocaleString()} TWD</p>
         </div>
 
         <div className="bg-amber-50/70 border border-amber-200/70 rounded-2xl p-3 shadow-2xs">
-          <div className="flex items-center space-x-1 text-amber-700">
-            <HandCoins className="w-3.5 h-3.5" />
-            <p className="text-[10px] font-bold uppercase tracking-wider">代購待請款</p>
-          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">代購待請款</p>
           <p className="mt-1 text-base font-black font-mono text-amber-900">{proxyPlannedTotal.toLocaleString()} {foreignCurrency}</p>
           <p className="mt-0.5 text-[10px] font-bold font-mono text-amber-600/90">約 ${proxyPlannedTwd.toLocaleString()} TWD</p>
         </div>
@@ -296,16 +290,15 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                       {recipientTags.map((tag, idx) => (
                         <span
                           key={`${tag.name}-${idx}`}
-                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap flex items-center space-x-0.5 ${
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap flex items-center space-x-1 ${
                             tag.isProxy
                               ? 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
                               : 'bg-indigo-50 text-indigo-700 border border-indigo-100/60'
                           }`}
                         >
-                          {tag.isProxy && <span className="mr-0.5">🤝</span>}
                           <span>{tag.name}</span>
                           {tag.quantity > 1 && <span className="font-mono text-[9px] opacity-80">×{tag.quantity}</span>}
-                          {tag.isProxy && <span className="text-[9px] font-normal opacity-75">(代購)</span>}
+                          {tag.isProxy && <span className="text-[9px] font-bold opacity-80">(代購)</span>}
                         </span>
                       ))}
                     </div>

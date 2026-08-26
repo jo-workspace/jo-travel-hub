@@ -533,10 +533,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
           {hasProxyItems ? (
             <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-amber-900 font-extrabold text-xs">
-                  <HandCoins className="w-4 h-4 text-amber-700" />
-                  <span>🤝 代購請款清冊</span>
-                </div>
+                <span className="text-amber-900 font-extrabold text-xs">
+                  代購請款清冊
+                </span>
                 <div className="text-right">
                   <span className="text-xs font-black text-amber-900 font-mono">
                     已買待收 ${purchasedProxyTwd.toLocaleString()}
@@ -560,7 +559,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     <div key={personName} className="bg-white p-3 rounded-xl border border-amber-200/60 shadow-2xs space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1.5">
-                          <span className="text-xs font-black text-slate-900">👤 {personName}</span>
+                          <span className="text-xs font-black text-slate-900">{personName}</span>
                           <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded">
                             {purchasedList.length}/{pItems.length} 已買
                           </span>
@@ -604,9 +603,8 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-amber-50/40 border border-dashed border-amber-200/70 p-3 rounded-2xl text-center text-xs text-amber-800/80 flex items-center justify-center space-x-1.5">
-              <HandCoins className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-              <span>目前尚無代購項目（在購物清單點擊 🤝 切換為代購即可在此分人請款）</span>
+            <div className="bg-amber-50/40 border border-dashed border-amber-200/70 p-3 rounded-2xl text-center text-xs text-amber-800/80">
+              目前尚無代購項目（在購物清單點擊標籤切換為代購即可在此分人請款）
             </div>
           )}
 
