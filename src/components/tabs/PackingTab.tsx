@@ -180,170 +180,173 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Top Filter Controls: Category, Person & Location */}
-      <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100/90 space-y-2.5 shadow-2xs">
-        {/* Row 1: Category Filter Chips */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-          <div className="flex items-center gap-1 flex-wrap">
-            {categoryList.map((cat) => {
-              const isSelected = selectedCategory === cat;
-              const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
-              return (
-                <button
-                  key={cat}
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    if (showCategoryError) setShowCategoryError(false);
-                  }}
-                  className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    isSelected
-                      ? 'bg-slate-900 text-white shadow-2xs'
-                      : 'bg-white text-slate-600 border border-slate-200/60 hover:bg-slate-100'
-                  }`}
-                >
-                  {emoji}{cat}
-                </button>
-              );
-            })}
+      {/* Sticky Header Container: Freeze at top during scroll */}
+      <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md pt-1 pb-3 space-y-2.5 border-b border-slate-200/50 shadow-xs">
+        {/* Top Filter Controls: Category, Person & Location */}
+        <div className="bg-white/90 p-2.5 rounded-2xl border border-slate-200/70 space-y-2 shadow-2xs">
+          {/* Row 1: Category Filter Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+            <div className="flex items-center gap-1 flex-wrap">
+              {categoryList.map((cat) => {
+                const isSelected = selectedCategory === cat;
+                const emoji = cat === '全部' ? '' : (PACKING_EMOJIS[cat] ? `${PACKING_EMOJIS[cat]} ` : '');
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      if (showCategoryError) setShowCategoryError(false);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                    }`}
+                  >
+                    {emoji}{cat}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Row 2: Person & Location Sub-filters (if present) */}
+          {(hasMultiplePersons || locationList.length > 1) && (
+            <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-100 text-xs">
+              {/* Person Filter */}
+              {hasMultiplePersons && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {personList.map((person) => {
+                      const isSelected = selectedPerson === person;
+                      return (
+                        <button
+                          key={person}
+                          onClick={() => setSelectedPerson(person)}
+                          className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white shadow-2xs'
+                              : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                          }`}
+                        >
+                          {person}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Location Filter */}
+              {locationList.length > 1 && (
+                <div className={`flex items-center gap-1.5 flex-wrap ${hasMultiplePersons ? 'pl-2 border-l border-slate-200/80' : ''}`}>
+                  <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {locationList.map((loc) => {
+                      const isSelected = selectedLocation === loc;
+                      return (
+                        <button
+                          key={loc}
+                          onClick={() => setSelectedLocation(loc)}
+                          className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                            isSelected
+                              ? 'bg-amber-600 text-white shadow-2xs'
+                              : 'bg-slate-100/80 text-slate-600 border border-slate-200/60 hover:bg-slate-200/80'
+                          }`}
+                        >
+                          {loc}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Row 2: Person & Location Sub-filters (if present) */}
-        {(hasMultiplePersons || locationList.length > 1) && (
-          <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-200/60 text-xs">
-            {/* Person Filter */}
-            {hasMultiplePersons && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                <div className="flex items-center gap-1 flex-wrap">
-                  {personList.map((person) => {
-                    const isSelected = selectedPerson === person;
-                    return (
-                      <button
-                        key={person}
-                        onClick={() => setSelectedPerson(person)}
-                        className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                          isSelected
-                            ? 'bg-indigo-600 text-white shadow-2xs'
-                            : 'bg-white text-slate-600 border border-slate-200/60 hover:bg-slate-100'
-                        }`}
-                      >
-                        {person}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+        {/* Inline Quick-Add Bar */}
+        <div className="space-y-1">
+          <div
+            className={`bg-white p-1.5 pl-3 rounded-2xl border transition-all flex items-center gap-2 shadow-2xs ${
+              showCategoryError
+                ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/20'
+                : 'border-slate-200/90 focus-within:border-slate-800 focus-within:ring-2 focus-within:ring-slate-100'
+            }`}
+          >
+            <span className="text-base select-none flex-shrink-0">
+              {selectedCategory !== '全部' ? (PACKING_EMOJIS[selectedCategory] || '🏷️') : '✏️'}
+            </span>
 
-            {/* Location Filter */}
-            {locationList.length > 1 && (
-              <div className={`flex items-center gap-1.5 flex-wrap ${hasMultiplePersons ? 'pl-2 border-l border-slate-200/80' : ''}`}>
-                <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                <div className="flex items-center gap-1 flex-wrap">
-                  {locationList.map((loc) => {
-                    const isSelected = selectedLocation === loc;
-                    return (
-                      <button
-                        key={loc}
-                        onClick={() => setSelectedLocation(loc)}
-                        className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                          isSelected
-                            ? 'bg-amber-600 text-white shadow-2xs'
-                            : 'bg-white text-slate-600 border border-slate-200/60 hover:bg-slate-100'
-                        }`}
-                      >
-                        {loc}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Inline Quick-Add Bar (Option A) */}
-      <div className="space-y-1">
-        <div
-          className={`bg-white p-1.5 pl-3 rounded-2xl border transition-all flex items-center gap-2 shadow-2xs ${
-            showCategoryError
-              ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/20'
-              : 'border-slate-200/80 focus-within:border-slate-800 focus-within:ring-2 focus-within:ring-slate-100'
-          }`}
-        >
-          <span className="text-base select-none flex-shrink-0">
-            {selectedCategory !== '全部' ? (PACKING_EMOJIS[selectedCategory] || '🏷️') : '✏️'}
-          </span>
-
-          <input
-            ref={inputRef}
-            type="text"
-            value={quickItemName}
-            onChange={(e) => {
-              setQuickItemName(e.target.value);
-              if (showCategoryError) setShowCategoryError(false);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              selectedCategory !== '全部'
-                ? `新增至「${selectedCategory}」... (按 Enter 新增)`
-                : '請先在上方點選類別以快速新增...'
-            }
-            className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
-          />
-
-          {/* Option A Action Buttons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* [+ 詳細] opens modal with preselected attributes */}
-            <button
-              type="button"
-              onClick={() =>
-                onOpenModal(
-                  undefined,
-                  selectedPerson !== '全部' ? selectedPerson : undefined,
-                  selectedCategory !== '全部' ? selectedCategory : undefined,
-                  selectedLocation !== '全部' ? selectedLocation : undefined
-                )
+            <input
+              ref={inputRef}
+              type="text"
+              value={quickItemName}
+              onChange={(e) => {
+                setQuickItemName(e.target.value);
+                if (showCategoryError) setShowCategoryError(false);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                selectedCategory !== '全部'
+                  ? `新增至「${selectedCategory}」... (按 Enter 新增)`
+                  : '請先在上方點選類別以快速新增...'
               }
-              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
-              title="開啟完整彈窗設定備註"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>詳細</span>
-            </button>
+              className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
+            />
 
-            {/* [↵ 新增] submit button */}
-            <button
-              type="button"
-              onClick={handleQuickSubmit}
-              disabled={isQuickAdding}
-              className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-xl transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95 shadow-2xs ${
-                selectedCategory === '全部'
-                  ? 'bg-slate-400 hover:bg-slate-500'
-                  : 'bg-emerald-600 hover:bg-emerald-700'
-              }`}
-            >
-              <CornerDownLeft className="w-3.5 h-3.5" />
-              <span>{isQuickAdding ? '新增中...' : '新增'}</span>
-            </button>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* [+ 詳細] opens modal with preselected attributes */}
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenModal(
+                    undefined,
+                    selectedPerson !== '全部' ? selectedPerson : undefined,
+                    selectedCategory !== '全部' ? selectedCategory : undefined,
+                    selectedLocation !== '全部' ? selectedLocation : undefined
+                  )
+                }
+                className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                title="開啟完整彈窗設定備註"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>詳細</span>
+              </button>
+
+              {/* [↵ 新增] submit button */}
+              <button
+                type="button"
+                onClick={handleQuickSubmit}
+                disabled={isQuickAdding}
+                className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-xl transition-all flex items-center space-x-1 cursor-pointer select-none active:scale-95 shadow-2xs ${
+                  selectedCategory === '全部'
+                    ? 'bg-slate-400 hover:bg-slate-500'
+                    : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                <CornerDownLeft className="w-3.5 h-3.5" />
+                <span>{isQuickAdding ? '新增中...' : '新增'}</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {showCategoryError && (
-          <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pl-2">
-            ⚠️ 請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
-          </p>
-        )}
+          {showCategoryError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pl-2">
+              ⚠️ 請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Main Content Layout: Frameless High-Density Clean Items List */}
       <div className="w-full p-2 md:p-4 space-y-6">
         {categories.length === 0 && (
           <div className="text-center py-16 text-slate-400 text-sm">
-            所有行李皆已打包完成！🧳✨
+            目前沒有符合條件的打包項目！🧳✨
           </div>
         )}
 
@@ -465,15 +468,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           );
         })}
       </div>
-
-      {/* Mobile Floating Action Button */}
-      <button
-        onClick={() => onOpenModal()}
-        className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer transition-all active:scale-90 md:hidden"
-        aria-label="新增打包項目"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
     </div>
   );
 };
