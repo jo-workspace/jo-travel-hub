@@ -487,128 +487,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
             })}
           </div>
 
-          {/* Shopping & Proxy Stats Grid (3-Card Uniform Centered Layout) */}
-          <div className="grid grid-cols-3 gap-2">
-            {/* 1. 自用伴手禮預估 */}
-            <div className="bg-white border border-slate-100 p-3 rounded-2xl text-center shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-                自用伴手禮
-              </span>
-              <span className="text-sm font-mono font-black text-slate-900 mt-0.5 block truncate">
-                ${personalShoppingPlannedTwd.toLocaleString()}
-              </span>
-              <span className="text-[9px] font-bold text-slate-400 block mt-0.5 truncate">
-                預算估算
-              </span>
-            </div>
-
-            {/* 2. 代購待請款 */}
-            <div className="bg-amber-50/70 border border-amber-200/70 p-3 rounded-2xl text-center shadow-2xs">
-              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block truncate">
-                代購待請款
-              </span>
-              <span className="text-sm font-mono font-black text-amber-900 mt-0.5 block truncate">
-                ${purchasedProxyTwd.toLocaleString()}
-              </span>
-              <span className="text-[9px] font-bold text-amber-600/90 block mt-0.5 truncate">
-                {totalProxyTwd > purchasedProxyTwd ? `預估 $${totalProxyTwd.toLocaleString()}` : '已全部購得'}
-              </span>
-            </div>
-
-            {/* 3. 實際已購 */}
-            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-center shadow-2xs">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block truncate">
-                實際已購
-              </span>
-              <span className="text-sm font-mono font-black text-emerald-700 mt-0.5 block truncate">
-                ${Math.round(shoppingActualTwd).toLocaleString()}
-              </span>
-              <span className="text-[9px] font-bold text-emerald-600/80 block mt-0.5 truncate">
-                已記帳支出
-              </span>
-            </div>
-          </div>
-
-          {/* Proxy Receivables Settlement Section (代購請款清冊) */}
-          {hasProxyItems ? (
-            <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-amber-900 font-extrabold text-xs">
-                  代購請款清冊
-                </span>
-                <div className="text-right">
-                  <span className="text-xs font-black text-amber-900 font-mono">
-                    已買待收 ${purchasedProxyTwd.toLocaleString()}
-                  </span>
-                  {totalProxyTwd > purchasedProxyTwd && (
-                    <span className="text-[10px] text-amber-600/80 font-bold block">
-                      (預估共 ${totalProxyTwd.toLocaleString()})
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {Object.entries(proxyReceivables).map(([personName, pItems]) => {
-                  const purchasedList = pItems.filter((i) => i.isDone);
-                  const personTwd = pItems.reduce((s, i) => s + i.totalTwd, 0);
-                  const personPurchasedTwd = purchasedList.reduce((s, i) => s + i.totalTwd, 0);
-                  const isCopied = copiedPerson === personName;
-
-                  return (
-                    <div key={personName} className="bg-white p-3 rounded-xl border border-amber-200/60 shadow-2xs space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-xs font-black text-slate-900">{personName}</span>
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded">
-                            {purchasedList.length}/{pItems.length} 已買
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-black font-mono text-amber-950">
-                            ${personPurchasedTwd.toLocaleString()} TWD
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyProxyMessage(personName, pItems)}
-                            className={`p-1 px-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center space-x-1 ${
-                              isCopied
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            }`}
-                            title="複製此人請款明細（可直接貼至 LINE）"
-                          >
-                            {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                            <span>{isCopied ? '已複製' : '請款'}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Items breakdown */}
-                      <div className="text-[11px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
-                        {pItems.map((pItem, idx) => (
-                          <div key={idx} className="flex items-center justify-between">
-                            <span className={`truncate pr-2 ${pItem.isDone ? 'text-slate-900 font-semibold' : 'text-slate-400 line-through'}`}>
-                              {pItem.isDone ? '✓ ' : '⏳ '}{pItem.itemName} ×{pItem.quantity}
-                            </span>
-                            <span className="font-mono text-slate-700 flex-shrink-0 text-[10px]">
-                              {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd})
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-amber-50/40 border border-dashed border-amber-200/70 p-3 rounded-2xl text-center text-xs text-amber-800/80">
-              目前尚無代購項目（在購物清單點擊標籤切換為代購即可在此分人請款）
-            </div>
-          )}
-
-          {/* Quick Expense Form */}
+          {/* Quick Expense Form (Directly below Jo/Will breakdown) */}
           <form
             onSubmit={handleQuickSubmit}
             className="bg-slate-900 text-white p-5 rounded-2xl shadow-md space-y-4 border border-slate-800"
@@ -686,11 +565,13 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
                   {members.map((m) => (
                     <button
-                      key={m}
+                      key={`paidBy-${m}`}
                       type="button"
                       onClick={() => setPaidBy(m)}
-                      className={`flex-1 min-w-[50px] py-1.5 rounded-lg transition-all cursor-pointer text-center whitespace-nowrap ${
-                        paidBy === m ? 'bg-slate-100 text-slate-900 font-extrabold shadow-2xs' : 'text-slate-400 hover:text-slate-200'
+                      className={`flex-1 py-1.5 px-2.5 rounded-lg text-center transition-all cursor-pointer whitespace-nowrap ${
+                        paidBy === m
+                          ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                          : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       {m}
@@ -699,70 +580,100 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 </div>
               </div>
 
-              {/* Split Selection */}
+              {/* Split Mode Selector */}
               <div>
-                <label className="block text-slate-400 text-[10px] uppercase mb-1">分攤對象</label>
-                <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => setSplitMode('weighted')}
-                    className={`flex-1 min-w-[50px] py-1.5 rounded-lg transition-all cursor-pointer text-center whitespace-nowrap ${
-                      splitMode === 'weighted' ? 'bg-amber-400 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    分攤
-                  </button>
-                  {members.map((m) => (
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-400 text-[10px] uppercase">分攤方式</label>
+                  <div className="flex items-center space-x-1">
                     <button
-                      key={m}
                       type="button"
-                      onClick={() => {
-                        setSplitMode('single');
-                        setSelectedSingleMember(m);
-                      }}
-                      className={`flex-1 min-w-[50px] py-1.5 rounded-lg transition-all cursor-pointer text-center whitespace-nowrap ${
-                        splitMode === 'single' && selectedSingleMember === m ? 'bg-slate-100 text-slate-900 font-extrabold shadow-2xs' : 'text-slate-400 hover:text-slate-200'
+                      onClick={() => setSplitMode('weighted')}
+                      className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        splitMode === 'weighted'
+                          ? 'bg-slate-700 text-amber-300 font-bold'
+                          : 'text-slate-500 hover:text-slate-400'
                       }`}
                     >
-                      僅 {m}
+                      比例/均分
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setSplitMode('single')}
+                      className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        splitMode === 'single'
+                          ? 'bg-slate-700 text-amber-300 font-bold'
+                          : 'text-slate-500 hover:text-slate-400'
+                      }`}
+                    >
+                      單人負擔
+                    </button>
+                  </div>
                 </div>
 
-                {/* 人頭/權重微調控制區 (當選擇「按人頭/權重分攤」時顯示) */}
-                {splitMode === 'weighted' && (
-                  <div className="mt-2 bg-slate-800/90 border border-slate-700/60 p-2.5 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400">
-                      <span>調整成員負擔人頭 (如攜帶家人代付)</span>
-                      <span className="font-mono text-amber-300">
-                        總份數: {Object.values(memberWeights).reduce((a, b) => a + b, 0)} 份
-                      </span>
+                {splitMode === 'single' ? (
+                  <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl overflow-x-auto no-scrollbar">
+                    {members.map((m) => (
+                      <button
+                        key={`single-${m}`}
+                        type="button"
+                        onClick={() => setSelectedSingleMember(m)}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer whitespace-nowrap ${
+                          selectedSingleMember === m
+                            ? 'bg-indigo-600 text-white font-black shadow-xs'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 bg-slate-800/60 p-2 rounded-xl">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
+                      <span>各人分擔份數 (設為 0 代表不分擔)</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const reset: Record<string, number> = {};
+                          members.forEach((m) => { reset[m] = 1; });
+                          setMemberWeights(reset);
+                        }}
+                        className="text-amber-400 hover:underline cursor-pointer"
+                      >
+                        重置為全員均分
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+
+                    <div className="grid grid-cols-2 gap-1.5">
                       {members.map((m) => {
-                        const currentWeight = memberWeights[m] || 1;
+                        const currentWeight = memberWeights[m] ?? 1;
                         return (
-                          <div key={m} className="flex items-center justify-between bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800">
-                            <span className="text-xs font-bold text-slate-200 truncate">{m}</span>
+                          <div key={`weight-${m}`} className="flex items-center justify-between bg-slate-800 px-2.5 py-1 rounded-lg">
+                            <span className="text-slate-300 truncate mr-1">{m}</span>
                             <div className="flex items-center space-x-1.5">
                               <button
                                 type="button"
-                                onClick={() => setMemberWeights(prev => ({ ...prev, [m]: Math.max(1, (prev[m] || 1) - 1) }))}
-                                className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold text-xs cursor-pointer select-none active:scale-95"
+                                onClick={() => {
+                                  if (currentWeight > 0) {
+                                    setMemberWeights((prev) => ({ ...prev, [m]: currentWeight - 1 }));
+                                  }
+                                }}
+                                className="w-5 h-5 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-slate-300 font-mono text-xs cursor-pointer active:scale-95"
                               >
                                 -
                               </button>
-                              <span className="text-xs font-mono font-black text-amber-400 w-4 text-center">
+                              <span className="font-mono text-amber-300 text-xs w-4 text-center">
                                 {currentWeight}
                               </span>
                               <button
                                 type="button"
-                                onClick={() => setMemberWeights(prev => ({ ...prev, [m]: (prev[m] || 1) + 1 }))}
-                                className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold text-xs cursor-pointer select-none active:scale-95"
+                                onClick={() => {
+                                  setMemberWeights((prev) => ({ ...prev, [m]: currentWeight + 1 }));
+                                }}
+                                className="w-5 h-5 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-slate-300 font-mono text-xs cursor-pointer active:scale-95"
                               >
                                 +
                               </button>
-                              <span className="text-[10px] text-slate-500 font-bold">人份</span>
                             </div>
                           </div>
                         );
@@ -773,25 +684,100 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               </div>
             </div>
 
-            {/* Note */}
+            {/* Note Input */}
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="相關備註 (選填)..."
-              className="w-full bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
+              placeholder="備註說明 (選填)..."
+              className="w-full bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
             />
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-2.5 rounded-xl transition-all active:scale-98 cursor-pointer shadow-sm disabled:opacity-50 flex items-center justify-center space-x-1"
+              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm py-2.5 rounded-xl transition-all shadow-md active:scale-98 cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5"
             >
-              <Plus className="w-4 h-4" />
-              <span>{isSubmitting ? '處理中...' : '送出記帳'}</span>
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>{isSubmitting ? '新增中...' : '送出記帳'}</span>
             </button>
           </form>
+
+          {/* Proxy Receivables Settlement Section (代購請款清冊 - 置於表單下方) */}
+          {hasProxyItems && (
+            <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-amber-900 font-extrabold text-xs">
+                  代購請款清冊
+                </span>
+                <div className="text-right">
+                  <span className="text-xs font-black text-amber-900 font-mono">
+                    已買待收 ${purchasedProxyTwd.toLocaleString()}
+                  </span>
+                  {totalProxyTwd > purchasedProxyTwd && (
+                    <span className="text-[10px] text-amber-600/80 font-bold block">
+                      (預估共 ${totalProxyTwd.toLocaleString()})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {Object.entries(proxyReceivables).map(([personName, pItems]) => {
+                  const purchasedList = pItems.filter((i) => i.isDone);
+                  const personTwd = pItems.reduce((s, i) => s + i.totalTwd, 0);
+                  const personPurchasedTwd = purchasedList.reduce((s, i) => s + i.totalTwd, 0);
+                  const isCopied = copiedPerson === personName;
+
+                  return (
+                    <div key={personName} className="bg-white p-3 rounded-xl border border-amber-200/60 shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-xs font-black text-slate-900">{personName}</span>
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded">
+                            {purchasedList.length}/{pItems.length} 已買
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-black font-mono text-amber-950">
+                            ${personPurchasedTwd.toLocaleString()} TWD
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyProxyMessage(personName, pItems)}
+                            className={`p-1 px-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center space-x-1 ${
+                              isCopied
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            }`}
+                            title="複製此人請款明細（可直接貼至 LINE）"
+                          >
+                            {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            <span>{isCopied ? '已複製' : '請款'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Items breakdown */}
+                      <div className="text-[11px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
+                        {pItems.map((pItem, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className={`truncate pr-2 ${pItem.isDone ? 'text-slate-900 font-semibold' : 'text-slate-400 line-through'}`}>
+                              {pItem.isDone ? '✓ ' : '⏳ '}{pItem.itemName} ×{pItem.quantity}
+                            </span>
+                            <span className="font-mono text-slate-700 flex-shrink-0 text-[10px]">
+                              {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Expense History List */}
