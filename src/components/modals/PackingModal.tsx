@@ -71,14 +71,16 @@ export const PackingModal: React.FC<PackingModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isEditMode = !!(item && item.rowIndex && item.rowIndex > 1);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemName.trim()) return;
 
     setIsSubmitting(true);
     try {
-      if (!item) {
-        // New mode: support batch input (one item per line)
+      if (!isEditMode) {
+        // New / Duplicate mode: support batch input (one item per line)
         const items = itemName.split('\n').map((s) => s.trim()).filter(Boolean);
         await onSave({
           rowIndex: 0,
@@ -92,13 +94,13 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       } else {
         // Edit mode: single item
         await onSave({
-          rowIndex: item.rowIndex,
+          rowIndex: item!.rowIndex,
           category: category.trim(),
           person: person.trim(),
           item: itemName.trim(),
           note: note.trim(),
           location: location.trim(),
-          isPacked: item.isPacked,
+          isPacked: item!.isPacked,
         });
       }
       onClose();
@@ -108,7 +110,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   };
 
   const handleDelete = async () => {
-    if (!item?.rowIndex || item.rowIndex <= 1) return;
+    if (!isEditMode || !item?.rowIndex) return;
     if (!confirm('確定要刪除此打包項目嗎？')) return;
 
     setIsSubmitting(true);
@@ -131,7 +133,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-extrabold text-slate-900">
-            {item ? '編輯打包項目' : '新增打包項目'}
+            {isEditMode ? '編輯打包項目' : '新增打包項目'}
           </h3>
           <button
             onClick={onClose}

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem } from '@/types/trip';
-import { Plus, Edit3, Briefcase, User, Layers, CornerDownLeft } from 'lucide-react';
+import { Plus, Edit3, Copy, Briefcase, User, Layers, CornerDownLeft } from 'lucide-react';
 
 interface PackingTabProps {
   data: PackingItem[];
@@ -518,14 +518,23 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                         </div>
                       </div>
 
-                      {/* Edit Button */}
-                      <button
-                        onClick={() => onOpenModal(item)}
-                        className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition-all flex items-center justify-center cursor-pointer active:scale-90 flex-shrink-0 opacity-80 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
-                        title="編輯"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Action Buttons: Copy & Edit */}
+                      <div className="flex items-center space-x-0.5 flex-shrink-0 opacity-80 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100">
+                        <button
+                          onClick={() => onOpenModal({ ...item, rowIndex: 0, isPacked: false })}
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-200/60 rounded-lg transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                          title="複製此項目"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onOpenModal(item)}
+                          className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                          title="編輯"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
