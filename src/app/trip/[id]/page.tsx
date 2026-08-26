@@ -12,7 +12,7 @@ import { ItineraryTab } from '@/components/tabs/ItineraryTab';
 import { TodoTab } from '@/components/tabs/TodoTab';
 import { PackingTab } from '@/components/tabs/PackingTab';
 import { ExpensesTab } from '@/components/tabs/ExpensesTab';
-import { ShoppingTab } from '@/components/tabs/ShoppingTab';
+import { ShoppingTab, parseRecipientTags } from '@/components/tabs/ShoppingTab';
 
 import { ItineraryModal } from '@/components/modals/ItineraryModal';
 import { TodoModal } from '@/components/modals/TodoModal';
@@ -243,9 +243,10 @@ export default function TripPage({ params }: PageProps) {
     }
     tripData.shopping.forEach((s) => {
       if (s.forWhom && s.forWhom !== '公用') {
-        s.forWhom.split(/[\n,，、+/]+/).forEach((name) => {
-          const trimmed = name.trim();
-          if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+        const tags = parseRecipientTags(s.forWhom);
+        tags.forEach((tag) => {
+          const cleanName = tag.name.trim();
+          if (cleanName && !EXCLUDED_KEYWORDS.includes(cleanName)) set.add(cleanName);
         });
       }
     });

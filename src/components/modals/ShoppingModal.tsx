@@ -45,7 +45,11 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
 
   // 當前旅程同行人員 / 曾買對象清單（去重）
   const personPresets = Array.from(
-    new Set([...companionsList.map((p) => p.trim()).filter(Boolean), 'Jo', 'Will', '媽媽', '小明'].filter(Boolean))
+    new Set(
+      companionsList.length > 0
+        ? companionsList.map((p) => p.trim()).filter(Boolean)
+        : ['Jo', 'Will']
+    )
   );
 
   useEffect(() => {
@@ -266,9 +270,8 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
               ))}
             </div>
 
-            {/* Quick Add Companion Pills & Custom Input */}
-            <div className="pt-1.5 border-t border-slate-200/60 flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-bold text-slate-400">快速加入：</span>
+            {/* Recipient Segmented Control & Custom Input (Matching store preset style) */}
+            <div className="flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
               {personPresets.map((p) => {
                 const existing = recipientTags.find((t) => t.name === p);
                 return (
@@ -276,20 +279,20 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                     key={p}
                     type="button"
                     onClick={() => handleAddPerson(p)}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                    className={`text-xs px-3 py-1 rounded-lg transition-all cursor-pointer select-none font-bold ${
                       existing
-                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
-                    title={existing ? `已加入 ${existing.quantity} 個，點擊再 +1` : `點擊加入 ${p}`}
+                    title={existing ? `已選 ${existing.quantity} 個，點擊再 +1` : `點擊選取 ${p}`}
                   >
-                    + {p}{existing ? ` (${existing.quantity})` : ''}
+                    {p}{existing && existing.quantity > 1 ? ` ×${existing.quantity}` : ''}
                   </button>
                 );
               })}
 
               {/* Custom Person Input */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 pl-1">
                 <input
                   type="text"
                   value={customPerson}
@@ -300,8 +303,8 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                       handleAddPerson(customPerson);
                     }
                   }}
-                  placeholder="+ 自訂對象名..."
-                  className="bg-white border border-slate-200 text-xs px-2.5 py-1 rounded-lg outline-none w-24 focus:w-32 focus:ring-1 focus:ring-slate-900 transition-all font-medium"
+                  placeholder="+ 自訂..."
+                  className="bg-white text-xs px-2.5 py-1 rounded-lg outline-none w-20 focus:w-28 focus:ring-1 focus:ring-slate-900 transition-all font-medium border border-slate-200/60"
                 />
                 {customPerson.trim() && (
                   <button
