@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ExpenseItem, ShoppingItem } from '@/types/trip';
-import { getShoppingItemTotal } from '@/components/tabs/ShoppingTab';
-import { Plus, Trash2, Banknote, DollarSign, Users } from 'lucide-react';
+import { getShoppingItemTotal, parseRecipientTags } from '@/components/tabs/ShoppingTab';
+import { Plus, Trash2, Banknote, DollarSign, Users, HandCoins, Copy, Check } from 'lucide-react';
 
 interface ExpensesTabProps {
   data: ExpenseItem[];
@@ -283,6 +283,66 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     if (creditor.amount <= 1) cIdx++;
   }
 
+  // 抓取購物清單中「已購買 (isDone = true) 且是代購 (isProxy = true)」的項目
+  interface ProxyReceivableItem {
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    totalForeign: number;
+    totalTwd: number;
+  }
+
+  const [copiedPerson, setCopiedPerson] = useState<string | null>(null);
+  const proxyReceivables: Record<string, ProxyReceivableItem[]> = {};
+  let totalProxyTwd = 0;
+  let totalProxyForeign = 0;
+
+  shopping.forEach((sItem) => {
+    if (!sItem.isDone) return; // 只有實際已購買的才產生
+    const tags = parseRecipientTags(sItem.forWhom);
+    const price = sItem.price || 0;
+
+    tags.forEach((tag) => {
+      if (!tag.isProxy) return; // 只有代購的才算進請款清冊
+      const personName = tag.name.trim();
+      if (!personName) return;
+
+      const itemForeign = price * tag.quantity;
+      const itemTwd = Math.round(computeTwdAmount(itemForeign, activeForeignCode, fxRate, activeForeignCode));
+
+      if (!proxyReceivables[personName]) {
+        proxyReceivables[personName] = [];
+      }
+
+      proxyReceivables[personName].push({
+        itemName: sItem.item,
+        quantity: tag.quantity,
+        unitPrice: price,
+        totalForeign: itemForeign,
+        totalTwd: itemTwd,
+      });
+
+      totalProxyForeign += itemForeign;
+      totalProxyTwd += itemTwd;
+    });
+  });
+
+  const handleCopyProxyMessage = (personName: string, items: ProxyReceivableItem[]) => {
+    const personForeignTotal = items.reduce((s, i) => s + i.totalForeign, 0);
+    const personTwdTotal = items.reduce((s, i) => s + i.totalTwd, 0);
+
+    const lines = [
+      `【代購請款明細 - ${personName}】`,
+      ...items.map((i, idx) => `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD)`),
+      `───────────────`,
+      `合計應付：$${personTwdTotal.toLocaleString()} TWD (${personForeignTotal.toLocaleString()} ${activeForeignCode})`,
+    ];
+
+    navigator.clipboard.writeText(lines.join('\n'));
+    setCopiedPerson(personName);
+    setTimeout(() => setCopiedPerson(null), 2500);
+  };
+
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!item.trim() || !amount || parseFloat(amount) <= 0) return;
@@ -408,6 +468,72 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               );
             })}
           </div>
+
+          {/* Proxy Receivables Settlement Section (代購請款清冊) */}
+          {Object.keys(proxyReceivables).length > 0 && (
+            <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 text-amber-900 font-extrabold text-xs">
+                  <HandCoins className="w-4 h-4 text-amber-700" />
+                  <span>🤝 代購請款清冊 (已購代墊)</span>
+                </div>
+                <span className="text-[11px] font-black text-amber-900 font-mono">
+                  共 ${totalProxyTwd.toLocaleString()} TWD
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {Object.entries(proxyReceivables).map(([personName, pItems]) => {
+                  const personTwd = pItems.reduce((s, i) => s + i.totalTwd, 0);
+                  const personForeign = pItems.reduce((s, i) => s + i.totalForeign, 0);
+                  const isCopied = copiedPerson === personName;
+
+                  return (
+                    <div key={personName} className="bg-white p-3 rounded-xl border border-amber-200/60 shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-xs font-black text-slate-900">👤 {personName}</span>
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded">
+                            {pItems.length} 項商品
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-black font-mono text-amber-950">
+                            ${personTwd.toLocaleString()} TWD
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyProxyMessage(personName, pItems)}
+                            className={`p-1 px-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center space-x-1 ${
+                              isCopied
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            }`}
+                            title="複製此人請款明細（可直接貼至 LINE）"
+                          >
+                            {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            <span>{isCopied ? '已複製' : '請款'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Items breakdown */}
+                      <div className="text-[11px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
+                        {pItems.map((pItem, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className="truncate pr-2">{pItem.itemName} ×{pItem.quantity}</span>
+                            <span className="font-mono text-slate-700 flex-shrink-0">
+                              {pItem.totalForeign.toLocaleString()} {activeForeignCode}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2.5">
             <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs">

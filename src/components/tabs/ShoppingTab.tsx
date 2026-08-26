@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ShoppingItem } from '@/types/trip';
 import { computeTwdAmount } from '@/components/tabs/ExpensesTab';
-import { Plus, Edit3, Link as LinkIcon, User } from 'lucide-react';
+import { Plus, Edit3, Link as LinkIcon, User, HandCoins } from 'lucide-react';
 
 interface ShoppingTabProps {
   data: ShoppingItem[];
@@ -16,6 +16,50 @@ interface ShoppingTabProps {
   onCheckoutStore: (store: string, items: ShoppingItem[]) => void;
 }
 
+export interface RecipientTag {
+  name: string;
+  isProxy: boolean;
+  quantity: number;
+}
+
+export const parseRecipientTags = (forWhomStr?: string): RecipientTag[] => {
+  if (!forWhomStr) return [{ name: 'Jo', isProxy: false, quantity: 1 }];
+  const tokens = forWhomStr.split(/[\n,、+/]/).map((t) => t.trim()).filter(Boolean);
+  if (tokens.length === 0) return [{ name: 'Jo', isProxy: false, quantity: 1 }];
+
+  return tokens.map((token) => {
+    // 檢查代購標記：例如 媽媽(代購)、小明(代購*2)
+    const proxyMatch = token.match(/\((代購|代)(?:[*x×](\d+))?\)/);
+    if (proxyMatch) {
+      const cleanName = token.replace(/\((代購|代)(?:[*x×](\d+))?\)/, '').trim();
+      const qty = proxyMatch[2] ? parseInt(proxyMatch[2], 10) : 1;
+      return { name: cleanName || token, isProxy: true, quantity: qty > 0 ? qty : 1 };
+    }
+    // 檢查純數量標記：例如 同事(2)
+    const qtyMatch = token.match(/\((?:[*x×]?(\d+))\)/);
+    if (qtyMatch) {
+      const cleanName = token.replace(/\((?:[*x×]?(\d+))\)/, '').trim();
+      const qty = parseInt(qtyMatch[1], 10);
+      return { name: cleanName || token, isProxy: false, quantity: qty > 0 ? qty : 1 };
+    }
+    return { name: token, isProxy: false, quantity: 1 };
+  });
+};
+
+export const serializeRecipientTags = (tags: RecipientTag[]): string => {
+  return tags
+    .map((t) => {
+      const cleanName = t.name.trim();
+      if (!cleanName) return '';
+      if (t.isProxy) {
+        return t.quantity > 1 ? `${cleanName}(代購*${t.quantity})` : `${cleanName}(代購)`;
+      }
+      return t.quantity > 1 ? `${cleanName}(${t.quantity})` : cleanName;
+    })
+    .filter(Boolean)
+    .join(', ');
+};
+
 const ALL_STORES = '__all__';
 const ALL_PEOPLE = '__all__';
 const splitTokens = (value: string) => value.split(/[\n,、+/]/).map((token) => token.trim()).filter(Boolean);
@@ -27,33 +71,24 @@ export const parseShoppingQuantity = (quantity?: string): number => {
 };
 
 export const getShoppingItemTotal = (item: ShoppingItem): number => {
-  return (item.price || 0) * parseShoppingQuantity(item.quantity);
+  const tags = parseRecipientTags(item.forWhom);
+  const tagQtySum = tags.reduce((sum, t) => sum + t.quantity, 0);
+  const explicitQty = parseShoppingQuantity(item.quantity);
+  const finalQty = Math.max(explicitQty, tagQtySum);
+  return (item.price || 0) * finalQty;
 };
 
 export const sortShoppingItemsByPriceDesc = (a: ShoppingItem, b: ShoppingItem): number => {
-  // 1. 未勾選品項排在已勾選品項前面
-  if (a.isDone !== b.isDone) {
-    return a.isDone ? 1 : -1;
-  }
-  // 2. 缺貨品項排在正常品項之後
+  if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
   const aOutOfStock = a.purchaseStatus === 'out_of_stock';
   const bOutOfStock = b.purchaseStatus === 'out_of_stock';
-  if (aOutOfStock !== bOutOfStock) {
-    return aOutOfStock ? 1 : -1;
-  }
-  // 3. 依總價 (價格 × 數量) 由高至低排序
+  if (aOutOfStock !== bOutOfStock) return aOutOfStock ? 1 : -1;
   const totalA = getShoppingItemTotal(a);
   const totalB = getShoppingItemTotal(b);
-  if (totalB !== totalA) {
-    return totalB - totalA;
-  }
-  // 4. 總價相同時，依單價由高至低排序
+  if (totalB !== totalA) return totalB - totalA;
   const priceA = a.price || 0;
   const priceB = b.price || 0;
-  if (priceB !== priceA) {
-    return priceB - priceA;
-  }
-  // 5. 若均相同，維持原本試算表輸入順序
+  if (priceB !== priceA) return priceB - priceA;
   return (a.rowIndex || 0) - (b.rowIndex || 0);
 };
 
@@ -71,7 +106,9 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
 
   const storeList = Array.from(new Set(data.flatMap((item) => splitTokens(item.store))));
-  const personList = Array.from(new Set(data.flatMap((item) => splitTokens(item.forWhom))));
+  const personList = Array.from(
+    new Set(data.flatMap((item) => parseRecipientTags(item.forWhom).map((t) => t.name)))
+  );
 
   const isAllStores = selectedStore === ALL_STORES;
   const isAllPeople = selectedPerson === ALL_PEOPLE;
@@ -80,7 +117,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
     .filter((item) => {
       if (hideDone && item.isDone) return false;
       const matchStore = isAllStores || splitTokens(item.store).includes(selectedStore);
-      const matchPerson = isAllPeople || splitTokens(item.forWhom).includes(selectedPerson);
+      const recipientNames = parseRecipientTags(item.forWhom).map((t) => t.name);
+      const matchPerson = isAllPeople || recipientNames.includes(selectedPerson);
       return matchStore && matchPerson;
     })
     .sort(sortShoppingItemsByPriceDesc);
@@ -88,21 +126,74 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   const storePendingItems = isAllStores
     ? []
     : data.filter((item) => splitTokens(item.store).includes(selectedStore) && !item.isDone && item.purchaseStatus !== 'out_of_stock');
-  const plannedTotal = data.reduce((total, item) => total + getShoppingItemTotal(item), 0);
-  const plannedTotalTwd = Math.round(computeTwdAmount(plannedTotal, foreignCurrency, fxRate, foreignCurrency));
-  const selectedEstimate = data.reduce((total, item) => total + (item.isDone ? getShoppingItemTotal(item) : 0), 0);
+
+  // 計算自用伴手禮 vs 代購金額
+  let personalPlannedTotal = 0;
+  let proxyPlannedTotal = 0;
+  let selectedEstimate = 0;
+
+  data.forEach((item) => {
+    const price = item.price || 0;
+    const tags = parseRecipientTags(item.forWhom);
+    const itemTotal = getShoppingItemTotal(item);
+
+    let itemProxyAmount = 0;
+    let itemPersonalAmount = 0;
+
+    tags.forEach((t) => {
+      if (t.isProxy) {
+        itemProxyAmount += price * t.quantity;
+      } else {
+        itemPersonalAmount += price * t.quantity;
+      }
+    });
+
+    // 如果沒有 tags 且有總價
+    if (itemProxyAmount === 0 && itemPersonalAmount === 0) {
+      itemPersonalAmount = itemTotal;
+    }
+
+    personalPlannedTotal += itemPersonalAmount;
+    proxyPlannedTotal += itemProxyAmount;
+
+    if (item.isDone) {
+      selectedEstimate += itemTotal;
+    }
+  });
+
+  const personalPlannedTwd = Math.round(computeTwdAmount(personalPlannedTotal, foreignCurrency, fxRate, foreignCurrency));
+  const proxyPlannedTwd = Math.round(computeTwdAmount(proxyPlannedTotal, foreignCurrency, fxRate, foreignCurrency));
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white border border-slate-100 rounded-2xl p-3 shadow-2xs">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">購物預估</p>
-          <p className="mt-1 text-base font-black font-mono text-slate-900">{plannedTotal.toLocaleString()} {foreignCurrency}</p>
-          <p className="mt-0.5 text-[10px] font-bold font-mono text-slate-400">約 ${plannedTotalTwd.toLocaleString()} TWD</p>
+      {/* Top Stat Cards: 自用伴手禮預估 vs 代購代墊預估 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        <div className="bg-white border border-slate-200/70 rounded-2xl p-3 shadow-2xs">
+          <div className="flex items-center space-x-1 text-slate-400">
+            <span className="text-xs">🛍️</span>
+            <p className="text-[10px] font-bold uppercase tracking-wider">伴手禮/自用</p>
+          </div>
+          <p className="mt-1 text-base font-black font-mono text-slate-900">{personalPlannedTotal.toLocaleString()} {foreignCurrency}</p>
+          <p className="mt-0.5 text-[10px] font-bold font-mono text-slate-400">約 ${personalPlannedTwd.toLocaleString()} TWD</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 shadow-2xs">
-          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">已勾選預估</p>
-          <p className="mt-1 text-base font-black font-mono text-emerald-700">{selectedEstimate.toLocaleString()} {foreignCurrency}</p>
+
+        <div className="bg-amber-50/70 border border-amber-200/70 rounded-2xl p-3 shadow-2xs">
+          <div className="flex items-center space-x-1 text-amber-700">
+            <HandCoins className="w-3.5 h-3.5" />
+            <p className="text-[10px] font-bold uppercase tracking-wider">代購待請款</p>
+          </div>
+          <p className="mt-1 text-base font-black font-mono text-amber-900">{proxyPlannedTotal.toLocaleString()} {foreignCurrency}</p>
+          <p className="mt-0.5 text-[10px] font-bold font-mono text-amber-600/90">約 ${proxyPlannedTwd.toLocaleString()} TWD</p>
+        </div>
+
+        <div className="col-span-2 sm:col-span-1 bg-emerald-50 border border-emerald-100 rounded-2xl p-3 shadow-2xs flex sm:block items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">已購買勾選</p>
+            <p className="mt-0.5 sm:mt-1 text-base font-black font-mono text-emerald-700">{selectedEstimate.toLocaleString()} {foreignCurrency}</p>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-600 sm:hidden bg-emerald-100/60 px-2 py-0.5 rounded-full">
+            約 ${Math.round(computeTwdAmount(selectedEstimate, foreignCurrency, fxRate, foreignCurrency)).toLocaleString()} TWD
+          </span>
         </div>
       </div>
 
@@ -177,10 +268,11 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       <div className="space-y-2.5">
         {filteredItems.map((item) => {
           const stores = splitTokens(item.store);
-          const people = splitTokens(item.forWhom);
+          const recipientTags = parseRecipientTags(item.forWhom);
           const isOutOfStock = item.purchaseStatus === 'out_of_stock';
-          const itemQty = parseShoppingQuantity(item.quantity);
-          const itemTotal = getShoppingItemTotal(item);
+          const totalQty = recipientTags.reduce((sum, t) => sum + t.quantity, 0) || parseShoppingQuantity(item.quantity);
+          const itemTotal = (item.price || 0) * totalQty;
+
           return (
             <div key={item.rowIndex} className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${isOutOfStock ? 'border-amber-200 bg-amber-50' : item.isDone ? 'border-slate-100 opacity-40 bg-slate-50' : 'border-slate-100 shadow-2xs hover:shadow-xs'}`}>
               <div className="flex-1 pr-4 min-w-0">
@@ -194,17 +286,44 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap gap-1 mb-1">
-                      {stores.map((store, idx) => <span key={`${store}-${idx}`} className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full whitespace-nowrap">{store}</span>)}
-                      {people.map((person, idx) => <span key={`${person}-${idx}`} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap">{person}</span>)}
+                    {/* Store & Multi-Recipient Capsules */}
+                    <div className="flex flex-wrap items-center gap-1 mb-1">
+                      {stores.map((store, idx) => (
+                        <span key={`${store}-${idx}`} className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {store}
+                        </span>
+                      ))}
+                      {recipientTags.map((tag, idx) => (
+                        <span
+                          key={`${tag.name}-${idx}`}
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full tracking-wider whitespace-nowrap flex items-center space-x-0.5 ${
+                            tag.isProxy
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs'
+                              : 'bg-indigo-50 text-indigo-700 border border-indigo-100/60'
+                          }`}
+                        >
+                          {tag.isProxy && <span className="mr-0.5">🤝</span>}
+                          <span>{tag.name}</span>
+                          {tag.quantity > 1 && <span className="font-mono text-[9px] opacity-80">×{tag.quantity}</span>}
+                          {tag.isProxy && <span className="text-[9px] font-normal opacity-75">(代購)</span>}
+                        </span>
+                      ))}
                     </div>
+
+                    {/* Item Name, Quantity & Price */}
                     <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
-                      <h3 className={`text-base font-extrabold text-slate-900 leading-tight ${item.isDone || isOutOfStock ? 'line-through text-slate-400' : ''}`}>{item.item}</h3>
-                      {item.quantity && item.quantity !== '1' && <span className="text-xs font-extrabold text-slate-800 bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded font-mono">×{item.quantity}</span>}
+                      <h3 className={`text-base font-extrabold text-slate-900 leading-tight ${item.isDone || isOutOfStock ? 'line-through text-slate-400' : ''}`}>
+                        {item.item}
+                      </h3>
+                      {totalQty > 1 && (
+                        <span className="text-xs font-extrabold text-slate-800 bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded font-mono">
+                          ×{totalQty}
+                        </span>
+                      )}
                       {item.price !== undefined && item.price > 0 && (
                         <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-mono">
                           {item.price.toLocaleString()} {foreignCurrency}
-                          {itemQty > 1 && (
+                          {totalQty > 1 && (
                             <span className="text-[10px] text-emerald-600/80 font-bold ml-1">
                               (共 {itemTotal.toLocaleString()})
                             </span>
@@ -212,7 +331,11 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                         </span>
                       )}
                       {isOutOfStock && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">缺貨</span>}
-                      {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700 transition-colors" title="商品連結"><LinkIcon className="w-4 h-4 ml-0.5 inline-block" /></a>}
+                      {item.url && (
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700 transition-colors" title="商品連結">
+                          <LinkIcon className="w-4 h-4 ml-0.5 inline-block" />
+                        </a>
+                      )}
                     </div>
                     {item.note && <div className="text-xs text-slate-500 font-medium mt-1 leading-relaxed whitespace-pre-line">{item.note.replace(/<br\s*\/?>/gi, '\n')}</div>}
                   </div>
