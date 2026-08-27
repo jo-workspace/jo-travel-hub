@@ -233,7 +233,6 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const rawTripNote = settingsData?.trip_note || '';
     let tripNote = rawTripNote;
     let customIcon = '';
-
     // 解析跨裝置同步的自訂圖示（前台上傳之 PNG Data URI 或隱藏標籤）
     const customIconMatch = rawTripNote.match(/<!--CUSTOM_ICON_START-->([\s\S]*?)<!--CUSTOM_ICON_END-->/) ||
                             rawTripNote.match(/<!--SVG_ICON_START-->([\s\S]*?)<!--SVG_ICON_END-->/);
@@ -248,7 +247,6 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
           customIcon = inner;
         }
       }
-      tripNote = rawTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/, '').trim();
     } else {
       const localCustomIcon = typeof window !== 'undefined'
         ? localStorage.getItem(`customIcon_${tripId}`) || localStorage.getItem(`svgIcon_${tripId}`) || ''
@@ -256,13 +254,37 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       customIcon = settingsData?.custom_icon || settingsData?.svg_icon || localCustomIcon || '';
     }
 
+    // 解析跨裝置同步的城市日程安排 (citySchedule)
+    let citySchedule = '';
+    const citySchedMatch = rawTripNote.match(/<!--CITY_SCHEDULE_START-->([\s\S]*?)<!--CITY_SCHEDULE_END-->/);
+    if (citySchedMatch && citySchedMatch[1].trim()) {
+      const inner = citySchedMatch[1].trim();
+      try {
+        citySchedule = decodeURIComponent(atob(inner));
+      } catch {
+        try {
+          citySchedule = decodeURIComponent(inner);
+        } catch {
+          citySchedule = inner;
+        }
+      }
+    }
+    if (!citySchedule) {
+      const localCitySchedule = typeof window !== 'undefined' ? localStorage.getItem(`citySchedule_${tripId}`) || '' : '';
+      citySchedule = settingsData?.city_schedule || settingsData?.cities || localCitySchedule || TRIPS[tripId]?.citySchedule || '';
+    }
+
+    // 清理 tripNote 移除所有隱藏標籤
+    tripNote = rawTripNote
+      .replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '')
+      .replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '')
+      .trim();
+
     const foreignCurrency = settingsData?.foreign_currency || 'USD';
     const companions = settingsData?.companions || 'Jo, Will';
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
     const timezone = settingsData?.timezone || TRIPS[tripId]?.timezone || 'Asia/Taipei';
-    const localCitySchedule = typeof window !== 'undefined' ? localStorage.getItem(`citySchedule_${tripId}`) || '' : '';
-    const citySchedule = settingsData?.city_schedule || settingsData?.cities || localCitySchedule || TRIPS[tripId]?.citySchedule || '';
 
     // 跨旅程歷史分類聚合（去重並過濾無效關鍵字）
     const INVALID_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著', '其他', '全部'];
@@ -364,7 +386,7 @@ export async function updateTripSettings(
 
   if (iconToSave !== undefined) {
     // 使用者明確編輯/上傳了圖示
-    finalTripNote = finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/, '').trim();
+    finalTripNote = finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '').trim();
     if (iconToSave.trim()) {
       try {
         const encodedIcon = btoa(encodeURIComponent(iconToSave.trim()));
@@ -377,7 +399,26 @@ export async function updateTripSettings(
     // 保留原始隱藏標籤
     const existingIconMatch = existingRow?.trip_note?.match(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/);
     if (existingIconMatch) {
-      finalTripNote = `${finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/, '').trim()}\n${existingIconMatch[0]}`;
+      finalTripNote = `${finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '').trim()}\n${existingIconMatch[0]}`;
+    }
+  }
+
+  // 處理 trip_note 中跨裝置同步的城市日程安排 (citySchedule)
+  if (settings.citySchedule !== undefined) {
+    finalTripNote = finalTripNote.replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '').trim();
+    if (settings.citySchedule.trim()) {
+      try {
+        const encodedSched = btoa(encodeURIComponent(settings.citySchedule.trim()));
+        finalTripNote = `${finalTripNote}\n<!--CITY_SCHEDULE_START-->${encodedSched}<!--CITY_SCHEDULE_END-->`;
+      } catch {
+        finalTripNote = `${finalTripNote}\n<!--CITY_SCHEDULE_START-->${settings.citySchedule.trim()}<!--CITY_SCHEDULE_END-->`;
+      }
+    }
+  } else {
+    // 保留原始隱藏標籤
+    const existingSchedMatch = existingRow?.trip_note?.match(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/);
+    if (existingSchedMatch) {
+      finalTripNote = `${finalTripNote.replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '').trim()}\n${existingSchedMatch[0]}`;
     }
   }
 
