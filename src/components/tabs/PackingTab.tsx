@@ -320,89 +320,19 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           isScrolled ? 'p-1.5' : 'p-2.5 space-y-2'
         }`}>
           {isScrolled ? (
-            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules with Edge Fade */
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 px-1 text-xs [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
-              {categoryList.map((cat) => {
-                const isSelected = selectedCategory === cat;
-                return (
-                  <button
-                    key={`scroll-cat-${cat}`}
-                    onClick={() => {
-                      setSelectedCategory(cat);
-                      if (showCategoryError) setShowCategoryError(false);
-                    }}
-                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                      isSelected
-                        ? 'bg-slate-900 text-white shadow-xs'
-                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-
-              {/* Person Badges (Subtle Tint) */}
-              {hasMultiplePersons && (
-                <>
-                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                  {personList.map((person) => {
-                    const isSelected = selectedPerson === person;
-                    return (
-                      <button
-                        key={`scroll-p-${person}`}
-                        onClick={() => setSelectedPerson(person)}
-                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                          isSelected
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                        }`}
-                      >
-                        {person}
-                      </button>
-                    );
-                  })}
-                </>
-              )}
-
-              {/* Location Badges (Subtle Tint) */}
-              {locationList.length > 1 && (
-                <>
-                  <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                  {locationList.map((loc) => {
-                    const isSelected = selectedLocation === loc;
-                    return (
-                      <button
-                        key={`scroll-loc-${loc}`}
-                        onClick={() => setSelectedLocation(loc)}
-                        className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                          isSelected
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                        }`}
-                      >
-                        {loc}
-                      </button>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-          ) : (
-            /* Normal Top state: Multi-row wrap */
-            <>
-              {/* Row 1: Category Filter Chips (Outlined) with Subtle Edge Fade */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
+            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules with Right Pure SVG Icons */
+            <div className="flex items-center justify-between gap-1.5 px-1 py-0.5">
+              <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none text-xs [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
                 {categoryList.map((cat) => {
                   const isSelected = selectedCategory === cat;
                   return (
                     <button
-                      key={cat}
+                      key={`scroll-cat-${cat}`}
                       onClick={() => {
                         setSelectedCategory(cat);
                         if (showCategoryError) setShowCategoryError(false);
                       }}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                         isSelected
                           ? 'bg-slate-900 text-white shadow-xs'
                           : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
@@ -412,6 +342,125 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                     </button>
                   );
                 })}
+
+                {/* Person Badges (Subtle Tint) */}
+                {hasMultiplePersons && (
+                  <>
+                    <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
+                    {personList.map((person) => {
+                      const isSelected = selectedPerson === person;
+                      return (
+                        <button
+                          key={`scroll-p-${person}`}
+                          onClick={() => setSelectedPerson(person)}
+                          className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                            isSelected
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                          }`}
+                        >
+                          {person}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Location Badges (Subtle Tint) */}
+                {locationList.length > 1 && (
+                  <>
+                    <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
+                    {locationList.map((loc) => {
+                      const isSelected = selectedLocation === loc;
+                      return (
+                        <button
+                          key={`scroll-loc-${loc}`}
+                          onClick={() => setSelectedLocation(loc)}
+                          className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                            isSelected
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                          }`}
+                        >
+                          {loc}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+
+              {/* Scrolled State Pure SVG Tool Icons */}
+              <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
+                <button
+                  type="button"
+                  onClick={() => setWeatherGuideOpen(true)}
+                  className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                  title="行程天氣穿搭指南"
+                >
+                  <CloudSun className="w-3.5 h-3.5 text-amber-500" />
+                </button>
+                {onOpenImportModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenImportModal}
+                    className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                    title="從其他旅程匯入"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Normal Top state: Category Row with Right SVG Tools + Sub-filters */
+            <>
+              {/* Row 1: Category Filter Chips (Left) & Pure SVG Tools (Right) */}
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
+                  {categoryList.map((cat) => {
+                    const isSelected = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          if (showCategoryError) setShowCategoryError(false);
+                        }}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Right: Pure SVG Tool Icons (No Text) */}
+                <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
+                  <button
+                    type="button"
+                    onClick={() => setWeatherGuideOpen(true)}
+                    className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs"
+                    title="行程天氣穿搭指南"
+                  >
+                    <CloudSun className="w-4 h-4 text-amber-500" />
+                  </button>
+
+                  {onOpenImportModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenImportModal}
+                      className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs"
+                      title="從其他旅程匯入"
+                    >
+                      <Download className="w-4 h-4 text-slate-700" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Row 2 & 3: Person & Location Sub-filters (Dedicated rows on mobile, inline on desktop) */}
@@ -499,28 +548,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setWeatherGuideOpen(true)}
-                className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
-                title="查看逐日天氣與穿搭指南"
-              >
-                <CloudSun className="w-3.5 h-3.5 text-amber-500" />
-                <span>氣候</span>
-              </button>
-
-              {onOpenImportModal && (
-                <button
-                  type="button"
-                  onClick={onOpenImportModal}
-                  className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
-                  title="從其他旅程複製清單"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>匯入</span>
-                </button>
-              )}
-
               <button
                 type="button"
                 onClick={() =>
@@ -726,26 +753,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           />
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setWeatherGuideOpen(true)}
-              className="p-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center"
-              title="查看逐日天氣與穿搭指南"
-            >
-              <CloudSun className="w-3.5 h-3.5 text-amber-500" />
-            </button>
-
-            {onOpenImportModal && (
-              <button
-                type="button"
-                onClick={onOpenImportModal}
-                className="p-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center"
-                title="從其他旅程複製清單"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-            )}
-
             <button
               type="button"
               onClick={() =>
