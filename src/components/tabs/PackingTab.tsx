@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { PackingItem } from '@/types/trip';
+import { PackingItem, ItineraryItem } from '@/types/trip';
 import { Plus, Edit3, Copy, Download, CornerDownLeft, Thermometer } from 'lucide-react';
-import { getUniqueCities, fetchWeatherForCity, CityWeatherData } from '@/lib/weather';
+import { fetchWeatherForCity, getCityForDay, CityWeatherData } from '@/lib/weather';
+import { WeatherGuideModal, DayWeatherGuideItem } from '@/components/modals/WeatherGuideModal';
 
 interface PackingTabProps {
   data: PackingItem[];
   hidePacked: boolean;
   citySchedule?: string;
+  startDate?: string;
+  tripTitle?: string;
+  itinerary?: ItineraryItem[];
   onTogglePacking: (rowIndex: number, currentStatus: boolean) => void;
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
   onOpenImportModal?: () => void;
@@ -26,6 +30,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   data,
   hidePacked,
   citySchedule,
+  startDate,
+  tripTitle,
+  itinerary = [],
   onTogglePacking,
   onOpenModal,
   onOpenImportModal,
@@ -39,58 +46,122 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [showCategoryError, setShowCategoryError] = useState(false);
   const [isQuickAdding, setIsQuickAdding] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [weatherGuideOpen, setWeatherGuideOpen] = useState(false);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
-  const [weatherSummary, setWeatherSummary] = useState<{
-    minTemp: number;
-    maxTemp: number;
-    citiesText: string;
-    clothingAdvice: string;
-  } | null>(null);
+  // 精準依照行程天數與出發日期計算逐日穿著與全景氣溫
+  const [dailyGuideItems, setDailyGuideItems] = useState<DayWeatherGuideItem[]>([]);
+  const [overallMin, setOverallMin] = useState(999);
+  const [overallMax, setOverallMax] = useState(-999);
+  const [overallAdvice, setOverallAdvice] = useState('');
 
   useEffect(() => {
-    const cities = getUniqueCities(citySchedule);
-    if (cities.length === 0) return;
+    if (!itinerary || itinerary.length === 0) return;
 
-    const loadSummary = async () => {
-      const wList: CityWeatherData[] = [];
-      for (const c of cities) {
-        const d = await fetchWeatherForCity(c);
-        if (d) wList.push(d);
+    const days = Array.from(new Set(itinerary.map((i) => i.day))).filter(Boolean);
+    days.sort((a, b) => {
+      const numA = parseInt(a.replace(/[^0-9]/g, '')) || 999;
+      const numB = parseInt(b.replace(/[^0-9]/g, '')) || 999;
+      return numA - numB;
+    });
+
+    const loadGuides = async () => {
+      const citySet = new Set<string>();
+      days.forEach((d) => {
+        const city = getCityForDay(d, citySchedule);
+        if (city) citySet.add(city);
+      });
+
+      const weatherCache: Record<string, CityWeatherData> = {};
+      for (const city of Array.from(citySet)) {
+        const w = await fetchWeatherForCity(city);
+        if (w) weatherCache[city.toLowerCase()] = w;
       }
-      if (wList.length === 0) return;
 
-      let min = 999;
-      let max = -999;
-      wList.forEach((w) => {
-        w.daily.forEach((d) => {
-          if (d.tempMin < min) min = d.tempMin;
-          if (d.tempMax > max) max = d.tempMax;
+      const guides: DayWeatherGuideItem[] = [];
+      let minVal = 999;
+      let maxVal = -999;
+
+      days.forEach((dayLabel) => {
+        const cityName = getCityForDay(dayLabel, citySchedule, '主要城市');
+        const cWeather = weatherCache[cityName.toLowerCase()];
+
+        let dateDisplay = '';
+        let targetIso = '';
+
+        if (startDate) {
+          const dayNum = parseInt(dayLabel.replace(/[^0-9]/g, ''), 10);
+          if (!isNaN(dayNum)) {
+            const start = new Date(startDate);
+            if (!isNaN(start.getTime())) {
+              const target = new Date(start);
+              target.setDate(target.getDate() + dayNum - 1);
+              const m = target.getMonth() + 1;
+              const d = target.getDate();
+              const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+              dateDisplay = `${m}/${d} (${weekdays[target.getDay()]})`;
+              const yStr = target.getFullYear();
+              const mStr = String(m).padStart(2, '0');
+              const dStr = String(d).padStart(2, '0');
+              targetIso = `${yStr}-${mStr}-${dStr}`;
+            }
+          }
+        }
+
+        let dayW = cWeather?.daily.find((d) => d.dateStr === targetIso);
+        if (!dayW && cWeather && cWeather.daily.length > 0) {
+          dayW = cWeather.daily[0];
+        }
+
+        const tMax = dayW ? dayW.tempMax : 24;
+        const tMin = dayW ? dayW.tempMin : 16;
+        const code = dayW ? dayW.weatherCode : 0;
+        const precip = dayW ? dayW.precipitationProbability : 0;
+
+        if (dayW) {
+          if (tMin < minVal) minVal = tMin;
+          if (tMax > maxVal) maxVal = tMax;
+        }
+
+        let dayAdvice = '早晚舒適';
+        if (tMax - tMin >= 14) {
+          dayAdvice = `日夜溫差達 ${tMax - tMin}°C，務必備薄外套`;
+        } else if (tMax >= 30) {
+          dayAdvice = '炎熱高溫，建議防曬短袖';
+        } else if (tMin <= 14) {
+          dayAdvice = '氣溫偏涼，建議穿著長袖外套';
+        }
+
+        guides.push({
+          dayLabel,
+          dateStr: dateDisplay,
+          cityName,
+          tempMax: tMax,
+          tempMin: tMin,
+          weatherCode: code,
+          precipitationProbability: precip,
+          advice: dayAdvice,
         });
       });
 
-      if (min === 999 || max === -999) return;
+      setDailyGuideItems(guides);
+      setOverallMin(minVal);
+      setOverallMax(maxVal);
 
-      let advice = '早晚溫差大，建議洋蔥式穿搭';
-      if (max - min >= 15) {
-        advice = '跨氣候區極端溫差，需同時備齊保暖外套與透氣防曬衣物';
-      } else if (max > 28) {
-        advice = '天氣炎熱，建議透氣短袖、遮陽帽與防曬裝備';
-      } else if (min < 12) {
-        advice = '氣溫偏低，建議防風保暖外套與長袖衣物';
+      let advice = '早晚溫差適中，建議洋蔥式穿搭';
+      if (maxVal - minVal >= 15) {
+        advice = `跨城市溫差達 ${maxVal - minVal}°C（最低 ${minVal}°C / 最高 ${maxVal}°C），建議同時備齊保暖外套與透氣防曬衣物`;
+      } else if (maxVal >= 30) {
+        advice = '全旅程多為高溫炎熱天候，建議透氣短袖與防曬裝備';
+      } else if (minVal <= 14) {
+        advice = '全旅程氣溫偏涼冷，建議保暖外套與長袖衣物';
       }
-
-      setWeatherSummary({
-        minTemp: min,
-        maxTemp: max,
-        citiesText: cities.join(' / '),
-        clothingAdvice: advice,
-      });
+      setOverallAdvice(advice);
     };
 
-    loadSummary();
-  }, [citySchedule]);
+    loadGuides();
+  }, [itinerary, citySchedule, startDate]);
 
   // Listen to window scroll to collapse header into single horizontal scroll row
   useEffect(() => {
@@ -242,25 +313,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   return (
     <div className="space-y-4 pb-36 md:pb-20">
-      {/* Weather & Climate Packing Advice Banner */}
-      {weatherSummary && !isScrolled && (
-        <div className="bg-white border border-slate-200/80 p-3 rounded-2xl shadow-2xs flex items-center justify-between text-xs transition-all">
-          <div className="flex items-center space-x-2 min-w-0 pr-2">
-            <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg flex-shrink-0">
-              <Thermometer className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="font-extrabold text-slate-800 block truncate">
-                {weatherSummary.citiesText} · 氣溫 {weatherSummary.minTemp}°C ~ {weatherSummary.maxTemp}°C
-              </span>
-              <p className="text-[11px] font-medium text-slate-500 truncate mt-0.5">
-                {weatherSummary.clothingAdvice}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Sticky Header Container: Freeze right below top header during scroll */}
       <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
         {/* Top Filter Controls: Dynamic Transition between Expanded & Compact Single Row */}
@@ -447,6 +499,16 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setWeatherGuideOpen(true)}
+                className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                title="查看逐日天氣與穿搭指南"
+              >
+                <Thermometer className="w-3.5 h-3.5 text-amber-500" />
+                <span>氣候</span>
+              </button>
+
               {onOpenImportModal && (
                 <button
                   type="button"
@@ -664,6 +726,15 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           />
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setWeatherGuideOpen(true)}
+              className="p-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center"
+              title="查看逐日天氣與穿搭指南"
+            >
+              <Thermometer className="w-3.5 h-3.5 text-amber-500" />
+            </button>
+
             {onOpenImportModal && (
               <button
                 type="button"
@@ -713,6 +784,16 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           </p>
         )}
       </div>
+
+      <WeatherGuideModal
+        isOpen={weatherGuideOpen}
+        onClose={() => setWeatherGuideOpen(false)}
+        tripTitle={tripTitle}
+        items={dailyGuideItems}
+        overallMin={overallMin}
+        overallMax={overallMax}
+        overallAdvice={overallAdvice}
+      />
     </div>
   );
 };

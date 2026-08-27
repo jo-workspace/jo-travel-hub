@@ -714,6 +714,9 @@ export default function TripPage({ params }: PageProps) {
                   data={tripData.packing}
                   hidePacked={hideVisited}
                   citySchedule={tripData.citySchedule}
+                  startDate={tripData.startDate}
+                  tripTitle={tripData.tripTitle || tripConfig.title}
+                  itinerary={tripData.itinerary}
                   onTogglePacking={handleTogglePacking}
                   onQuickAdd={handleQuickAddPacking}
                   onOpenImportModal={() => setImportPackingModalOpen(true)}
