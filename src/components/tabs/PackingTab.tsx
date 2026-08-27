@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem, ItineraryItem } from '@/types/trip';
-import { Plus, Edit3, Copy, Download, CornerDownLeft, Thermometer } from 'lucide-react';
+import { Plus, Edit3, Copy, Download, CornerDownLeft, CloudSun } from 'lucide-react';
 import { fetchWeatherForCity, getCityForDay, CityWeatherData } from '@/lib/weather';
 import { WeatherGuideModal, DayWeatherGuideItem } from '@/components/modals/WeatherGuideModal';
 
@@ -505,7 +505,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
                 title="查看逐日天氣與穿搭指南"
               >
-                <Thermometer className="w-3.5 h-3.5 text-amber-500" />
+                <CloudSun className="w-3.5 h-3.5 text-amber-500" />
                 <span>氣候</span>
               </button>
 
@@ -732,7 +732,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               className="p-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center"
               title="查看逐日天氣與穿搭指南"
             >
-              <Thermometer className="w-3.5 h-3.5 text-amber-500" />
+              <CloudSun className="w-3.5 h-3.5 text-amber-500" />
             </button>
 
             {onOpenImportModal && (

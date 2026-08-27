@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Thermometer, Calendar, MapPin, Sparkles } from 'lucide-react';
+import { X, CloudSun, Calendar, MapPin, Sparkles } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { getWeatherDescription } from '@/lib/weather';
 
@@ -50,7 +50,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
-              <Thermometer className="w-5 h-5" />
+              <CloudSun className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-extrabold text-slate-900 leading-tight">
