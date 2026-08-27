@@ -687,6 +687,7 @@ export default function TripPage({ params }: PageProps) {
                   hideVisited={hideVisited}
                   startDate={tripData.startDate}
                   timezone={tripData.timezone}
+                  citySchedule={tripData.citySchedule}
                   onToggleVisited={handleToggleVisited}
                   onOpenModal={(item) => {
                     setActiveItineraryItem(item || null);
@@ -712,6 +713,7 @@ export default function TripPage({ params }: PageProps) {
                 <PackingTab
                   data={tripData.packing}
                   hidePacked={hideVisited}
+                  citySchedule={tripData.citySchedule}
                   onTogglePacking={handleTogglePacking}
                   onQuickAdd={handleQuickAddPacking}
                   onOpenImportModal={() => setImportPackingModalOpen(true)}
@@ -828,6 +830,7 @@ export default function TripPage({ params }: PageProps) {
         timezone={tripData.timezone}
         companions={tripData.companions}
         customIcon={tripData.customIcon || tripData.svgIcon}
+        citySchedule={tripData.citySchedule}
       />
 
       <LightboxModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />

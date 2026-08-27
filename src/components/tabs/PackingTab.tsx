@@ -2,11 +2,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem } from '@/types/trip';
-import { Plus, Edit3, Copy, Download, CornerDownLeft } from 'lucide-react';
+import { Plus, Edit3, Copy, Download, CornerDownLeft, Thermometer } from 'lucide-react';
+import { getUniqueCities, fetchWeatherForCity, CityWeatherData } from '@/lib/weather';
 
 interface PackingTabProps {
   data: PackingItem[];
   hidePacked: boolean;
+  citySchedule?: string;
   onTogglePacking: (rowIndex: number, currentStatus: boolean) => void;
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
   onOpenImportModal?: () => void;
@@ -23,6 +25,7 @@ const ALL_LOCATIONS = '全位置';
 export const PackingTab: React.FC<PackingTabProps> = ({
   data,
   hidePacked,
+  citySchedule,
   onTogglePacking,
   onOpenModal,
   onOpenImportModal,
@@ -38,6 +41,56 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+
+  const [weatherSummary, setWeatherSummary] = useState<{
+    minTemp: number;
+    maxTemp: number;
+    citiesText: string;
+    clothingAdvice: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const cities = getUniqueCities(citySchedule);
+    if (cities.length === 0) return;
+
+    const loadSummary = async () => {
+      const wList: CityWeatherData[] = [];
+      for (const c of cities) {
+        const d = await fetchWeatherForCity(c);
+        if (d) wList.push(d);
+      }
+      if (wList.length === 0) return;
+
+      let min = 999;
+      let max = -999;
+      wList.forEach((w) => {
+        w.daily.forEach((d) => {
+          if (d.tempMin < min) min = d.tempMin;
+          if (d.tempMax > max) max = d.tempMax;
+        });
+      });
+
+      if (min === 999 || max === -999) return;
+
+      let advice = '早晚溫差大，建議洋蔥式穿搭';
+      if (max - min >= 15) {
+        advice = '跨氣候區極端溫差，需同時備齊保暖外套與透氣防曬衣物';
+      } else if (max > 28) {
+        advice = '天氣炎熱，建議透氣短袖、遮陽帽與防曬裝備';
+      } else if (min < 12) {
+        advice = '氣溫偏低，建議防風保暖外套與長袖衣物';
+      }
+
+      setWeatherSummary({
+        minTemp: min,
+        maxTemp: max,
+        citiesText: cities.join(' / '),
+        clothingAdvice: advice,
+      });
+    };
+
+    loadSummary();
+  }, [citySchedule]);
 
   // Listen to window scroll to collapse header into single horizontal scroll row
   useEffect(() => {
@@ -189,6 +242,25 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   return (
     <div className="space-y-4 pb-36 md:pb-20">
+      {/* Weather & Climate Packing Advice Banner */}
+      {weatherSummary && !isScrolled && (
+        <div className="bg-white border border-slate-200/80 p-3 rounded-2xl shadow-2xs flex items-center justify-between text-xs transition-all">
+          <div className="flex items-center space-x-2 min-w-0 pr-2">
+            <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg flex-shrink-0">
+              <Thermometer className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-extrabold text-slate-800 block truncate">
+                {weatherSummary.citiesText} · 氣溫 {weatherSummary.minTemp}°C ~ {weatherSummary.maxTemp}°C
+              </span>
+              <p className="text-[11px] font-medium text-slate-500 truncate mt-0.5">
+                {weatherSummary.clothingAdvice}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky Header Container: Freeze right below top header during scroll */}
       <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
         {/* Top Filter Controls: Dynamic Transition between Expanded & Compact Single Row */}

@@ -1,9 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ItineraryItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
 import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3 } from 'lucide-react';
+import { WeatherIcon } from '@/components/WeatherIcon';
+import {
+  getCityForDay,
+  getUniqueCities,
+  fetchWeatherForCity,
+  CityWeatherData,
+  DayWeatherInfo,
+} from '@/lib/weather';
 
 interface ItineraryTabProps {
   data: ItineraryItem[];
@@ -11,6 +19,7 @@ interface ItineraryTabProps {
   hideVisited: boolean;
   startDate?: string; // YYYY-MM-DD，旅程起始日
   timezone?: string; // 旅程目的地時區（IANA），用來判斷「今天」是第幾天
+  citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
   onToggleVisited: (rowIndex: number, currentStatus: boolean) => void;
   onOpenModal: (item?: ItineraryItem) => void;
   onOpenLightbox: (imageUrl: string) => void;
@@ -111,9 +120,28 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   hideVisited,
   startDate,
   timezone,
+  citySchedule,
   onToggleVisited,
   onOpenModal,
 }) => {
+  const [weatherMap, setWeatherMap] = useState<Record<string, CityWeatherData>>({});
+
+  useEffect(() => {
+    const cities = getUniqueCities(citySchedule);
+    if (cities.length === 0) return;
+
+    const loadWeather = async () => {
+      const results: Record<string, CityWeatherData> = {};
+      for (const city of cities) {
+        const wData = await fetchWeatherForCity(city);
+        if (wData) results[city.toLowerCase()] = wData;
+      }
+      setWeatherMap(results);
+    };
+
+    loadWeather();
+  }, [citySchedule]);
+
   // Sort items by Day and Time
   const sortedItems = [...data].sort(sortItineraryItems);
 
@@ -226,17 +254,72 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         const dateText = startDate
           ? calcDateFromStartDate(startDate, day)
           : (items[0]?.date || '');
+
+        const dayCity = getCityForDay(day, citySchedule);
+        const cityWeather = dayCity ? weatherMap[dayCity.toLowerCase()] : undefined;
+
+        // 依據 startDate + day 計算西元 YYYY-MM-DD
+        let dayWeather: DayWeatherInfo | undefined;
+        if (cityWeather) {
+          let targetDateStr = '';
+          if (startDate) {
+            const dayNum = parseInt(day.replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(dayNum)) {
+              const start = new Date(startDate);
+              if (!isNaN(start.getTime())) {
+                const target = new Date(start);
+                target.setDate(target.getDate() + dayNum - 1);
+                const y = target.getFullYear();
+                const m = String(target.getMonth() + 1).padStart(2, '0');
+                const d = String(target.getDate()).padStart(2, '0');
+                targetDateStr = `${y}-${m}-${d}`;
+              }
+            }
+          }
+
+          if (targetDateStr) {
+            dayWeather = cityWeather.daily.find((d) => d.dateStr === targetDateStr);
+          }
+
+          if (!dayWeather && cityWeather.daily.length > 0) {
+            dayWeather = cityWeather.daily[0];
+          }
+        }
+
         return (
           <div key={day} className="space-y-3">
             {/* Day Section Header */}
-            <div className="flex items-center space-x-2 pt-2">
-              <span className="text-xs font-extrabold bg-slate-900 text-white px-3 py-1 rounded-full select-none shadow-xs">
-                {day}
-              </span>
-              {dateText && (
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-                  {dateText}
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                <span className="text-xs font-extrabold bg-slate-900 text-white px-3 py-1 rounded-full select-none shadow-xs">
+                  {day}
                 </span>
+                {dateText && (
+                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    {dateText}
+                  </span>
+                )}
+                {dayCity && (
+                  <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                    {dayCity}
+                  </span>
+                )}
+              </div>
+
+              {/* Day Weather Capsule */}
+              {dayWeather && (
+                <div
+                  className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200/80 px-2.5 py-1 rounded-xl shadow-2xs select-none"
+                  title={`${dayCity || ''} ${dayWeather.tempMin}°C ~ ${dayWeather.tempMax}°C`}
+                >
+                  <WeatherIcon code={dayWeather.weatherCode} className="w-3.5 h-3.5" />
+                  <span className="font-mono text-slate-900">{dayWeather.tempMax}° / {dayWeather.tempMin}°</span>
+                  {dayWeather.precipitationProbability > 0 && (
+                    <span className="text-[10px] text-sky-600 font-mono font-bold">
+                      {dayWeather.precipitationProbability}%
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 

@@ -10,6 +10,7 @@ export interface TripConfig {
   iconUrl?: string;
   appleIconUrl?: string;
   emoji?: string;
+  citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
 }
 
 export const TRIPS: Record<string, TripConfig> = {
@@ -25,6 +26,7 @@ export const TRIPS: Record<string, TripConfig> = {
     iconUrl: '/favicon_la_trip.png',
     appleIconUrl: '/favicon_la_trip.png',
     emoji: '⚾',
+    citySchedule: 'Day 1-5: Los Angeles, Day 6-7: San Diego, Day 8-10: Los Angeles',
   },
   'okinawa-2026': {
     id: 'okinawa-2026',
@@ -38,6 +40,7 @@ export const TRIPS: Record<string, TripConfig> = {
     iconUrl: '/favicon.png',
     appleIconUrl: '/favicon.png',
     emoji: '🌺',
+    citySchedule: 'Day 1-2: 那霸, Day 3-4: 名護, Day 5: 那霸',
   },
 };
 

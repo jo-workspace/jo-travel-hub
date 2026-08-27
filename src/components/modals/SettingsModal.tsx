@@ -23,6 +23,7 @@ interface SettingsModalProps {
   timezone?: string;
   customIcon?: string;
   svgIcon?: string;
+  citySchedule?: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -41,6 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   timezone,
   customIcon,
   svgIcon,
+  citySchedule,
 }) => {
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
@@ -51,6 +53,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [currency, setCurrency] = useState('USD');
   const [people, setPeople] = useState('Jo, Will');
   const [tz, setTz] = useState('Asia/Taipei');
+  const [citySched, setCitySched] = useState('');
   const [iconDataUrl, setIconDataUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -74,10 +77,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setCurrency(foreignCurrency || 'USD');
       setPeople(companions || 'Jo, Will');
       setTz(timezone || 'Asia/Taipei');
+      setCitySched(citySchedule || '');
       setIconDataUrl(customIcon || svgIcon || '');
       setError('');
     }
-  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon]);
+  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule]);
 
   if (!isOpen) return null;
 
@@ -124,6 +128,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         foreignCurrency: currency.trim().toUpperCase() || 'USD',
         companions: people.trim() || 'Jo, Will',
         timezone: tz.trim() || 'Asia/Taipei',
+        citySchedule: citySched.trim(),
         customIcon: iconDataUrl,
       });
       onSaved();
@@ -300,6 +305,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  城市日程安排
+                  <span className="text-slate-400 font-normal ml-1">（設定跨城市天數，自動獲取 Open-Meteo 天氣預報）</span>
+                </label>
+                <input
+                  type="text"
+                  value={citySched}
+                  onChange={(e) => setCitySched(e.target.value)}
+                  placeholder="例：Day 1-5: Los Angeles, Day 6-7: San Diego, Day 8-10: Los Angeles"
+                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-sans text-slate-800"
+                />
+                <p className="text-[11px] text-slate-400 mt-1 font-medium leading-relaxed">
+                  支援格式：<code>Day 1-3: Los Angeles, Day 4-5: Las Vegas</code> 或以逗號分隔城市 <code>那霸, 名護</code>
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

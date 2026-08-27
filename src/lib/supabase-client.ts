@@ -261,6 +261,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
     const timezone = settingsData?.timezone || TRIPS[tripId]?.timezone || 'Asia/Taipei';
+    const localCitySchedule = typeof window !== 'undefined' ? localStorage.getItem(`citySchedule_${tripId}`) || '' : '';
+    const citySchedule = settingsData?.city_schedule || settingsData?.cities || localCitySchedule || TRIPS[tripId]?.citySchedule || '';
 
     // 跨旅程歷史分類聚合（去重並過濾無效關鍵字）
     const INVALID_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著', '其他', '全部'];
@@ -292,6 +294,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       timezone,
       customIcon,
       svgIcon: customIcon,
+      citySchedule,
       historicalPackingCategories,
       historicalTodoCategories,
     };
@@ -334,12 +337,16 @@ export async function updateTripSettings(
     dates?: string;
     customIcon?: string;
     svgIcon?: string;
+    citySchedule?: string;
   }
 ): Promise<void> {
   const iconToSave = settings.customIcon !== undefined ? settings.customIcon : settings.svgIcon;
 
   if (typeof window !== 'undefined' && iconToSave !== undefined) {
     localStorage.setItem(`customIcon_${tripId}`, iconToSave);
+  }
+  if (typeof window !== 'undefined' && settings.citySchedule !== undefined) {
+    localStorage.setItem(`citySchedule_${tripId}`, settings.citySchedule);
   }
 
   // 1. 查詢現有資料與欄位名稱
@@ -390,6 +397,9 @@ export async function updateTripSettings(
   }
   if (dbKeys.length === 0 || dbKeys.includes('timezone')) {
     payload.timezone = settings.timezone ?? 'Asia/Taipei';
+  }
+  if (dbKeys.length === 0 || dbKeys.includes('city_schedule')) {
+    payload.city_schedule = settings.citySchedule ?? '';
   }
   if (dbKeys.length === 0 || dbKeys.includes('svg_icon')) {
     payload.svg_icon = settings.svgIcon ?? '';
