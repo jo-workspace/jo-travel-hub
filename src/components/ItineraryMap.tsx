@@ -33,6 +33,7 @@ export interface ProcessedSpot {
   isExact: boolean;
   isCandidate: boolean;
   dayColor: { bg: string; text: string; hex: string };
+  siblingHotelItems?: ItineraryItem[]; // 同天同地點的多個飯店行程（基地營模式）
 }
 
 interface ItineraryMapProps {
@@ -148,7 +149,33 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       });
     });
 
-    return spots;
+    // 合併同天同飯店的點位（基地營模式 Home Base Anchor）
+    const dayHotelMap: Record<string, ProcessedSpot> = {};
+    const deduplicatedSpots: ProcessedSpot[] = [];
+
+    spots.forEach((spot) => {
+      const isHotel = spot.item.type === '住宿';
+      if (isHotel) {
+        // 以天數與經緯度作為唯一 key
+        const hotelKey = `${spot.dayLabel}_${spot.coords.lat.toFixed(4)}_${spot.coords.lng.toFixed(4)}`;
+        if (dayHotelMap[hotelKey]) {
+          // 已存在同天同飯店圖釘：將此行程加入 siblingHotelItems，不建立重複圖釘！
+          if (!dayHotelMap[hotelKey].siblingHotelItems) {
+            dayHotelMap[hotelKey].siblingHotelItems = [dayHotelMap[hotelKey].item];
+          }
+          dayHotelMap[hotelKey].siblingHotelItems!.push(spot.item);
+          return;
+        } else {
+          dayHotelMap[hotelKey] = spot;
+          spot.siblingHotelItems = [spot.item];
+          deduplicatedSpots.push(spot);
+        }
+      } else {
+        deduplicatedSpots.push(spot);
+      }
+    });
+
+    return deduplicatedSpots;
   }, [items, citySchedule, exactCoordsOverrides]);
 
   // 背景非同步精準搜尋尚未 exact 的景點座標
@@ -616,8 +643,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-slate-400 block truncate">
                   {selectedSpot.dayLabel}
-                  {selectedSpot.isCandidate
-                    ? ' · 📌 口袋候選'
+                  {selectedSpot.siblingHotelItems && selectedSpot.siblingHotelItems.length > 1
+                    ? ` · 🏨 當日基地營 (${selectedSpot.siblingHotelItems.length} 次時段)`
+                    : selectedSpot.isCandidate
+                    ? ' · 📌 口袋清單'
                     : selectedSpot.item.time
                     ? ` · ${selectedSpot.item.time}`
                     : ''}
@@ -630,16 +659,57 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
             <button
               type="button"
               onClick={() => setSelectedSpot(null)}
-              className="text-slate-400 hover:text-slate-700 p-1 text-xs rounded-full hover:bg-slate-100"
+              className="text-slate-400 hover:text-slate-700 p-1 text-xs rounded-full hover:bg-slate-100 cursor-pointer"
             >
               ✕
             </button>
           </div>
 
-          {selectedSpot.item.content && (
-            <p className="text-xs text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-xl whitespace-pre-line">
-              {selectedSpot.item.content.replace(/<br\s*\/?>/gi, '\n')}
-            </p>
+          {/* 多時段飯店基地營任務清單 */}
+          {selectedSpot.siblingHotelItems && selectedSpot.siblingHotelItems.length > 1 ? (
+            <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 max-h-48 overflow-y-auto no-scrollbar">
+              {selectedSpot.siblingHotelItems.map((hItem) => (
+                <div
+                  key={hItem.rowIndex}
+                  className="flex items-center justify-between py-1.5 border-b border-slate-200/50 last:border-0"
+                >
+                  <div className="min-w-0 pr-2">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded-md border border-amber-200/80 flex-shrink-0">
+                        {hItem.time || '全天'}
+                      </span>
+                      <span className="text-xs font-bold text-slate-800 truncate">
+                        {hItem.title}
+                      </span>
+                    </div>
+                    {hItem.content && (
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5 ml-0.5 font-medium">
+                        {hItem.content}
+                      </p>
+                    )}
+                  </div>
+                  {onOpenItemModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenItemModal(hItem);
+                        setSelectedSpot(null);
+                      }}
+                      className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg cursor-pointer flex-shrink-0 transition-all"
+                      title="編輯此時段"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            selectedSpot.item.content && (
+              <p className="text-xs text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-xl whitespace-pre-line">
+                {selectedSpot.item.content.replace(/<br\s*\/?>/gi, '\n')}
+              </p>
+            )
           )}
 
           {/* Action Row */}
