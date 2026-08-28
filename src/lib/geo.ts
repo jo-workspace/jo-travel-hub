@@ -112,9 +112,6 @@ export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   '甲骨文球場': { lat: 37.7786, lng: -122.3893 },
   'oracle park': { lat: 37.7786, lng: -122.3893 },
   '舊金山巨人': { lat: 37.7786, lng: -122.3893 },
-  'orchard garden': { lat: 37.7904, lng: -122.4056 },
-  '466 bush': { lat: 37.7904, lng: -122.4056 },
-  '行李 drop-off': { lat: 37.7904, lng: -122.4056 },
 
   // Los Angeles & Southern California
   '道奇': { lat: 34.0739, lng: -118.2400 },
