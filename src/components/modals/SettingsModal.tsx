@@ -242,31 +242,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="border-t border-slate-100" />
 
             {/* 日期與財務 */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>日期與財務</span>
               </div>
 
-              <div className="min-w-0">
-                <label className="block text-xs font-bold text-slate-600 mb-1">起始日</label>
-                <input
-                  type="date"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="min-w-0">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">起始日</label>
+                  <input
+                    type="date"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">目的地時區</label>
-                <input
-                  type="text"
-                  value={tz}
-                  onChange={(e) => setTz(e.target.value)}
-                  placeholder="例：America/Los_Angeles 或 Asia/Taipei"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
-                />
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">時區</label>
+                  <input
+                    type="text"
+                    value={tz}
+                    onChange={(e) => setTz(e.target.value)}
+                    placeholder="例：America/Los_Angeles"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
+                  />
+                </div>
               </div>
 
               <div>
@@ -280,16 +282,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣代碼</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣</label>
                   <input
                     type="text"
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                     placeholder="USD"
                     maxLength={5}
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono tracking-widest"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono tracking-widest"
                   />
                 </div>
 
@@ -303,7 +305,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </span>
                   </label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                     <input
                       type="number"
                       step="any"
@@ -315,22 +317,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           ? '5.05'
                           : '32.5'
                       }
-                      className="w-full bg-slate-50 border border-slate-200 text-sm pl-8 pr-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono font-bold"
+                      className="w-full bg-slate-50 border border-slate-200 text-sm pl-7 pr-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono font-bold"
                     />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">預算 (TWD)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  placeholder="100000"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
-                />
               </div>
             </div>
 
