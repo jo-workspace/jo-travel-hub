@@ -164,79 +164,78 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <form onSubmit={handleSave} className="overflow-y-auto overflow-x-hidden max-h-[75vh]">
           <div className="px-6 py-4 space-y-5">
 
-            {/* 基本資訊 */}
-            <div className="space-y-3">
+            {/* 基本資訊 (2 x 2 網格) */}
+            <div className="space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <Globe className="w-3.5 h-3.5" />
                 <span>基本資訊</span>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">旅程名稱</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="例：2026 LA Trip"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">名稱</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="2026 LA Trip"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">旅程日期顯示</label>
-                <input
-                  type="text"
-                  value={dates}
-                  onChange={(e) => setDates(e.target.value)}
-                  placeholder="例：2026/08"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">日期</label>
+                  <input
+                    type="text"
+                    value={dates}
+                    onChange={(e) => setDates(e.target.value)}
+                    placeholder="2026/08"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">同行人員</label>
-                <input
-                  type="text"
-                  value={people}
-                  onChange={(e) => setPeople(e.target.value)}
-                  placeholder="例：Jo, Will, Alex"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">人員</label>
+                  <input
+                    type="text"
+                    value={people}
+                    onChange={(e) => setPeople(e.target.value)}
+                    placeholder="Jo, Will"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">旅程圖示</label>
-                {iconDataUrl ? (
-                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-2.5 rounded-2xl">
-                    <div className="flex items-center space-x-2.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">圖示</label>
+                  {iconDataUrl ? (
+                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl h-[38px]">
                       <img
                         src={iconDataUrl}
-                        alt="旅程圖示預覽"
-                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-2xs"
+                        alt="圖示"
+                        className="w-7 h-7 rounded-lg object-cover border border-slate-200 shadow-2xs"
                       />
-                      <span className="text-xs font-bold text-slate-800">已設定專屬圖示</span>
+                      <button
+                        type="button"
+                        onClick={() => setIconDataUrl('')}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                        title="清除圖示"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIconDataUrl('')}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer flex items-center space-x-1 text-xs font-bold"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>清除</span>
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex items-center justify-center space-x-2 w-full py-3 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/80 rounded-xl transition-all cursor-pointer group">
-                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-slate-700" />
-                    <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700">選擇圖片檔案</span>
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/webp"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                  </label>
-                )}
+                  ) : (
+                    <label className="flex items-center justify-center space-x-1.5 w-full h-[38px] border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/80 rounded-xl transition-all cursor-pointer group px-2">
+                      <Upload className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700" />
+                      <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700">選擇圖片</span>
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg, image/webp"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -250,7 +249,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div className="min-w-0">
-                <label className="block text-xs font-bold text-slate-600 mb-1">旅程起始日 (Day 1)</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">起始日</label>
                 <input
                   type="date"
                   value={start}
