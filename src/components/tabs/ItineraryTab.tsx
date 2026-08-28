@@ -233,41 +233,63 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
     <div className="space-y-4 pb-20">
       {/* Trip Note Alert Banner with Resource Links */}
       {tripNote && (() => {
+        const rawLines = tripNote.replace(/<br\s*\/?>/gi, '\n').split('\n');
+        const textLines: string[] = [];
         const links: Array<{ title: string; url: string }> = [];
         const seenUrls = new Set<string>();
 
-        // 1. 抓取 Markdown 連結 [Title](URL)
-        const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
-        let match;
-        while ((match = mdRegex.exec(tripNote)) !== null) {
-          const title = match[1];
-          const url = match[2];
-          if (!seenUrls.has(url)) {
-            links.push({ title, url });
-            seenUrls.add(url);
+        for (const line of rawLines) {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            textLines.push('');
+            continue;
           }
-        }
 
-        // 2. 抓取純 URL (未被 Markdown 包裹者)
-        const pureUrlRegex = /(?<!\()https?:\/\/[^\s<)]+/g;
-        while ((match = pureUrlRegex.exec(tripNote)) !== null) {
-          const url = match[0];
-          if (!seenUrls.has(url)) {
-            try {
-              const parsed = new URL(url);
-              const domain = parsed.hostname.replace('www.', '');
-              links.push({ title: domain, url });
+          // 1. 若整行是 Markdown 連結 [Title](URL)
+          const fullMdMatch = trimmed.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+          if (fullMdMatch) {
+            const title = fullMdMatch[1].trim();
+            const url = fullMdMatch[2].trim();
+            if (!seenUrls.has(url)) {
+              links.push({ title, url });
               seenUrls.add(url);
-            } catch {
-              links.push({ title: '外部連結', url });
             }
+            continue; // 不放入上方內文，完全作為底部膠囊
           }
+
+          // 2. 若整行是純 URL
+          const fullUrlMatch = trimmed.match(/^https?:\/\/[^\s)]+$/);
+          if (fullUrlMatch) {
+            const url = fullUrlMatch[0].trim();
+            if (!seenUrls.has(url)) {
+              try {
+                const parsed = new URL(url);
+                links.push({ title: parsed.hostname.replace('www.', ''), url });
+              } catch {
+                links.push({ title: '外部連結', url });
+              }
+              seenUrls.add(url);
+            }
+            continue; // 不放入上方內文
+          }
+
+          // 3. 一般文字行（若行內嵌有 Markdown 連結）
+          const parsedLine = trimmed.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, title, url) => {
+            if (!seenUrls.has(url)) {
+              links.push({ title, url });
+              seenUrls.add(url);
+            }
+            return title;
+          });
+
+          textLines.push(parsedLine);
         }
 
-        // 整理乾淨純文字
-        const cleanText = tripNote
-          .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
-          .replace(/<br\s*\/?>/gi, '\n');
+        // 清理末尾空行
+        while (textLines.length > 0 && textLines[textLines.length - 1].trim() === '') {
+          textLines.pop();
+        }
+        const cleanText = textLines.join('\n');
 
         return (
           <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5">
