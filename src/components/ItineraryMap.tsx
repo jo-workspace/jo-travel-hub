@@ -88,7 +88,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     sorted.forEach((item, idx) => {
       const dayLabel = item.day || '未定日期';
       const dayCity = getCityForDay(dayLabel, citySchedule);
-      const itemKey = `${item.title}_${item.day}`;
+      const itemKey = `${item.rowIndex}_${item.title}_${item.day}`;
 
       let coords: GeoLocation;
       let isExact = false;
@@ -124,7 +124,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       const nonExactSpots = processedSpots.filter((s) => !s.isExact);
       for (const spot of nonExactSpots) {
         if (isCancelled) break;
-        const itemKey = `${spot.item.title}_${spot.item.day}`;
+        const itemKey = `${spot.item.rowIndex}_${spot.item.title}_${spot.item.day}`;
         if (exactCoordsOverrides[itemKey]) continue;
 
         const dayCity = getCityForDay(spot.dayLabel, citySchedule);
