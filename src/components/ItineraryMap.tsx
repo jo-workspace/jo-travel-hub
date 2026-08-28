@@ -40,6 +40,7 @@ interface ItineraryMapProps {
   days: string[];
   selectedDay: string;
   citySchedule?: string;
+  hideVisited?: boolean;
   onSelectDay: (day: string) => void;
   onOpenItemModal?: (item: ItineraryItem) => void;
   onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
@@ -51,6 +52,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   days,
   selectedDay,
   citySchedule,
+  hideVisited,
   onSelectDay,
   onOpenItemModal,
   onSwapItemTimes,
@@ -185,10 +187,13 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     };
   }, [processedSpots, citySchedule, exactCoordsOverrides]);
 
-  // 篩選當前 activeDays 要顯示的點
+  // 篩選當前 activeDays 要顯示的點（支援 hideVisited 連動隱藏）
   const visibleSpots = useMemo(() => {
-    return processedSpots.filter((spot) => activeDays.includes(spot.dayLabel));
-  }, [processedSpots, activeDays]);
+    return processedSpots.filter((spot) => {
+      if (hideVisited && spot.item.isVisited) return false;
+      return activeDays.includes(spot.dayLabel);
+    });
+  }, [processedSpots, activeDays, hideVisited]);
 
   // 當前選取天數的景點清單（單日排程用，只包含有時間的主行程）
   const singleDaySpots = useMemo(() => {
@@ -345,6 +350,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         pinContent = String(spot.stepIndex);
       }
 
+      const isDone = spot.item.isVisited;
+      const pinOpacity = isDone ? '0.45' : (spot.isCandidate ? '0.92' : '1');
+      const pinFilter = isDone ? 'grayscale(75%)' : 'none';
+
       const markerHtml = `
         <div style="
           background-color: ${spot.dayColor.hex};
@@ -361,7 +370,8 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           box-shadow: ${spot.isCandidate ? '0 2px 6px rgba(0,0,0,0.25)' : '0 4px 10px rgba(0,0,0,0.3)'};
           transform: translate(-50%, -50%);
           cursor: pointer;
-          opacity: ${spot.isCandidate ? '0.92' : '1'};
+          opacity: ${pinOpacity};
+          filter: ${pinFilter};
           transition: transform 0.15s ease;
         ">
           ${pinContent}

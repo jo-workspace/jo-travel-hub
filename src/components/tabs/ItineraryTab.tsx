@@ -419,6 +419,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
             days={days}
             selectedDay={selectedDay}
             citySchedule={citySchedule}
+            hideVisited={hideVisited}
             onSelectDay={setSelectedDay}
             onOpenItemModal={onOpenModal}
             onSwapItemTimes={onSwapItemTimes}
