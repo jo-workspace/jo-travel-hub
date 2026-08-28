@@ -295,12 +295,29 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5">
             <div className="text-xs font-bold uppercase text-amber-400 flex items-center space-x-1.5">
               <span>📢</span>
-              <span>行程重要備註</span>
+              <span>重要備註</span>
             </div>
 
             {cleanText && (
-              <div className="text-sm font-medium leading-relaxed font-sans text-slate-200 whitespace-pre-line">
-                {cleanText}
+              <div className="text-sm font-medium leading-relaxed font-sans text-slate-200 space-y-0.5">
+                {cleanText.split('\n').map((line, lineIdx) => {
+                  if (!line.trim()) return <div key={lineIdx} className="h-1.5" />;
+                  const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                  return (
+                    <div key={lineIdx}>
+                      {parts.map((part, partIdx) => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                          return (
+                            <strong key={partIdx} className="font-extrabold text-amber-300">
+                              {part.slice(2, -2)}
+                            </strong>
+                          );
+                        }
+                        return <span key={partIdx}>{part}</span>;
+                      })}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
