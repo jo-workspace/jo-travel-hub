@@ -20,6 +20,8 @@ import {
   Layers,
   Hotel,
   Check,
+  Utensils,
+  Bookmark,
 } from 'lucide-react';
 import type * as LeafletType from 'leaflet';
 
@@ -29,6 +31,7 @@ export interface ProcessedSpot {
   dayLabel: string;
   stepIndex: number;
   isExact: boolean;
+  isCandidate: boolean;
   dayColor: { bg: string; text: string; hex: string };
 }
 
@@ -123,13 +126,22 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         isExact = syncResult.isExact;
       }
 
-      dayCounter[dayLabel] = (dayCounter[dayLabel] || 0) + 1;
+      const isCandidate =
+        !item.time ||
+        !item.time.trim() ||
+        /候選|備選|口袋|彈性|wishlist|candidate/i.test(item.time);
+
+      if (!isCandidate) {
+        dayCounter[dayLabel] = (dayCounter[dayLabel] || 0) + 1;
+      }
+
       spots.push({
         item,
         coords,
         dayLabel,
-        stepIndex: dayCounter[dayLabel],
+        stepIndex: isCandidate ? 0 : dayCounter[dayLabel],
         isExact,
+        isCandidate,
         dayColor: getDayColor(dayLabel),
       });
     });
@@ -178,10 +190,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     return processedSpots.filter((spot) => activeDays.includes(spot.dayLabel));
   }, [processedSpots, activeDays]);
 
-  // 當前選取天數的景點清單（單日排程用）
+  // 當前選取天數的景點清單（單日排程用，只包含有時間的主行程）
   const singleDaySpots = useMemo(() => {
     if (activeDays.length !== 1) return [];
-    return processedSpots.filter((s) => s.dayLabel === activeDays[0]);
+    return processedSpots.filter((s) => s.dayLabel === activeDays[0] && !s.isCandidate);
   }, [processedSpots, activeDays]);
 
   // 動態載入 Leaflet 與注入 CSS
@@ -263,7 +275,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
 
     const bounds = L.latLngBounds([]);
 
-    // 1. 各天路線連線 (Polyline)
+    // 1. 各天路線連線 (Polyline) —— 排除未指定時間的口袋名單，主動線乾淨俐落！
     const spotsByDay: Record<string, ProcessedSpot[]> = {};
     visibleSpots.forEach((spot) => {
       if (!spotsByDay[spot.dayLabel]) spotsByDay[spot.dayLabel] = [];
@@ -271,8 +283,9 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     });
 
     Object.entries(spotsByDay).forEach(([day, spots]) => {
-      if (spots.length > 1) {
-        const latlngs = spots.map((s) => [s.coords.lat, s.coords.lng] as [number, number]);
+      const mainScheduledSpots = spots.filter((s) => !s.isCandidate);
+      if (mainScheduledSpots.length > 1) {
+        const latlngs = mainScheduledSpots.map((s) => [s.coords.lat, s.coords.lng] as [number, number]);
         const colorHex = spots[0].dayColor.hex;
 
         L.polyline(latlngs, {
@@ -307,25 +320,51 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         </svg>
       `;
 
+      const utensilsSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/>
+          <path d="M15 2v19"/>
+          <path d="M6 2v19"/>
+          <path d="M6 13a4 4 0 0 0 4-4V2"/>
+        </svg>
+      `;
+
+      const bookmarkSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+        </svg>
+      `;
+
+      // 決定圖釘內部 SVG 或序號
+      let pinContent = '';
+      if (isHotel) {
+        pinContent = hotelSvg;
+      } else if (spot.isCandidate) {
+        pinContent = spot.item.type === '美食' ? utensilsSvg : bookmarkSvg;
+      } else {
+        pinContent = String(spot.stepIndex);
+      }
+
       const markerHtml = `
         <div style="
           background-color: ${spot.dayColor.hex};
           color: white;
-          width: 30px;
-          height: 30px;
+          width: ${spot.isCandidate ? '27px' : '30px'};
+          height: ${spot.isCandidate ? '27px' : '30px'};
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 800;
           font-size: 12px;
-          border: 2.5px solid white;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          border: ${spot.isCandidate ? '2px dashed white' : '2.5px solid white'};
+          box-shadow: ${spot.isCandidate ? '0 2px 6px rgba(0,0,0,0.25)' : '0 4px 10px rgba(0,0,0,0.3)'};
           transform: translate(-50%, -50%);
           cursor: pointer;
+          opacity: ${spot.isCandidate ? '0.92' : '1'};
           transition: transform 0.15s ease;
         ">
-          ${isHotel ? hotelSvg : spot.stepIndex}
+          ${pinContent}
         </div>
       `;
 
@@ -554,13 +593,24 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
               >
                 {selectedSpot.item.type === '住宿' ? (
                   <Hotel className="w-3.5 h-3.5 text-white" />
+                ) : selectedSpot.isCandidate ? (
+                  selectedSpot.item.type === '美食' ? (
+                    <Utensils className="w-3.5 h-3.5 text-white" />
+                  ) : (
+                    <Bookmark className="w-3.5 h-3.5 text-white" />
+                  )
                 ) : (
                   selectedSpot.stepIndex
                 )}
               </span>
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-slate-400 block truncate">
-                  {selectedSpot.dayLabel} {selectedSpot.item.time ? `· ${selectedSpot.item.time}` : ''}
+                  {selectedSpot.dayLabel}
+                  {selectedSpot.isCandidate
+                    ? ' · 📌 口袋候選'
+                    : selectedSpot.item.time
+                    ? ` · ${selectedSpot.item.time}`
+                    : ''}
                 </span>
                 <h4 className="text-sm font-extrabold text-slate-900 truncate">
                   {selectedSpot.item.title}

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { ItineraryItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
-import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon } from 'lucide-react';
+import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon, Bookmark } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import {
   getCityForDay,
@@ -396,82 +396,169 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
               )}
             </div>
 
-            {/* Grid of Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {items.map((item) => {
-                const emoji = ICON_MAPPING[item.type] || '📍';
-                return (
-                  <div
-                    key={item.rowIndex}
-                    className={`bg-white border rounded-2xl p-4 flex justify-between items-start transition-all duration-200 ${
-                      item.isVisited
-                        ? 'border-slate-100 opacity-40 bg-slate-50'
-                        : 'border-slate-100/90 shadow-2xs hover:shadow-xs hover:border-slate-200'
-                    }`}
-                  >
-                    <div className="flex-1 pr-3 min-w-0">
-                      <div className="flex items-start space-x-2.5">
-                        <span className="text-xl leading-none mt-0.5 select-none">{emoji}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
-                            {item.time && (
-                              <span className="text-xs font-semibold text-slate-400 font-mono">
-                                {item.time}
-                              </span>
-                            )}
-                            <h3
-                              className={`text-base font-extrabold text-slate-900 leading-tight ${
-                                item.isVisited ? 'line-through text-slate-400' : ''
-                              }`}
-                            >
-                              {item.title}
-                            </h3>
-                            {item.links && (
-                              <a
-                                href={item.links}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center text-sky-600 hover:text-sky-700 transition-transform active:scale-95 ml-0.5"
-                                title="開啟 Google 地圖"
-                              >
-                                <MapPin className="w-4 h-4" />
-                              </a>
-                            )}
-                          </div>
-                          {item.content && (
-                            <div className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium whitespace-pre-line">
-                              {item.content.replace(/<br\s*\/?>/gi, '\n')}
+            {/* 分割：有指定時間的主行程 vs 未指定時間的口袋候選名單 */}
+            {(() => {
+              const isCandidate = (item: ItineraryItem) =>
+                !item.time ||
+                !item.time.trim() ||
+                /候選|備選|口袋|彈性|wishlist|candidate/i.test(item.time);
+              const mainItems = items.filter((item) => !isCandidate(item));
+              const candidateItems = items.filter((item) => isCandidate(item));
+
+              return (
+                <div className="space-y-3">
+                  {/* 主要排程卡片網格 */}
+                  {mainItems.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {mainItems.map((item) => {
+                        const emoji = ICON_MAPPING[item.type] || '📍';
+                        return (
+                          <div
+                            key={item.rowIndex}
+                            className={`bg-white border rounded-2xl p-4 flex justify-between items-start transition-all duration-200 ${
+                              item.isVisited
+                                ? 'border-slate-100 opacity-40 bg-slate-50'
+                                : 'border-slate-100/90 shadow-2xs hover:shadow-xs hover:border-slate-200'
+                            }`}
+                          >
+                            <div className="flex-1 pr-3 min-w-0">
+                              <div className="flex items-start space-x-2.5">
+                                <span className="text-xl leading-none mt-0.5 select-none">{emoji}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
+                                    {item.time && (
+                                      <span className="text-xs font-semibold text-slate-400 font-mono">
+                                        {item.time}
+                                      </span>
+                                    )}
+                                    <h3
+                                      className={`text-base font-extrabold text-slate-900 leading-tight ${
+                                        item.isVisited ? 'line-through text-slate-400' : ''
+                                      }`}
+                                    >
+                                      {item.title}
+                                    </h3>
+                                    {item.links && (
+                                      <a
+                                        href={item.links}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center text-sky-600 hover:text-sky-700 transition-transform active:scale-95 ml-0.5"
+                                        title="開啟 Google 地圖"
+                                      >
+                                        <MapPin className="w-4 h-4" />
+                                      </a>
+                                    )}
+                                  </div>
+                                  {item.content && (
+                                    <div className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium whitespace-pre-line">
+                                      {item.content.replace(/<br\s*\/?>/gi, '\n')}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          )}
+
+                            {/* Right Actions (Toggle Done & Edit) */}
+                            <div className="flex items-center space-x-1.5 flex-shrink-0">
+                              <button
+                                onClick={() => onOpenModal(item)}
+                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                                title="編輯"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => onToggleVisited(item.rowIndex, item.isVisited)}
+                                className="text-slate-400 hover:text-slate-800 transition-transform active:scale-90 cursor-pointer"
+                                title={item.isVisited ? '標示為未去過' : '標示為已完成'}
+                              >
+                                {item.isVisited ? (
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50" />
+                                ) : (
+                                  <Circle className="w-5 h-5 text-slate-300 hover:text-slate-500" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-400 font-medium py-3 px-4 bg-white/60 rounded-xl border border-dashed border-slate-200">
+                      今日尚無指定時間的主行程，可從下方口袋名單彈性挑選 📍
+                    </div>
+                  )}
+
+                  {/* 當日口袋候選清爽小列表 */}
+                  {candidateItems.length > 0 && (
+                    <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center space-x-1.5 text-xs font-black text-slate-700">
+                          <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                          <span>當日口袋候選 ({candidateItems.length})</span>
+                          <span className="text-[11px] font-normal text-slate-400 hidden sm:inline">
+                            · 未填時間，彈性備選
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Right Actions (Toggle Done & Edit) */}
-                    <div className="flex items-center space-x-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => onOpenModal(item)}
-                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                        title="編輯"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onToggleVisited(item.rowIndex, item.isVisited)}
-                        className="text-slate-400 hover:text-slate-800 transition-transform active:scale-90 cursor-pointer"
-                        title={item.isVisited ? '標示為未去過' : '標示為已完成'}
-                      >
-                        {item.isVisited ? (
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50" />
-                        ) : (
-                          <Circle className="w-5 h-5 text-slate-300 hover:text-slate-500" />
-                        )}
-                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {candidateItems.map((cItem) => {
+                          const cEmoji = ICON_MAPPING[cItem.type] || '📍';
+                          return (
+                            <div
+                              key={cItem.rowIndex}
+                              className="bg-white border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between shadow-2xs hover:shadow-xs transition-all"
+                            >
+                              <div className="flex items-center space-x-2 min-w-0 pr-2">
+                                <span className="text-base flex-shrink-0 select-none leading-none">
+                                  {cEmoji}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="flex items-center space-x-1">
+                                    <h4 className="text-xs font-bold text-slate-900 truncate">
+                                      {cItem.title}
+                                    </h4>
+                                    {cItem.links && (
+                                      <a
+                                        href={cItem.links}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sky-600 hover:text-sky-700 flex-shrink-0"
+                                        title="開啟 Google 地圖"
+                                      >
+                                        <MapPin className="w-3.5 h-3.5" />
+                                      </a>
+                                    )}
+                                  </div>
+                                  {cItem.content && (
+                                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                      {cItem.content}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-1 flex-shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenModal(cItem)}
+                                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs transition-all cursor-pointer"
+                                  title="填入時間排入主行程或修改備註"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         );
       })}
