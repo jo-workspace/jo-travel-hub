@@ -61,17 +61,15 @@ export const CITY_COORDINATES: Record<string, GeoLocation> = {
   '卡梅爾': { lat: 36.5552, lng: -121.9233 },
   'santa barbara': { lat: 34.4208, lng: -119.6982 },
   '聖塔芭芭拉': { lat: 34.4208, lng: -119.6982 },
-  'santa clarita': { lat: 34.3917, lng: -118.5426 },
   'tokyo': { lat: 35.6762, lng: 139.6503 },
   '東京': { lat: 35.6762, lng: 139.6503 },
   'okinawa': { lat: 26.2124, lng: 127.6809 },
   '沖繩': { lat: 26.2124, lng: 127.6809 },
-  '那霸': { lat: 26.2124, lng: 127.6809 },
   'taipei': { lat: 25.0330, lng: 121.5654 },
   '台北': { lat: 25.0330, lng: 121.5654 },
 };
 
-// 知名景點離線字典（0ms 秒中精確座標）
+// 知名自然/世界級大型景點離線字典
 export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   // San Francisco & Bay Area
   '金門大橋': { lat: 37.8199, lng: -122.4783 },
@@ -161,27 +159,28 @@ export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   // Yosemite & Highway 1
   '優勝美地': { lat: 37.7456, lng: -119.5936 },
   'yosemite': { lat: 37.7456, lng: -119.5936 },
-  '新娘面紗瀑布': { lat: 37.7166, lng: -119.6464 },
-  '優勝美地瀑布': { lat: 37.7566, lng: -119.5969 },
-  '冰川點': { lat: 37.7280, lng: -119.5732 },
-  'glacier point': { lat: 37.7280, lng: -119.5732 },
   '大索爾': { lat: 36.2704, lng: -121.8081 },
   'big sur': { lat: 36.2704, lng: -121.8081 },
   'bixby': { lat: 36.3714, lng: -121.9018 },
   '比克斯比大橋': { lat: 36.3714, lng: -121.9018 },
   '17哩路': { lat: 36.5772, lng: -121.9547 },
   '17 mile drive': { lat: 36.5772, lng: -121.9547 },
-  '卡梅爾海灘': { lat: 36.5539, lng: -121.9299 },
 };
 
-/**
- * 0.001 毫秒秒解 Google Maps 網址中的真實經緯度
- */
+/** 0.001 毫秒秒解 Google Maps 網址中的真實經緯度 */
 export function extractCoordinatesFromUrl(url?: string): GeoLocation | null {
   if (!url) return null;
-  const decodedUrl = decodeURIComponent(url);
+  const decodedUrl = decodeURIComponent(url.trim());
 
-  // 格式 1: /@34.0522,-118.2437
+  // 格式 1: !3d37.7954425!4d-122.3936136
+  const dataMatch = decodedUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (dataMatch) {
+    const lat = parseFloat(dataMatch[1]);
+    const lng = parseFloat(dataMatch[2]);
+    if (isValidLatLng(lat, lng)) return { lat, lng };
+  }
+
+  // 格式 2: /@34.0522,-118.2437
   const atMatch = decodedUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (atMatch) {
     const lat = parseFloat(atMatch[1]);
@@ -189,19 +188,11 @@ export function extractCoordinatesFromUrl(url?: string): GeoLocation | null {
     if (isValidLatLng(lat, lng)) return { lat, lng };
   }
 
-  // 格式 2: q=34.0522,-118.2437 或 query=34.0522,-118.2437 或 ll=34.0522,-118.2437
+  // 格式 3: q=34.0522,-118.2437
   const qMatch = decodedUrl.match(/[?&](?:q|query|ll|center)=(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (qMatch) {
     const lat = parseFloat(qMatch[1]);
     const lng = parseFloat(qMatch[2]);
-    if (isValidLatLng(lat, lng)) return { lat, lng };
-  }
-
-  // 格式 3: !3d34.0522!4d-118.2437 (Google Maps 嵌入/重導向參數)
-  const dataMatch = decodedUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-  if (dataMatch) {
-    const lat = parseFloat(dataMatch[1]);
-    const lng = parseFloat(dataMatch[2]);
     if (isValidLatLng(lat, lng)) return { lat, lng };
   }
 
@@ -212,30 +203,30 @@ function isValidLatLng(lat: number, lng: number): boolean {
   return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-/**
- * 同步解析景點座標（含 URL 解析 ＋ 離線字典 ＋ 精準城市微偏移）
- */
+/** 取得統一的快取 Key */
+export function getGeoCacheKey(title: string, links?: string): string {
+  const cleanLink = (links || '').trim().toLowerCase();
+  if (cleanLink) {
+    return `geo_url_${cleanLink}`;
+  }
+  return `geo_title_${(title || '').trim().toLowerCase()}`;
+}
+
+/** 同步解析景點座標（含 URL 解析 ＋ 離線字典 ＋ 本地快取 ＋ 相同地點嚴格重疊） */
 export function getCoordinatesSync(
   item: ItineraryItem,
   cityContext?: string,
   indexOffset = 0
 ): { coords: GeoLocation; isExact: boolean } {
-  // 1. 優先從卡片上的 Google Maps 連結秒解析 (100% 準確且 0ms)
+  // 1. 優先從卡片上的 Google Maps 完整連結秒解析 (100% 準確且 0ms)
   const fromUrl = extractCoordinatesFromUrl(item.links);
   if (fromUrl) return { coords: fromUrl, isExact: true };
 
-  const titleLower = (item.title || '').toLowerCase();
+  const cacheKey = getGeoCacheKey(item.title, item.links);
 
-  // 2. 查常用知名景點離線字典 (精準命中)
-  for (const [key, coords] of Object.entries(KNOWN_SPOT_COORDINATES)) {
-    if (titleLower.includes(key)) {
-      return { coords, isExact: true };
-    }
-  }
-
-  // 3. 查 LocalStorage 快取
+  // 2. 查 LocalStorage 快取（若非同步已查過，秒取精準座標）
   if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(`geo_spot_${titleLower}`);
+    const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -246,7 +237,16 @@ export function getCoordinatesSync(
     }
   }
 
-  // 4. 查城市中心點並微量環形散開 (只有 200~400 公尺，絕對不飄出城市)
+  const titleLower = (item.title || '').toLowerCase();
+
+  // 3. 查常用知名景點離線字典 (精準命中)
+  for (const [key, coords] of Object.entries(KNOWN_SPOT_COORDINATES)) {
+    if (titleLower.includes(key)) {
+      return { coords, isExact: true };
+    }
+  }
+
+  // 4. 查城市中心點並微量排開（同 URL 或同標題保證重疊在同一點！）
   let baseCoords = CITY_COORDINATES['san francisco'];
   if (cityContext) {
     const cityKey = cityContext.toLowerCase().trim();
@@ -258,9 +258,17 @@ export function getCoordinatesSync(
     }
   }
 
-  // 環形均勻散開（半徑僅約 0.003 度 ~ 300 公尺），維持在市區內
-  const angle = (indexOffset * 137.5 * Math.PI) / 180;
-  const radius = 0.003 * Math.sqrt((indexOffset % 8) + 1);
+  // 若有相同的 link 或 title，以 link/title 做 hash，確保同地點 100% 重疊！
+  const seedString = (item.links || item.title || '').trim();
+  let hash = 0;
+  for (let i = 0; i < seedString.length; i++) {
+    hash = (hash << 5) - hash + seedString.charCodeAt(i);
+    hash |= 0;
+  }
+  const effectiveOffset = seedString ? Math.abs(hash) % 20 : indexOffset;
+
+  const angle = (effectiveOffset * 137.5 * Math.PI) / 180;
+  const radius = 0.002 * Math.sqrt((effectiveOffset % 6) + 1);
 
   return {
     coords: {
@@ -271,16 +279,13 @@ export function getCoordinatesSync(
   };
 }
 
-/**
- * 非同步精準搜尋景點經緯度（透過 Photon API / OSM 地標搜尋）
- */
+/** 非同步精準搜尋景點經緯度（短網址伺服器解析 ＋ 全球 OSM 地標搜尋） */
 export async function searchSpotCoordinates(
   title: string,
   cityContext?: string,
   links?: string
 ): Promise<GeoLocation | null> {
-  const cleanTitle = title.trim();
-  const cacheKey = `geo_spot_${cleanTitle.toLowerCase()}_${links || ''}`;
+  const cacheKey = getGeoCacheKey(title, links);
 
   if (typeof window !== 'undefined') {
     const cached = localStorage.getItem(cacheKey);
@@ -292,10 +297,12 @@ export async function searchSpotCoordinates(
     }
   }
 
-  // 1. 若有 Google Maps 短網址或包含 maps 連結，打伺服器端解析端點 (100% 精準秒解)
-  if (links && (links.includes('maps.app.goo.gl') || links.includes('goo.gl/maps') || links.includes('google.com/maps'))) {
+  const cleanLinks = (links || '').trim();
+
+  // 1. 若有 Google Maps 短網址或包含 maps 連結，打伺服器端解析端點
+  if (cleanLinks && (cleanLinks.includes('maps.app.goo.gl') || cleanLinks.includes('goo.gl') || cleanLinks.includes('google.com/maps'))) {
     try {
-      const res = await fetch(`/api/resolve-maps?url=${encodeURIComponent(links)}`);
+      const res = await fetch(`/api/resolve-maps?url=${encodeURIComponent(cleanLinks)}`);
       if (res.ok) {
         const data = await res.json();
         if (data.lat && data.lng && isValidLatLng(data.lat, data.lng)) {
@@ -306,9 +313,12 @@ export async function searchSpotCoordinates(
           return result;
         }
       }
-    } catch {}
+    } catch (err) {
+      console.warn('resolve-maps fetch error:', err);
+    }
   }
 
+  const cleanTitle = (title || '').trim();
   if (!cleanTitle) return null;
   const query = `${cleanTitle} ${cityContext || ''}`.trim();
 
@@ -332,7 +342,7 @@ export async function searchSpotCoordinates(
     }
   } catch {}
 
-  // 2. 備用 Open-Meteo Geocoding
+  // 3. 備用 Open-Meteo Geocoding
   try {
     const res = await fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanTitle)}&count=1&language=zh&format=json`
@@ -355,9 +365,7 @@ export async function searchSpotCoordinates(
   return null;
 }
 
-/**
- * 計算兩點間的球面大圓距離 (Haversine Formula)，單位：公里 (km)
- */
+/** 計算兩點間的球面大圓距離 (Haversine Formula)，單位：公里 (km) */
 export function calculateDistance(
   lat1: number,
   lon1: number,
@@ -385,10 +393,7 @@ export interface RouteOptimizedResult<T extends { coords: GeoLocation }> {
   savedDistanceKm: number;
 }
 
-/**
- * 依據地理位置計算當日景點最佳行進順序（Nearest Neighbor 貪婪動線最佳化）
- * 第一站（起點）保持固定，依序尋找下一個距離最近的未訪問景點，徹底消除交叉折返跑
- */
+/** 依據地理位置計算當日景點最佳行進順序（Nearest Neighbor 貪婪動線最佳化） */
 export function optimizeDayRoute<T extends { coords: GeoLocation }>(
   spots: T[]
 ): RouteOptimizedResult<T> {
@@ -411,7 +416,6 @@ export function optimizeDayRoute<T extends { coords: GeoLocation }>(
     };
   }
 
-  // 計算原始路徑總距離
   let origDist = 0;
   for (let i = 0; i < spots.length - 1; i++) {
     origDist += calculateDistance(
@@ -422,7 +426,6 @@ export function optimizeDayRoute<T extends { coords: GeoLocation }>(
     );
   }
 
-  // 固定第 1 站（通常是出發飯店/早晨第一站）
   const unvisited = [...spots];
   const route: T[] = [];
 
@@ -450,7 +453,6 @@ export function optimizeDayRoute<T extends { coords: GeoLocation }>(
     route.push(current);
   }
 
-  // 計算優化後總距離
   let optDist = 0;
   for (let i = 0; i < route.length - 1; i++) {
     optDist += calculateDistance(
