@@ -42,12 +42,14 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   const [selectedSpot, setSelectedSpot] = useState<ProcessedSpot | null>(null);
   const [exactCoordsOverrides, setExactCoordsOverrides] = useState<Record<string, GeoLocation>>({});
 
-  // 初始化 activeDays
+  // 初始化 activeDays：若 selectedDay 為 ALL 則預設只選第 1 天（避免 50+ 景點擠爆），若為特定天則選該天
   useEffect(() => {
     if (selectedDay === 'ALL') {
-      setActiveDays(days);
-    } else {
+      setActiveDays(days.length > 0 ? [days[0]] : []);
+    } else if (selectedDay) {
       setActiveDays([selectedDay]);
+    } else {
+      setActiveDays([]);
     }
   }, [selectedDay, days]);
 
@@ -288,25 +290,36 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
 
   const handleToggleDay = (day: string) => {
     if (activeDays.includes(day)) {
-      if (activeDays.length === 1) {
-        setActiveDays(days);
-        onSelectDay('ALL');
-      } else {
-        const next = activeDays.filter((d) => d !== day);
-        setActiveDays(next);
+      // 取消選取該天
+      const next = activeDays.filter((d) => d !== day);
+      setActiveDays(next);
+      if (next.length === 1) {
+        onSelectDay(next[0]);
+      } else if (next.length === 0) {
+        onSelectDay('');
       }
     } else {
+      // 加入選取該天
       const next = [...activeDays, day];
       setActiveDays(next);
       if (next.length === days.length) {
         onSelectDay('ALL');
+      } else if (next.length === 1) {
+        onSelectDay(next[0]);
       }
     }
   };
 
   const handleSelectAll = () => {
-    setActiveDays(days);
-    onSelectDay('ALL');
+    if (activeDays.length === days.length) {
+      // 若目前已全選，點擊「全部天數」➜ 一鍵清空（全部取消選取）！
+      setActiveDays([]);
+      onSelectDay('');
+    } else {
+      // 若目前未全選，點擊「全部天數」➜ 一鍵全選！
+      setActiveDays(days);
+      onSelectDay('ALL');
+    }
   };
 
   return (
@@ -408,9 +421,13 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           </div>
         </div>
       ) : (
-        <div className="absolute bottom-3 left-3 z-[1000] bg-white/85 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-slate-200/80 text-[11px] font-semibold text-slate-500 shadow-xs pointer-events-none flex items-center space-x-1.5">
+        <div className="absolute bottom-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-slate-200/80 text-[11px] font-semibold text-slate-600 shadow-xs pointer-events-none flex items-center space-x-1.5">
           <MapPin className="w-3.5 h-3.5 text-slate-400" />
-          <span>點擊圖釘查看景點資訊與導航</span>
+          <span>
+            {activeDays.length === 0
+              ? '請點選上方天數標籤以在地圖上查看景點'
+              : '點擊圖釘查看景點資訊與導航'}
+          </span>
         </div>
       )}
     </div>
