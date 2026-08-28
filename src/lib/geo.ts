@@ -153,8 +153,8 @@ export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   '拉荷亞': { lat: 32.8504, lng: -117.2730 },
   'coronado': { lat: 32.6859, lng: -117.1831 },
   '科羅納多': { lat: 32.6859, lng: -117.1831 },
-  'petco': { lat: 32.7076, lng: -117.1570 },
-  '教士': { lat: 32.7076, lng: -117.1570 },
+  'petco park': { lat: 32.7076, lng: -117.1570 },
+  '教士球場': { lat: 32.7076, lng: -117.1570 },
 
   // Yosemite & Highway 1
   '優勝美地': { lat: 37.7456, lng: -119.5936 },
@@ -238,11 +238,14 @@ export function getCoordinatesSync(
   }
 
   const titleLower = (item.title || '').toLowerCase();
+  const hasUrl = !!(item.links && item.links.trim());
 
-  // 3. 查常用知名景點離線字典 (精準命中)
-  for (const [key, coords] of Object.entries(KNOWN_SPOT_COORDINATES)) {
-    if (titleLower.includes(key)) {
-      return { coords, isExact: true };
+  // 3. 只有在「沒有提供網址」時才允許命中標題字典（若有網址，必須以 URL 為準，不可被標題字典帶偏！）
+  if (!hasUrl) {
+    for (const [key, coords] of Object.entries(KNOWN_SPOT_COORDINATES)) {
+      if (titleLower.includes(key)) {
+        return { coords, isExact: true };
+      }
     }
   }
 
