@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { ItineraryItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
-import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3 } from 'lucide-react';
+import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import {
   getCityForDay,
@@ -12,6 +13,11 @@ import {
   CityWeatherData,
   DayWeatherInfo,
 } from '@/lib/weather';
+
+const ItineraryMap = dynamic(
+  () => import('@/components/ItineraryMap').then((mod) => mod.ItineraryMap),
+  { ssr: false }
+);
 
 interface ItineraryTabProps {
   data: ItineraryItem[];
@@ -159,6 +165,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   const [selectedDay, setSelectedDay] = useState<string>(
     () => getTodayDayLabel(startDate || '', timezone || '', days) ?? 'ALL'
   );
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   // Filter items
   const filteredItems = sortedItems.filter((item) => {
@@ -201,59 +208,103 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         </div>
       )}
 
-      {/* Day Filter & Add Button Bar */}
-      <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">
-        <button
-          onClick={() => onOpenModal()}
-          className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>新增行程</span>
-        </button>
+      {/* Day Filter, Add Button & View Mode Switch Bar */}
+      <div className="flex items-center justify-between gap-2 py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">
+        <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
+          <button
+            onClick={() => onOpenModal()}
+            className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>新增行程</span>
+          </button>
 
-        <button
-          onClick={() => setSelectedDay('ALL')}
-          className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-            selectedDay === 'ALL'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-          }`}
-        >
-          全部天數
-        </button>
+          <button
+            onClick={() => setSelectedDay('ALL')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+              selectedDay === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            全部天數
+          </button>
 
-        {days.map((day) => {
-          const isSelected = selectedDay === day;
-          return (
-            <button
-              key={day}
-              onClick={() => setSelectedDay(day)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                isSelected
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              {day}
-            </button>
-          );
-        })}
+          {days.map((day) => {
+            const isSelected = selectedDay === day;
+            return (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {day}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* View Mode Toggle: Pure SVG List / Map Toggle */}
+        <div className="flex items-center bg-white border border-slate-200/90 p-0.5 rounded-full flex-shrink-0 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-full transition-all cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="清單列表"
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('map')}
+            className={`p-1.5 rounded-full transition-all cursor-pointer ${
+              viewMode === 'map'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="跨天地圖"
+          >
+            <MapIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      {/* Empty State */}
-      {Object.keys(groupedByDay).length === 0 && (
-        <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
-          目前沒有行程資料 📍
-        </div>
+      {/* Map View Mode */}
+      {viewMode === 'map' && (
+        <ItineraryMap
+          items={data}
+          days={days}
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
+          onOpenItemModal={onOpenModal}
+        />
       )}
 
-      {/* Itinerary Cards Grouped by Day */}
-      {orderedDayKeys.map((day) => {
-        const items = groupedByDay[day];
-        // 優先使用計算出來的日期，其次用資料本身的 date 欄位
-        const dateText = startDate
-          ? calcDateFromStartDate(startDate, day)
-          : (items[0]?.date || '');
+      {/* List View Mode */}
+      {viewMode === 'list' && (
+        <>
+          {/* Empty State */}
+          {Object.keys(groupedByDay).length === 0 && (
+            <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
+              目前沒有行程資料 📍
+            </div>
+          )}
+
+          {/* Itinerary Cards Grouped by Day */}
+          {orderedDayKeys.map((day) => {
+            const items = groupedByDay[day];
+            // 優先使用計算出來的日期，其次用資料本身的 date 欄位
+            const dateText = startDate
+              ? calcDateFromStartDate(startDate, day)
+              : (items[0]?.date || '');
 
         const dayCity = getCityForDay(day, citySchedule);
         const cityWeather = dayCity ? weatherMap[dayCity.toLowerCase()] : undefined;
@@ -402,6 +453,8 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           </div>
         );
       })}
+        </>
+      )}
     </div>
   );
 };
