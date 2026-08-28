@@ -12,7 +12,7 @@ import {
 } from '@/lib/geo';
 import { getCityForDay } from '@/lib/weather';
 import { RouteOptimizeModal } from '@/components/modals/RouteOptimizeModal';
-import { MapPin, Navigation, Edit3, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
+import { MapPin, Navigation, Edit3, ArrowUp, ArrowDown, Sparkles, Hotel } from 'lucide-react';
 import type * as LeafletType from 'leaflet';
 
 export interface ProcessedSpot {
@@ -270,12 +270,32 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       const latlng: [number, number] = [spot.coords.lat, spot.coords.lng];
       bounds.extend(latlng);
 
+      const isHotel =
+        spot.item.type === '住宿' ||
+        /hotel|飯店|酒店|旅館|住宿|hostel|airbnb|resort|check-in|check in|drop-off|退房/i.test(
+          `${spot.item.title || ''} ${spot.item.content || ''}`
+        );
+
+      const hotelSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Z"/>
+          <path d="M8 7h.01"/>
+          <path d="M16 7h.01"/>
+          <path d="M12 7h.01"/>
+          <path d="M12 11h.01"/>
+          <path d="M16 11h.01"/>
+          <path d="M8 11h.01"/>
+          <path d="M10 22v-6.5"/>
+          <path d="M14 22v-6.5"/>
+        </svg>
+      `;
+
       const markerHtml = `
         <div style="
           background-color: ${spot.dayColor.hex};
           color: white;
-          width: 28px;
-          height: 28px;
+          width: 30px;
+          height: 30px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -288,7 +308,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           cursor: pointer;
           transition: transform 0.15s ease;
         ">
-          ${spot.stepIndex}
+          ${isHotel ? hotelSvg : spot.stepIndex}
         </div>
       `;
 
@@ -472,7 +492,14 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
                 className="w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0 shadow-xs"
                 style={{ backgroundColor: selectedSpot.dayColor.hex }}
               >
-                {selectedSpot.stepIndex}
+                {selectedSpot.item.type === '住宿' ||
+                /hotel|飯店|酒店|旅館|住宿|hostel|airbnb|resort|check-in|check in|drop-off|退房/i.test(
+                  `${selectedSpot.item.title || ''} ${selectedSpot.item.content || ''}`
+                ) ? (
+                  <Hotel className="w-3.5 h-3.5 text-white" />
+                ) : (
+                  selectedSpot.stepIndex
+                )}
               </span>
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-slate-400 block truncate">
