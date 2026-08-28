@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { ItineraryItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
-import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon, Bookmark } from 'lucide-react';
+import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon, Bookmark, X, Check } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import {
   getCityForDay,
@@ -170,6 +170,25 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   );
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const mapAnchorRef = useRef<HTMLDivElement>(null);
+  const [quickTimeTargetItem, setQuickTimeTargetItem] = useState<ItineraryItem | null>(null);
+  const [quickTimeInput, setQuickTimeInput] = useState<string>('12:00');
+  const [isSavingQuickTime, setIsSavingQuickTime] = useState<boolean>(false);
+
+  const handleSaveQuickTime = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!quickTimeTargetItem || !quickTimeInput.trim() || !onBatchUpdateTimes) return;
+    try {
+      setIsSavingQuickTime(true);
+      await onBatchUpdateTimes([
+        { rowIndex: quickTimeTargetItem.rowIndex, time: quickTimeInput.trim() },
+      ]);
+      setQuickTimeTargetItem(null);
+    } catch (err) {
+      console.error('Failed to set quick time:', err);
+    } finally {
+      setIsSavingQuickTime(false);
+    }
+  };
 
   const handleSwitchViewMode = (mode: 'list' | 'map') => {
     setViewMode(mode);
@@ -490,15 +509,15 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                     </div>
                   )}
 
-                  {/* 當日口袋候選清爽小列表 */}
+                  {/* 當日口袋清單清爽小列表 */}
                   {candidateItems.length > 0 && (
                     <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5 shadow-2xs">
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center space-x-1.5 text-xs font-black text-slate-700">
                           <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                          <span>當日口袋候選 ({candidateItems.length})</span>
+                          <span>當日口袋清單 ({candidateItems.length})</span>
                           <span className="text-[11px] font-normal text-slate-400 hidden sm:inline">
-                            · 未填時間，彈性備選
+                            · 點擊卡片可快速排入時間
                           </span>
                         </div>
                       </div>
@@ -509,7 +528,11 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                           return (
                             <div
                               key={cItem.rowIndex}
-                              className="bg-white border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between shadow-2xs hover:shadow-xs transition-all"
+                              onClick={() => {
+                                setQuickTimeTargetItem(cItem);
+                                setQuickTimeInput('12:00');
+                              }}
+                              className="bg-white border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all cursor-pointer select-none group"
                             >
                               <div className="flex items-center space-x-2 min-w-0 pr-2">
                                 <span className="text-base flex-shrink-0 select-none leading-none">
@@ -517,7 +540,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                 </span>
                                 <div className="min-w-0">
                                   <div className="flex items-center space-x-1">
-                                    <h4 className="text-xs font-bold text-slate-900 truncate">
+                                    <h4 className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
                                       {cItem.title}
                                     </h4>
                                     {cItem.links && (
@@ -525,6 +548,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                         href={cItem.links}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
                                         className="text-sky-600 hover:text-sky-700 flex-shrink-0"
                                         title="開啟 Google 地圖"
                                       >
@@ -543,9 +567,12 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               <div className="flex items-center space-x-1 flex-shrink-0">
                                 <button
                                   type="button"
-                                  onClick={() => onOpenModal(cItem)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenModal(cItem);
+                                  }}
                                   className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs transition-all cursor-pointer"
-                                  title="填入時間排入主行程或修改備註"
+                                  title="完整編輯"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
@@ -563,6 +590,61 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         );
       })}
         </>
+      )}
+
+      {/* 極簡快速填時間小聚焦視窗 (Quick Time Focus Modal) */}
+      {quickTimeTargetItem && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setQuickTimeTargetItem(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-4 shadow-2xl border border-slate-100 w-full max-w-[270px] space-y-3 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="text-xs font-black text-slate-900 truncate pr-2">
+                {quickTimeTargetItem.title}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setQuickTimeTargetItem(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-full text-xs cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickTime} className="space-y-3">
+              <input
+                type="text"
+                autoFocus
+                value={quickTimeInput}
+                onChange={(e) => setQuickTimeInput(e.target.value)}
+                placeholder="例: 12:30"
+                className="w-full text-center text-lg font-black font-mono tracking-wider py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-slate-900 focus:outline-none transition-all"
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickTimeTargetItem(null)}
+                  disabled={isSavingQuickTime}
+                  className="p-2.5 flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingQuickTime}
+                  className="p-2.5 flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition-all active:scale-95 flex items-center justify-center cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
