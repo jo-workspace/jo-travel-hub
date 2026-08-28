@@ -42,19 +42,25 @@ export function getDayColor(dayLabel: string) {
 
 // 常用城市中心點字典
 export const CITY_COORDINATES: Record<string, GeoLocation> = {
+  'san francisco': { lat: 37.7749, lng: -122.4194 },
+  '舊金山': { lat: 37.7749, lng: -122.4194 },
   'los angeles': { lat: 34.0522, lng: -118.2437 },
   'la': { lat: 34.0522, lng: -118.2437 },
   '洛杉磯': { lat: 34.0522, lng: -118.2437 },
   'san diego': { lat: 32.7157, lng: -117.1611 },
   '聖地牙哥': { lat: 32.7157, lng: -117.1611 },
-  'san francisco': { lat: 37.7749, lng: -122.4194 },
-  '舊金山': { lat: 37.7749, lng: -122.4194 },
   'las vegas': { lat: 36.1699, lng: -115.1398 },
   '拉斯維加斯': { lat: 36.1699, lng: -115.1398 },
   'yosemite': { lat: 37.7456, lng: -119.5936 },
   '優勝美地': { lat: 37.7456, lng: -119.5936 },
   'big sur': { lat: 36.2704, lng: -121.8081 },
   '大索爾': { lat: 36.2704, lng: -121.8081 },
+  'monterey': { lat: 36.6002, lng: -121.8947 },
+  '蒙特雷': { lat: 36.6002, lng: -121.8947 },
+  'carmel': { lat: 36.5552, lng: -121.9233 },
+  '卡梅爾': { lat: 36.5552, lng: -121.9233 },
+  'santa barbara': { lat: 34.4208, lng: -119.6982 },
+  '聖塔芭芭拉': { lat: 34.4208, lng: -119.6982 },
   'santa clarita': { lat: 34.3917, lng: -118.5426 },
   'tokyo': { lat: 35.6762, lng: 139.6503 },
   '東京': { lat: 35.6762, lng: 139.6503 },
@@ -65,8 +71,48 @@ export const CITY_COORDINATES: Record<string, GeoLocation> = {
   '台北': { lat: 25.0330, lng: 121.5654 },
 };
 
-// 知名景點離線字典（0ms 秒解）
+// 知名景點離線字典（0ms 秒中精確座標）
 export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
+  // San Francisco & Bay Area
+  '金門大橋': { lat: 37.8199, lng: -122.4783 },
+  'golden gate bridge': { lat: 37.8199, lng: -122.4783 },
+  '金門公園': { lat: 37.7694, lng: -122.4862 },
+  'golden gate park': { lat: 37.7694, lng: -122.4862 },
+  '藝術宮': { lat: 37.8029, lng: -122.4484 },
+  'palace of fine arts': { lat: 37.8029, lng: -122.4484 },
+  '漁人碼頭': { lat: 37.8080, lng: -122.4098 },
+  'fishermans wharf': { lat: 37.8080, lng: -122.4098 },
+  '39號碼頭': { lat: 37.8087, lng: -122.4098 },
+  'pier 39': { lat: 37.8087, lng: -122.4098 },
+  '九曲花街': { lat: 37.8021, lng: -122.4187 },
+  '倫巴底街': { lat: 37.8021, lng: -122.4187 },
+  'lombard': { lat: 37.8021, lng: -122.4187 },
+  '渡輪大廈': { lat: 37.7955, lng: -122.3937 },
+  'ferry building': { lat: 37.7955, lng: -122.3937 },
+  '惡魔島': { lat: 37.8267, lng: -122.4230 },
+  'alcatraz': { lat: 37.8267, lng: -122.4230 },
+  '雙峰山': { lat: 37.7544, lng: -122.4477 },
+  'twin peaks': { lat: 37.7544, lng: -122.4477 },
+  '聯合廣場': { lat: 37.7879, lng: -122.4075 },
+  'union square': { lat: 37.7879, lng: -122.4075 },
+  '彩繪女士': { lat: 37.7763, lng: -122.4328 },
+  'painted ladies': { lat: 37.7763, lng: -122.4328 },
+  '阿拉莫廣場': { lat: 37.7763, lng: -122.4328 },
+  'alamo square': { lat: 37.7763, lng: -122.4328 },
+  '叮叮車': { lat: 37.7845, lng: -122.4078 },
+  'cable car': { lat: 37.7845, lng: -122.4078 },
+  '唐人街': { lat: 37.7941, lng: -122.4078 },
+  'chinatown': { lat: 37.7941, lng: -122.4078 },
+  '柯伊特塔': { lat: 37.8024, lng: -122.4058 },
+  'coit tower': { lat: 37.8024, lng: -122.4058 },
+  '索薩利托': { lat: 37.8590, lng: -122.4853 },
+  'sausalito': { lat: 37.8590, lng: -122.4853 },
+  '謬爾森林': { lat: 37.8970, lng: -122.5811 },
+  'muir woods': { lat: 37.8970, lng: -122.5811 },
+  '甲骨文球場': { lat: 37.7786, lng: -122.3893 },
+  'oracle park': { lat: 37.7786, lng: -122.3893 },
+  '舊金山巨人': { lat: 37.7786, lng: -122.3893 },
+
   // Los Angeles & Southern California
   '道奇': { lat: 34.0739, lng: -118.2400 },
   'dodger': { lat: 34.0739, lng: -118.2400 },
@@ -92,12 +138,10 @@ export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   'the broad': { lat: 34.0544, lng: -118.2505 },
   '布洛德': { lat: 34.0544, lng: -118.2505 },
   'lacma': { lat: 34.0639, lng: -118.3592 },
-  '美術館': { lat: 34.0639, lng: -118.3592 },
   '比佛利': { lat: 34.0696, lng: -118.4053 },
   'beverly hills': { lat: 34.0696, lng: -118.4053 },
   '天使球場': { lat: 33.8003, lng: -117.8827 },
   'angel stadium': { lat: 33.8003, lng: -117.8827 },
-  'in-n-out': { lat: 33.9536, lng: -118.3969 },
   'ucla': { lat: 34.0689, lng: -118.4452 },
   'usc': { lat: 34.0224, lng: -118.2851 },
 
@@ -114,20 +158,20 @@ export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   'petco': { lat: 32.7076, lng: -117.1570 },
   '教士': { lat: 32.7076, lng: -117.1570 },
 
-  // Northern California & Parks
-  '金門大橋': { lat: 37.8199, lng: -122.4783 },
-  'golden gate': { lat: 37.8199, lng: -122.4783 },
-  '漁人碼頭': { lat: 37.8080, lng: -122.4098 },
-  'fishermans wharf': { lat: 37.8080, lng: -122.4098 },
-  'pier 39': { lat: 37.8087, lng: -122.4098 },
-  '九曲花街': { lat: 37.8021, lng: -122.4187 },
-  'lombard': { lat: 37.8021, lng: -122.4187 },
+  // Yosemite & Highway 1
   '優勝美地': { lat: 37.7456, lng: -119.5936 },
   'yosemite': { lat: 37.7456, lng: -119.5936 },
+  '新娘面紗瀑布': { lat: 37.7166, lng: -119.6464 },
+  '優勝美地瀑布': { lat: 37.7566, lng: -119.5969 },
+  '冰川點': { lat: 37.7280, lng: -119.5732 },
+  'glacier point': { lat: 37.7280, lng: -119.5732 },
   '大索爾': { lat: 36.2704, lng: -121.8081 },
   'big sur': { lat: 36.2704, lng: -121.8081 },
   'bixby': { lat: 36.3714, lng: -121.9018 },
   '比克斯比大橋': { lat: 36.3714, lng: -121.9018 },
+  '17哩路': { lat: 36.5772, lng: -121.9547 },
+  '17 mile drive': { lat: 36.5772, lng: -121.9547 },
+  '卡梅爾海灘': { lat: 36.5539, lng: -121.9299 },
 };
 
 /**
@@ -169,28 +213,41 @@ function isValidLatLng(lat: number, lng: number): boolean {
 }
 
 /**
- * 同步解析景點座標（含 URL 解析 ＋ 離線字典 ＋ 關鍵字匹配）
+ * 同步解析景點座標（含 URL 解析 ＋ 離線字典 ＋ 精準城市微偏移）
  */
 export function getCoordinatesSync(
   item: ItineraryItem,
   cityContext?: string,
   indexOffset = 0
-): GeoLocation {
+): { coords: GeoLocation; isExact: boolean } {
   // 1. 優先從卡片上的 Google Maps 連結秒解析 (100% 準確且 0ms)
   const fromUrl = extractCoordinatesFromUrl(item.links);
-  if (fromUrl) return fromUrl;
+  if (fromUrl) return { coords: fromUrl, isExact: true };
 
   const titleLower = (item.title || '').toLowerCase();
 
   // 2. 查常用知名景點離線字典 (精準命中)
   for (const [key, coords] of Object.entries(KNOWN_SPOT_COORDINATES)) {
     if (titleLower.includes(key)) {
-      return coords;
+      return { coords, isExact: true };
     }
   }
 
-  // 3. 查城市中心點並微量偏移 (Jitter)，避免多個未知點完全重疊
-  let baseCoords = CITY_COORDINATES['los angeles'];
+  // 3. 查 LocalStorage 快取
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(`geo_spot_${titleLower}`);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (isValidLatLng(parsed.lat, parsed.lng)) {
+          return { coords: parsed, isExact: true };
+        }
+      } catch {}
+    }
+  }
+
+  // 4. 查城市中心點並微量環形散開 (只有 200~400 公尺，絕對不飄出城市)
+  let baseCoords = CITY_COORDINATES['san francisco'];
   if (cityContext) {
     const cityKey = cityContext.toLowerCase().trim();
     for (const [cName, cCoords] of Object.entries(CITY_COORDINATES)) {
@@ -201,14 +258,83 @@ export function getCoordinatesSync(
     }
   }
 
-  // 加上微微的隨機/序號偏移 (約 500m~1km 範圍)，避免地圖釘重疊
-  const jitterLat = (Math.sin(indexOffset * 1.7) * 0.015) + (indexOffset * 0.003);
-  const jitterLng = (Math.cos(indexOffset * 1.7) * 0.015) - (indexOffset * 0.003);
+  // 環形均勻散開（半徑僅約 0.003 度 ~ 300 公尺），維持在市區內
+  const angle = (indexOffset * 137.5 * Math.PI) / 180;
+  const radius = 0.003 * Math.sqrt((indexOffset % 8) + 1);
 
   return {
-    lat: baseCoords.lat + jitterLat,
-    lng: baseCoords.lng + jitterLng,
+    coords: {
+      lat: baseCoords.lat + radius * Math.cos(angle),
+      lng: baseCoords.lng + radius * Math.sin(angle),
+    },
+    isExact: false,
   };
+}
+
+/**
+ * 非同步精準搜尋景點經緯度（透過 Photon API / OSM 地標搜尋）
+ */
+export async function searchSpotCoordinates(
+  title: string,
+  cityContext?: string
+): Promise<GeoLocation | null> {
+  const cleanTitle = title.trim();
+  if (!cleanTitle) return null;
+  const cacheKey = `geo_spot_${cleanTitle.toLowerCase()}`;
+
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (isValidLatLng(parsed.lat, parsed.lng)) return parsed;
+      } catch {}
+    }
+  }
+
+  const query = `${cleanTitle} ${cityContext || ''}`.trim();
+
+  // 1. 透過 Photon Geocoding API 搜尋 (全球 OSM 地標超精準搜尋)
+  try {
+    const res = await fetch(
+      `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].geometry.coordinates;
+        if (isValidLatLng(lat, lng)) {
+          const result = { lat, lng };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(cacheKey, JSON.stringify(result));
+          }
+          return result;
+        }
+      }
+    }
+  } catch {}
+
+  // 2. 備用 Open-Meteo Geocoding
+  try {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanTitle)}&count=1&language=zh&format=json`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        const result = {
+          lat: data.results[0].latitude,
+          lng: data.results[0].longitude,
+        };
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(cacheKey, JSON.stringify(result));
+        }
+        return result;
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 /**

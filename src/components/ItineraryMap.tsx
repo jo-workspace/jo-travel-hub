@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { ItineraryItem } from '@/types/trip';
-import { getCoordinatesSync, getDayColor, GeoLocation } from '@/lib/geo';
+import { getCoordinatesSync, searchSpotCoordinates, getDayColor, GeoLocation } from '@/lib/geo';
 import { getCityForDay } from '@/lib/weather';
 import { MapPin, Navigation } from 'lucide-react';
 import type * as LeafletType from 'leaflet';
@@ -21,6 +21,7 @@ interface ProcessedSpot {
   coords: GeoLocation;
   dayLabel: string;
   stepIndex: number;
+  isExact: boolean;
   dayColor: { bg: string; text: string; hex: string };
 }
 
@@ -39,6 +40,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   const [leafletLoaded, setLeafletLoaded] = useState(false);
   const [activeDays, setActiveDays] = useState<string[]>([]);
   const [selectedSpot, setSelectedSpot] = useState<ProcessedSpot | null>(null);
+  const [exactCoordsOverrides, setExactCoordsOverrides] = useState<Record<string, GeoLocation>>({});
 
   // 初始化 activeDays
   useEffect(() => {
@@ -49,7 +51,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     }
   }, [selectedDay, days]);
 
-  // 解析所有景點的座標與序號（100% 覆蓋所有景點）
+  // 解析所有景點的座標與序號
   const processedSpots = useMemo(() => {
     const dayCounter: Record<string, number> = {};
     const spots: ProcessedSpot[] = [];
@@ -65,7 +67,19 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     sorted.forEach((item, idx) => {
       const dayLabel = item.day || '未定日期';
       const dayCity = getCityForDay(dayLabel, citySchedule);
-      const coords = getCoordinatesSync(item, dayCity, idx);
+      const itemKey = `${item.title}_${item.day}`;
+
+      let coords: GeoLocation;
+      let isExact = false;
+
+      if (exactCoordsOverrides[itemKey]) {
+        coords = exactCoordsOverrides[itemKey];
+        isExact = true;
+      } else {
+        const syncResult = getCoordinatesSync(item, dayCity, idx);
+        coords = syncResult.coords;
+        isExact = syncResult.isExact;
+      }
 
       dayCounter[dayLabel] = (dayCounter[dayLabel] || 0) + 1;
       spots.push({
@@ -73,12 +87,45 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         coords,
         dayLabel,
         stepIndex: dayCounter[dayLabel],
+        isExact,
         dayColor: getDayColor(dayLabel),
       });
     });
 
     return spots;
-  }, [items, citySchedule]);
+  }, [items, citySchedule, exactCoordsOverrides]);
+
+  // 背景非同步精準搜尋尚未 exact 的景點座標
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchMissingCoordinates = async () => {
+      const nonExactSpots = processedSpots.filter((s) => !s.isExact);
+      for (const spot of nonExactSpots) {
+        if (isCancelled) break;
+        const itemKey = `${spot.item.title}_${spot.item.day}`;
+        if (exactCoordsOverrides[itemKey]) continue;
+
+        const dayCity = getCityForDay(spot.dayLabel, citySchedule);
+        const fetched = await searchSpotCoordinates(spot.item.title, dayCity);
+
+        if (fetched && !isCancelled) {
+          setExactCoordsOverrides((prev) => ({
+            ...prev,
+            [itemKey]: fetched,
+          }));
+        }
+      }
+    };
+
+    if (processedSpots.length > 0) {
+      fetchMissingCoordinates();
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [processedSpots, citySchedule, exactCoordsOverrides]);
 
   // 篩選當前 activeDays 要顯示的點
   const visibleSpots = useMemo(() => {
@@ -90,7 +137,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     let isMounted = true;
     if (typeof window === 'undefined') return;
 
-    // 注入 Leaflet CSS
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link');
       link.id = 'leaflet-css';
@@ -111,30 +157,28 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     };
   }, []);
 
-  // 初始化地圖容器（使用 100% 免費無浮水印圖資）
+  // 初始化地圖容器（使用 Esri 高清免費無浮水印圖資）
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current) return;
     const L = (window as any).L as typeof LeafletType;
     if (!L) return;
 
     if (!mapInstanceRef.current) {
-      const defaultCenter: [number, number] = [34.0522, -118.2437]; // Los Angeles
+      const defaultCenter: [number, number] = [37.7749, -122.4194]; // San Francisco
       const map = L.map(mapContainerRef.current, {
         center: defaultCenter,
         zoom: 12,
         zoomControl: false,
       });
 
-      // 使用 Esri World Street Map 高清免費街道圖資（絕無 API Key 浮水印）
       L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
         {
-          attribution: '&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ',
+          attribution: '&copy; Esri &mdash; World Street Map',
           maxZoom: 19,
         }
       ).addTo(map);
 
-      // 右下角縮放控制項
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
       markersLayerRef.current = L.layerGroup().addTo(map);
@@ -242,7 +286,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     }
   }, [visibleSpots, leafletLoaded]);
 
-  // 切換某天的顯示狀態
   const handleToggleDay = (day: string) => {
     if (activeDays.includes(day)) {
       if (activeDays.length === 1) {
