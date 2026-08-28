@@ -7,6 +7,7 @@ import { X, Trash2 } from 'lucide-react';
 interface ItineraryModalProps {
   isOpen: boolean;
   item?: ItineraryItem | null;
+  defaultDay?: string;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number) => Promise<void>;
@@ -15,6 +16,7 @@ interface ItineraryModalProps {
 export const ItineraryModal: React.FC<ItineraryModalProps> = ({
   isOpen,
   item,
+  defaultDay,
   onClose,
   onSave,
   onDelete,
@@ -36,14 +38,14 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
       setContent(item.content || '');
       setLinks(item.links || '');
     } else {
-      setDay('Day 1');
+      setDay(defaultDay && defaultDay !== 'ALL' ? defaultDay : 'Day 1');
       setTime('09:00');
       setType('景點');
       setTitle('');
       setContent('');
       setLinks('');
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, defaultDay]);
 
   if (!isOpen) return null;
 

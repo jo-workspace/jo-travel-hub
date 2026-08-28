@@ -27,7 +27,7 @@ interface ItineraryTabProps {
   timezone?: string; // 旅程目的地時區（IANA），用來判斷「今天」是第幾天
   citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
   onToggleVisited: (rowIndex: number, currentStatus: boolean) => void;
-  onOpenModal: (item?: ItineraryItem) => void;
+  onOpenModal: (item?: ItineraryItem, initialDay?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
   onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
   onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
@@ -229,7 +229,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
       <div className="flex items-center justify-between gap-2 py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">
         <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
           <button
-            onClick={() => onOpenModal()}
+            onClick={() => onOpenModal(undefined, selectedDay !== 'ALL' ? selectedDay : undefined)}
             className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />

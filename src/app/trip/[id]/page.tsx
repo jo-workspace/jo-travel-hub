@@ -176,6 +176,7 @@ export default function TripPage({ params }: PageProps) {
   // Modal states
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
   const [activeItineraryItem, setActiveItineraryItem] = useState<ItineraryItem | null>(null);
+  const [defaultItineraryDay, setDefaultItineraryDay] = useState<string>('Day 1');
 
   const [todoModalOpen, setTodoModalOpen] = useState(false);
   const [activeTodoItem, setActiveTodoItem] = useState<TodoItem | null>(null);
@@ -715,8 +716,9 @@ export default function TripPage({ params }: PageProps) {
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
                   onToggleVisited={handleToggleVisited}
-                  onOpenModal={(item) => {
+                  onOpenModal={(item, initialDay) => {
                     setActiveItineraryItem(item || null);
+                    if (initialDay) setDefaultItineraryDay(initialDay);
                     setItineraryModalOpen(true);
                   }}
                   onOpenLightbox={(img) => setLightboxUrl(img)}
@@ -799,6 +801,7 @@ export default function TripPage({ params }: PageProps) {
       <ItineraryModal
         isOpen={itineraryModalOpen}
         item={activeItineraryItem}
+        defaultDay={defaultItineraryDay}
         onClose={() => setItineraryModalOpen(false)}
         onSave={handleSaveItinerary}
         onDelete={handleDeleteItinerary}
