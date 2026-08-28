@@ -39,7 +39,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
       setLinks(item.links || '');
     } else {
       setDay(defaultDay && defaultDay !== 'ALL' ? defaultDay : 'Day 1');
-      setTime('09:00');
+      setTime('');
       setType('景點');
       setTitle('');
       setContent('');
@@ -123,6 +123,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                 type="text"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
+                placeholder="留空即為口袋清單"
                 className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
             </div>
