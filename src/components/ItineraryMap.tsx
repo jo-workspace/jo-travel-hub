@@ -270,11 +270,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       const latlng: [number, number] = [spot.coords.lat, spot.coords.lng];
       bounds.extend(latlng);
 
-      const isHotel =
-        spot.item.type === '住宿' ||
-        /hotel|飯店|酒店|旅館|住宿|hostel|airbnb|resort|check-in|check in|drop-off|退房/i.test(
-          `${spot.item.title || ''} ${spot.item.content || ''}`
-        );
+      const isHotel = spot.item.type === '住宿';
 
       const hotelSvg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -492,10 +488,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
                 className="w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0 shadow-xs"
                 style={{ backgroundColor: selectedSpot.dayColor.hex }}
               >
-                {selectedSpot.item.type === '住宿' ||
-                /hotel|飯店|酒店|旅館|住宿|hostel|airbnb|resort|check-in|check in|drop-off|退房/i.test(
-                  `${selectedSpot.item.title || ''} ${selectedSpot.item.content || ''}`
-                ) ? (
+                {selectedSpot.item.type === '住宿' ? (
                   <Hotel className="w-3.5 h-3.5 text-white" />
                 ) : (
                   selectedSpot.stepIndex
