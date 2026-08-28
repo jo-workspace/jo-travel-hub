@@ -574,6 +574,57 @@ export async function toggleVisitedStatus(rowIndex: number, isChecked: boolean, 
   return '已更新';
 }
 
+/** 對調兩個行程的時間順序 */
+export async function swapItineraryTimes(
+  itemA: ItineraryItem,
+  itemB: ItineraryItem,
+  tripId = 'la-2026'
+): Promise<void> {
+  const { data: list } = await supabase
+    .from('itinerary_items')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true });
+
+  if (!list) return;
+
+  const rowA = list[itemA.rowIndex - 2];
+  const rowB = list[itemB.rowIndex - 2];
+
+  if (rowA && rowB) {
+    const timeA = itemA.time || '';
+    const timeB = itemB.time || '';
+
+    // 對調時間
+    await supabase.from('itinerary_items').update({ time: timeB }).eq('id', rowA.id);
+    await supabase.from('itinerary_items').update({ time: timeA }).eq('id', rowB.id);
+  }
+}
+
+/** 批次更新行程時間列表（套用智慧順路排序） */
+export async function batchUpdateItineraryTimes(
+  updates: Array<{ rowIndex: number; time: string }>,
+  tripId = 'la-2026'
+): Promise<void> {
+  const { data: list } = await supabase
+    .from('itinerary_items')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true });
+
+  if (!list) return;
+
+  for (const u of updates) {
+    const targetRow = list[u.rowIndex - 2];
+    if (targetRow) {
+      await supabase
+        .from('itinerary_items')
+        .update({ time: u.time })
+        .eq('id', targetRow.id);
+    }
+  }
+}
+
 /** 待辦事項 */
 export async function saveTodoData(formData: any, tripId = 'la-2026'): Promise<string> {
   const { rowIndex, task, category, note } = formData;

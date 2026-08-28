@@ -29,6 +29,8 @@ interface ItineraryTabProps {
   onToggleVisited: (rowIndex: number, currentStatus: boolean) => void;
   onOpenModal: (item?: ItineraryItem) => void;
   onOpenLightbox: (imageUrl: string) => void;
+  onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
+  onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
 }
 
 const ICON_MAPPING: Record<string, string> = {
@@ -129,6 +131,8 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   citySchedule,
   onToggleVisited,
   onOpenModal,
+  onSwapItemTimes,
+  onBatchUpdateTimes,
 }) => {
   const [weatherMap, setWeatherMap] = useState<Record<string, CityWeatherData>>({});
 
@@ -286,6 +290,8 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           citySchedule={citySchedule}
           onSelectDay={setSelectedDay}
           onOpenItemModal={onOpenModal}
+          onSwapItemTimes={onSwapItemTimes}
+          onBatchUpdateTimes={onBatchUpdateTimes}
         />
       )}
 

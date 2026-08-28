@@ -2,21 +2,20 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { ItineraryItem } from '@/types/trip';
-import { getCoordinatesSync, searchSpotCoordinates, getDayColor, GeoLocation } from '@/lib/geo';
+import {
+  getCoordinatesSync,
+  searchSpotCoordinates,
+  getDayColor,
+  GeoLocation,
+  optimizeDayRoute,
+  RouteOptimizedResult,
+} from '@/lib/geo';
 import { getCityForDay } from '@/lib/weather';
-import { MapPin, Navigation } from 'lucide-react';
+import { RouteOptimizeModal } from '@/components/modals/RouteOptimizeModal';
+import { MapPin, Navigation, Edit3, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 import type * as LeafletType from 'leaflet';
 
-interface ItineraryMapProps {
-  items: ItineraryItem[];
-  days: string[];
-  selectedDay: string;
-  citySchedule?: string;
-  onSelectDay: (day: string) => void;
-  onOpenItemModal?: (item: ItineraryItem) => void;
-}
-
-interface ProcessedSpot {
+export interface ProcessedSpot {
   item: ItineraryItem;
   coords: GeoLocation;
   dayLabel: string;
@@ -25,12 +24,26 @@ interface ProcessedSpot {
   dayColor: { bg: string; text: string; hex: string };
 }
 
+interface ItineraryMapProps {
+  items: ItineraryItem[];
+  days: string[];
+  selectedDay: string;
+  citySchedule?: string;
+  onSelectDay: (day: string) => void;
+  onOpenItemModal?: (item: ItineraryItem) => void;
+  onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
+  onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
+}
+
 export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   items,
   days,
   selectedDay,
   citySchedule,
   onSelectDay,
+  onOpenItemModal,
+  onSwapItemTimes,
+  onBatchUpdateTimes,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LeafletType.Map | null>(null);
@@ -41,8 +54,14 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   const [activeDays, setActiveDays] = useState<string[]>([]);
   const [selectedSpot, setSelectedSpot] = useState<ProcessedSpot | null>(null);
   const [exactCoordsOverrides, setExactCoordsOverrides] = useState<Record<string, GeoLocation>>({});
+  const [isSwapping, setIsSwapping] = useState(false);
 
-  // 初始化 activeDays：若 selectedDay 為 ALL 則預設只選第 1 天（避免 50+ 景點擠爆），若為特定天則選該天
+  // 智慧最佳化路線彈窗狀態
+  const [optimizeModalOpen, setOptimizeModalOpen] = useState(false);
+  const [optimizationResult, setOptimizationResult] =
+    useState<RouteOptimizedResult<ProcessedSpot> | null>(null);
+
+  // 初始化 activeDays
   useEffect(() => {
     if (selectedDay === 'ALL') {
       setActiveDays(days.length > 0 ? [days[0]] : []);
@@ -134,6 +153,12 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     return processedSpots.filter((spot) => activeDays.includes(spot.dayLabel));
   }, [processedSpots, activeDays]);
 
+  // 當前選取天數的景點清單
+  const singleDaySpots = useMemo(() => {
+    if (activeDays.length !== 1) return [];
+    return processedSpots.filter((s) => s.dayLabel === activeDays[0]);
+  }, [processedSpots, activeDays]);
+
   // 動態載入 Leaflet 與注入 CSS
   useEffect(() => {
     let isMounted = true;
@@ -159,7 +184,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     };
   }, []);
 
-  // 初始化地圖容器（使用 Esri 高清免費無浮水印圖資）
+  // 初始化地圖容器
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current) return;
     const L = (window as any).L as typeof LeafletType;
@@ -227,8 +252,8 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
 
         L.polyline(latlngs, {
           color: colorHex,
-          weight: 3,
-          opacity: 0.7,
+          weight: 3.5,
+          opacity: 0.75,
           dashArray: '6, 8',
           lineCap: 'round',
           lineJoin: 'round',
@@ -278,7 +303,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       });
     });
 
-    // 自動適配視野
     if (bounds.isValid()) {
       mapInstanceRef.current.fitBounds(bounds, {
         padding: [50, 50],
@@ -290,7 +314,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
 
   const handleToggleDay = (day: string) => {
     if (activeDays.includes(day)) {
-      // 取消選取該天
       const next = activeDays.filter((d) => d !== day);
       setActiveDays(next);
       if (next.length === 1) {
@@ -299,7 +322,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         onSelectDay('');
       }
     } else {
-      // 加入選取該天
       const next = [...activeDays, day];
       setActiveDays(next);
       if (next.length === days.length) {
@@ -312,69 +334,138 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
 
   const handleSelectAll = () => {
     if (activeDays.length === days.length) {
-      // 若目前已全選，點擊「全部天數」➜ 一鍵清空（全部取消選取）！
       setActiveDays([]);
       onSelectDay('');
     } else {
-      // 若目前未全選，點擊「全部天數」➜ 一鍵全選！
       setActiveDays(days);
       onSelectDay('ALL');
     }
   };
 
+  // 開啟智慧順路排程預覽
+  const handleOpenRouteOptimizer = () => {
+    if (singleDaySpots.length < 3) return;
+    const res = optimizeDayRoute(singleDaySpots);
+    setOptimizationResult(res);
+    setOptimizeModalOpen(true);
+  };
+
+  // 套用智慧順路排程
+  const handleApplyOptimizedRoute = async (optimizedSpots: ProcessedSpot[]) => {
+    if (!onBatchUpdateTimes) return;
+
+    // 提取原本所有時間戳列表（按順序）
+    const timeList = singleDaySpots.map((s) => s.item.time || '').filter(Boolean);
+
+    // 建立每個景點的新時間更新清單
+    const updates = optimizedSpots.map((spot, idx) => {
+      const assignedTime = idx < timeList.length ? timeList[idx] : spot.item.time || '';
+      return {
+        rowIndex: spot.item.rowIndex,
+        time: assignedTime,
+      };
+    });
+
+    await onBatchUpdateTimes(updates);
+    setSelectedSpot(null);
+  };
+
+  // 快速與上一站或下一站對調時間
+  const handleSwapAdjacent = async (direction: 'up' | 'down') => {
+    if (!selectedSpot || !onSwapItemTimes) return;
+    const sameDaySpots = processedSpots.filter((s) => s.dayLabel === selectedSpot.dayLabel);
+    const currentIndex = sameDaySpots.findIndex(
+      (s) => s.item.rowIndex === selectedSpot.item.rowIndex
+    );
+
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= sameDaySpots.length) return;
+
+    const targetSpot = sameDaySpots[targetIndex];
+
+    try {
+      setIsSwapping(true);
+      await onSwapItemTimes(selectedSpot.item, targetSpot.item);
+      setSelectedSpot(null);
+    } catch (err) {
+      console.error('Swap times failed:', err);
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
   return (
     <div className="relative w-full h-[70vh] min-h-[500px] md:h-[75vh] rounded-3xl overflow-hidden border border-slate-200/80 shadow-md flex flex-col bg-slate-50 animate-fade-in">
-      {/* 頂部天數切換篩選膠囊列 */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center gap-1.5 overflow-x-auto no-scrollbar p-1.5 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm">
-        <button
-          type="button"
-          onClick={handleSelectAll}
-          className={`px-3 py-1.5 text-xs font-extrabold rounded-xl transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-            activeDays.length === days.length
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
-          }`}
-        >
-          全部天數 ({processedSpots.length})
-        </button>
+      {/* 頂部天數切換篩選膠囊列 ＆ 順路排程工具按鈕 */}
+      <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between gap-1.5 p-1.5 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className={`px-3 py-1.5 text-xs font-extrabold rounded-xl transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+              activeDays.length === days.length
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+            }`}
+          >
+            全部天數 ({processedSpots.length})
+          </button>
 
-        {days.map((day) => {
-          const daySpots = processedSpots.filter((s) => s.dayLabel === day);
-          const isSelected = activeDays.includes(day);
-          const color = getDayColor(day);
+          {days.map((day) => {
+            const daySpots = processedSpots.filter((s) => s.dayLabel === day);
+            const isSelected = activeDays.includes(day);
+            const color = getDayColor(day);
 
-          return (
+            return (
+              <button
+                key={day}
+                type="button"
+                onClick={() => handleToggleDay(day)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap flex-shrink-0 flex items-center space-x-1.5 ${
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200/70'
+                }`}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: color.hex }}
+                />
+                <span>{day}</span>
+                <span className="text-[10px] opacity-75 font-normal">({daySpots.length})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 智慧順路最佳化按鈕（單日視圖且景點 >= 3 時顯現） */}
+        {activeDays.length === 1 && singleDaySpots.length >= 3 && onBatchUpdateTimes && (
+          <div className="flex-shrink-0 pl-1 border-l border-slate-150">
             <button
-              key={day}
               type="button"
-              onClick={() => handleToggleDay(day)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap flex-shrink-0 flex items-center space-x-1.5 ${
-                isSelected
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200/70'
-              }`}
+              onClick={handleOpenRouteOptimizer}
+              className="px-2.5 py-1.5 text-xs font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1 shadow-2xs"
+              title="自動計算最順動線，消除交叉折返跑"
             >
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color.hex }}
-              />
-              <span>{day}</span>
-              <span className="text-[10px] opacity-75 font-normal">({daySpots.length})</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+              <span className="hidden sm:inline">順路排程</span>
             </button>
-          );
-        })}
+          </div>
+        )}
       </div>
 
       {/* 地圖容器 */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* 點擊景點卡片預覽 */}
+      {/* 點擊景點卡片預覽（含編輯與 ⬆️ / ⬇️ 快速調序） */}
       {selectedSpot ? (
-        <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl space-y-2.5 animate-scale-up">
+        <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-84 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl space-y-2.5 animate-scale-up">
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-2 min-w-0">
               <span
-                className="w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0"
+                className="w-6 h-6 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0 shadow-xs"
                 style={{ backgroundColor: selectedSpot.dayColor.hex }}
               >
                 {selectedSpot.stepIndex}
@@ -403,7 +494,53 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
             </p>
           )}
 
-          <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+          {/* Action Row */}
+          <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+            {/* 上移 / 下移對調按鈕 */}
+            {onSwapItemTimes && (
+              <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => handleSwapAdjacent('up')}
+                  disabled={isSwapping || selectedSpot.stepIndex === 1}
+                  className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white active:scale-95 disabled:opacity-30 disabled:pointer-events-none rounded-lg transition-all cursor-pointer"
+                  title="與前一站對調時間順序"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwapAdjacent('down')}
+                  disabled={
+                    isSwapping ||
+                    selectedSpot.stepIndex ===
+                      processedSpots.filter((s) => s.dayLabel === selectedSpot.dayLabel).length
+                  }
+                  className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white active:scale-95 disabled:opacity-30 disabled:pointer-events-none rounded-lg transition-all cursor-pointer"
+                  title="與後一站對調時間順序"
+                >
+                  <ArrowDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* 編輯行程按鈕 */}
+            {onOpenItemModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenItemModal(selectedSpot.item);
+                  setSelectedSpot(null);
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                title="修改時間、天數或備註"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>編輯</span>
+              </button>
+            )}
+
+            {/* Google Maps 導航 */}
             <a
               href={
                 selectedSpot.item.links ||
@@ -416,7 +553,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
               className="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
             >
               <Navigation className="w-3.5 h-3.5" />
-              <span>Google Maps 導航</span>
+              <span>導航</span>
             </a>
           </div>
         </div>
@@ -426,10 +563,19 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           <span>
             {activeDays.length === 0
               ? '請點選上方天數標籤以在地圖上查看景點'
-              : '點擊圖釘查看景點資訊與導航'}
+              : '點擊圖釘查看景點資訊與調序'}
           </span>
         </div>
       )}
+
+      {/* 智慧順路最佳化安全預覽彈窗 */}
+      <RouteOptimizeModal
+        isOpen={optimizeModalOpen}
+        onClose={() => setOptimizeModalOpen(false)}
+        dayLabel={activeDays[0] || ''}
+        optimizationResult={optimizationResult}
+        onApply={handleApplyOptimizedRoute}
+      />
     </div>
   );
 };

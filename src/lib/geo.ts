@@ -358,3 +358,98 @@ export function calculateDistance(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c * 10) / 10;
 }
+
+export interface RouteOptimizedResult<T extends { coords: GeoLocation }> {
+  originalSpots: T[];
+  optimizedSpots: T[];
+  originalDistanceKm: number;
+  optimizedDistanceKm: number;
+  savedDistanceKm: number;
+}
+
+/**
+ * 依據地理位置計算當日景點最佳行進順序（Nearest Neighbor 貪婪動線最佳化）
+ * 第一站（起點）保持固定，依序尋找下一個距離最近的未訪問景點，徹底消除交叉折返跑
+ */
+export function optimizeDayRoute<T extends { coords: GeoLocation }>(
+  spots: T[]
+): RouteOptimizedResult<T> {
+  if (spots.length <= 2) {
+    let origDist = 0;
+    if (spots.length === 2) {
+      origDist = calculateDistance(
+        spots[0].coords.lat,
+        spots[0].coords.lng,
+        spots[1].coords.lat,
+        spots[1].coords.lng
+      );
+    }
+    return {
+      originalSpots: spots,
+      optimizedSpots: spots,
+      originalDistanceKm: origDist,
+      optimizedDistanceKm: origDist,
+      savedDistanceKm: 0,
+    };
+  }
+
+  // 計算原始路徑總距離
+  let origDist = 0;
+  for (let i = 0; i < spots.length - 1; i++) {
+    origDist += calculateDistance(
+      spots[i].coords.lat,
+      spots[i].coords.lng,
+      spots[i + 1].coords.lat,
+      spots[i + 1].coords.lng
+    );
+  }
+
+  // 固定第 1 站（通常是出發飯店/早晨第一站）
+  const unvisited = [...spots];
+  const route: T[] = [];
+
+  let current = unvisited.shift()!;
+  route.push(current);
+
+  while (unvisited.length > 0) {
+    let nearestIdx = 0;
+    let minDist = Infinity;
+
+    for (let i = 0; i < unvisited.length; i++) {
+      const d = calculateDistance(
+        current.coords.lat,
+        current.coords.lng,
+        unvisited[i].coords.lat,
+        unvisited[i].coords.lng
+      );
+      if (d < minDist) {
+        minDist = d;
+        nearestIdx = i;
+      }
+    }
+
+    current = unvisited.splice(nearestIdx, 1)[0];
+    route.push(current);
+  }
+
+  // 計算優化後總距離
+  let optDist = 0;
+  for (let i = 0; i < route.length - 1; i++) {
+    optDist += calculateDistance(
+      route[i].coords.lat,
+      route[i].coords.lng,
+      route[i + 1].coords.lat,
+      route[i + 1].coords.lng
+    );
+  }
+
+  const saved = Math.max(0, Math.round((origDist - optDist) * 10) / 10);
+
+  return {
+    originalSpots: spots,
+    optimizedSpots: route,
+    originalDistanceKm: Math.round(origDist * 10) / 10,
+    optimizedDistanceKm: Math.round(optDist * 10) / 10,
+    savedDistanceKm: saved,
+  };
+}

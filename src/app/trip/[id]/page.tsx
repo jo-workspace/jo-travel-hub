@@ -27,6 +27,8 @@ import {
   saveItineraryData,
   deleteItineraryData,
   toggleVisitedStatus,
+  swapItineraryTimes,
+  batchUpdateItineraryTimes,
   saveTodoData,
   deleteTodoData,
   toggleTodoStatus,
@@ -408,6 +410,30 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleSwapItineraryTimes = async (itemA: ItineraryItem, itemB: ItineraryItem) => {
+    try {
+      showToast('正在對調行程順序...');
+      await swapItineraryTimes(itemA, itemB, tripId);
+      showToast('順序已更新！');
+      fetchData(true);
+    } catch (err: any) {
+      showToast(`更新失敗: ${err.message}`);
+    }
+  };
+
+  const handleBatchUpdateItineraryTimes = async (
+    updates: Array<{ rowIndex: number; time: string }>
+  ) => {
+    try {
+      showToast('正在套用最順動線...');
+      await batchUpdateItineraryTimes(updates, tripId);
+      showToast('🎉 最順動線已成功套用！');
+      fetchData(true);
+    } catch (err: any) {
+      showToast(`套用失敗: ${err.message}`);
+    }
+  };
+
   // Todo Handlers
   const handleToggleTodo = async (rowIndex: number, currentStatus: boolean) => {
     const nextStatus = !currentStatus;
@@ -694,6 +720,8 @@ export default function TripPage({ params }: PageProps) {
                     setItineraryModalOpen(true);
                   }}
                   onOpenLightbox={(img) => setLightboxUrl(img)}
+                  onSwapItemTimes={handleSwapItineraryTimes}
+                  onBatchUpdateTimes={handleBatchUpdateItineraryTimes}
                 />
               )}
 
