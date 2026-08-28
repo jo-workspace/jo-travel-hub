@@ -231,18 +231,77 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Trip Note Alert Banner */}
-      {tripNote && (
-        <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400">
-          <div className="text-xs font-bold uppercase text-amber-400 mb-1.5 flex items-center space-x-1.5">
-            <span>📢</span>
-            <span>行程重要備註</span>
+      {/* Trip Note Alert Banner with Resource Links */}
+      {tripNote && (() => {
+        const links: Array<{ title: string; url: string }> = [];
+        const seenUrls = new Set<string>();
+
+        // 1. 抓取 Markdown 連結 [Title](URL)
+        const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+        let match;
+        while ((match = mdRegex.exec(tripNote)) !== null) {
+          const title = match[1];
+          const url = match[2];
+          if (!seenUrls.has(url)) {
+            links.push({ title, url });
+            seenUrls.add(url);
+          }
+        }
+
+        // 2. 抓取純 URL (未被 Markdown 包裹者)
+        const pureUrlRegex = /(?<!\()https?:\/\/[^\s<)]+/g;
+        while ((match = pureUrlRegex.exec(tripNote)) !== null) {
+          const url = match[0];
+          if (!seenUrls.has(url)) {
+            try {
+              const parsed = new URL(url);
+              const domain = parsed.hostname.replace('www.', '');
+              links.push({ title: domain, url });
+              seenUrls.add(url);
+            } catch {
+              links.push({ title: '外部連結', url });
+            }
+          }
+        }
+
+        // 整理乾淨純文字
+        const cleanText = tripNote
+          .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
+          .replace(/<br\s*\/?>/gi, '\n');
+
+        return (
+          <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5">
+            <div className="text-xs font-bold uppercase text-amber-400 flex items-center space-x-1.5">
+              <span>📢</span>
+              <span>行程重要備註</span>
+            </div>
+
+            {cleanText && (
+              <div className="text-sm font-medium leading-relaxed font-sans text-slate-200 whitespace-pre-line">
+                {cleanText}
+              </div>
+            )}
+
+            {/* 實用資源與即時監控外部連結膠囊 */}
+            {links.length > 0 && (
+              <div className="pt-2 border-t border-slate-800 flex items-center flex-wrap gap-2">
+                {links.map((link, idx) => (
+                  <a
+                    key={idx}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700/90 text-amber-300 hover:text-amber-200 border border-slate-700/80 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                  >
+                    <span>{link.title}</span>
+                    <ExternalLink className="w-3 h-3 text-amber-400/80 flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="text-sm font-medium leading-relaxed font-sans text-slate-200 whitespace-pre-line">
-            {tripNote.replace(/<br\s*\/?>/gi, '\n')}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Day Filter, Add Button & View Mode Switch Bar */}
       <div className="flex items-center justify-between gap-2 py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">

@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
 
-const TIMEZONE_PRESETS = ['Asia/Taipei', 'America/Los_Angeles', 'Asia/Tokyo', 'America/New_York', 'Europe/London'];
-
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -196,10 +194,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  同行人員
-                  <span className="text-slate-400 font-normal ml-1">（用逗號分隔，記帳與打包自動連動）</span>
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">同行人員</label>
                 <input
                   type="text"
                   value={people}
@@ -210,40 +205,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center justify-between">
-                  <span>上傳旅程專屬圖示 (PNG / JPG)</span>
-                  <span className="text-slate-400 font-normal">（自動壓縮 180x180 高畫質）</span>
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">旅程圖示</label>
                 {iconDataUrl ? (
-                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-2xl">
-                    <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-2.5 rounded-2xl">
+                    <div className="flex items-center space-x-2.5">
                       <img
                         src={iconDataUrl}
                         alt="旅程圖示預覽"
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs"
+                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-2xs"
                       />
-                      <div>
-                        <span className="text-xs font-extrabold text-slate-800 block">已設定專屬圖示</span>
-                        <span className="text-[10px] text-emerald-600 font-bold block">✓ 電腦分頁與 iPhone 桌面即時連動</span>
-                      </div>
+                      <span className="text-xs font-bold text-slate-800">已設定專屬圖示</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setIconDataUrl('')}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer flex items-center space-x-1 text-xs font-bold"
-                      title="清除上傳圖示"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer flex items-center space-x-1 text-xs font-bold"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       <span>清除</span>
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/80 rounded-2xl transition-all cursor-pointer group p-3">
-                    <div className="flex items-center space-x-2 text-slate-400 group-hover:text-slate-700">
-                      <Upload className="w-5 h-5" />
-                      <span className="text-xs font-extrabold">點擊選擇照片或圖片檔案</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-1 font-medium">支援格式：PNG, JPG, WebP（系統自動裁切為 180x180 滿格 PNG）</span>
+                  <label className="flex items-center justify-center space-x-2 w-full py-3 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100/80 rounded-xl transition-all cursor-pointer group">
+                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-slate-700" />
+                    <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700">選擇圖片檔案</span>
                     <input
                       type="file"
                       accept="image/png, image/jpeg, image/webp"
@@ -265,10 +250,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div className="min-w-0">
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  旅程起始日期
-                  <span className="text-slate-400 font-normal ml-1">（Day 1 對應的日期）</span>
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">旅程起始日 (Day 1)</label>
                 <input
                   type="date"
                   value={start}
@@ -278,57 +260,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  目的地時區
-                  <span className="text-slate-400 font-normal ml-1">（用來判斷「今天」對應第幾天，分享連結給人在其他時區的旅伴也不會算錯）</span>
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">目的地時區</label>
                 <input
                   type="text"
                   value={tz}
                   onChange={(e) => setTz(e.target.value)}
-                  placeholder="例：America/Los_Angeles"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono mb-2"
+                  placeholder="例：America/Los_Angeles 或 Asia/Taipei"
+                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
                 />
-                <div className="flex items-center flex-wrap gap-1.5">
-                  {TIMEZONE_PRESETS.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setTz(preset)}
-                      className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
-                        tz === preset
-                          ? 'bg-slate-900 text-white border-slate-900'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  城市日程安排
-                  <span className="text-slate-400 font-normal ml-1">（設定跨城市天數，自動獲取 Open-Meteo 天氣預報）</span>
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">城市日程</label>
                 <input
                   type="text"
                   value={citySched}
                   onChange={(e) => setCitySched(e.target.value)}
-                  placeholder="例：Day 1-5: Los Angeles, Day 6-7: San Diego, Day 8-10: Los Angeles"
+                  placeholder="例：Day 1-3: Los Angeles, Day 4-5: Las Vegas"
                   className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-sans text-slate-800"
                 />
-                <p className="text-[11px] text-slate-400 mt-1 font-medium leading-relaxed">
-                  支援格式：<code>Day 1-3: Los Angeles, Day 4-5: Las Vegas</code> 或以逗號分隔城市 <code>那霸, 名護</code>
-                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    外幣代碼
-                  </label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣代碼</label>
                   <input
                     type="text"
                     value={currency}
@@ -358,25 +313,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => setRate(e.target.value)}
                       placeholder={
                         ['JPY', 'KRW', 'VND', 'IDR'].includes((currency || 'USD').toUpperCase())
-                          ? '例如 5.05'
-                          : '例如 32.5'
+                          ? '5.05'
+                          : '32.5'
                       }
                       className="w-full bg-slate-50 border border-slate-200 text-sm pl-8 pr-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono font-bold"
                     />
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    {['JPY', 'KRW', 'VND', 'IDR'].includes((currency || 'USD').toUpperCase())
-                      ? `如輸入 5.05，代表 $1 台幣可換 $5.05 ${currency}`
-                      : `如輸入 32.5，代表 $1 ${currency} 可換 $32.5 台幣`}
-                  </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  預算
-                  <span className="text-slate-400 font-normal ml-1">TWD</span>
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">預算 (TWD)</label>
                 <input
                   type="number"
                   min="0"
@@ -394,18 +341,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <FileText className="w-3.5 h-3.5" />
-                <span>行程重要備註</span>
+                <span>重要備註與外部連結</span>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  備註內容
-                  <span className="text-slate-400 font-normal ml-1">（顯示在行程表最上方的公告欄）</span>
-                </label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder={"例：\n8/30 李政厚搖頭娃娃 (1:05 PM)\n班機時間：\n---8/30 TPE 00:05"}
-                  rows={6}
+                  placeholder={"例：\n8/30 李政厚搖頭娃娃 (1:05 PM)\n[野火空氣品質](https://fire.airnow.gov)\n[加州即時路況](https://quickmap.dot.ca.gov)"}
+                  rows={5}
                   className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all resize-none leading-relaxed"
                 />
               </div>
