@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { ItineraryItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
@@ -165,11 +165,24 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
     return numA - numB;
   });
 
-  // 旅程進行中就自動定位到今天對應的 Day；尚未開始/已結束則維持全部天數
   const [selectedDay, setSelectedDay] = useState<string>(
     () => getTodayDayLabel(startDate || '', timezone || '', days) ?? 'ALL'
   );
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const mapAnchorRef = useRef<HTMLDivElement>(null);
+
+  const handleSwitchViewMode = (mode: 'list' | 'map') => {
+    setViewMode(mode);
+    if (mode === 'map') {
+      // 微延遲確保地圖 DOM 掛載後平滑滾動對齊
+      setTimeout(() => {
+        mapAnchorRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 60);
+    }
+  };
 
   // Filter items
   const filteredItems = sortedItems.filter((item) => {
@@ -256,7 +269,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         <div className="flex items-center bg-white border border-slate-200/90 p-0.5 rounded-full flex-shrink-0 shadow-2xs">
           <button
             type="button"
-            onClick={() => setViewMode('list')}
+            onClick={() => handleSwitchViewMode('list')}
             className={`p-1.5 rounded-full transition-all cursor-pointer ${
               viewMode === 'list'
                 ? 'bg-slate-900 text-white shadow-xs'
@@ -268,7 +281,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('map')}
+            onClick={() => handleSwitchViewMode('map')}
             className={`p-1.5 rounded-full transition-all cursor-pointer ${
               viewMode === 'map'
                 ? 'bg-slate-900 text-white shadow-xs'
@@ -281,18 +294,20 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         </div>
       </div>
 
-      {/* Map View Mode */}
+      {/* Map View Mode with Anchor Target */}
       {viewMode === 'map' && (
-        <ItineraryMap
-          items={data}
-          days={days}
-          selectedDay={selectedDay}
-          citySchedule={citySchedule}
-          onSelectDay={setSelectedDay}
-          onOpenItemModal={onOpenModal}
-          onSwapItemTimes={onSwapItemTimes}
-          onBatchUpdateTimes={onBatchUpdateTimes}
-        />
+        <div ref={mapAnchorRef} className="scroll-mt-20 md:scroll-mt-6">
+          <ItineraryMap
+            items={data}
+            days={days}
+            selectedDay={selectedDay}
+            citySchedule={citySchedule}
+            onSelectDay={setSelectedDay}
+            onOpenItemModal={onOpenModal}
+            onSwapItemTimes={onSwapItemTimes}
+            onBatchUpdateTimes={onBatchUpdateTimes}
+          />
+        </div>
       )}
 
       {/* List View Mode */}
