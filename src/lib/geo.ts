@@ -112,6 +112,9 @@ export const KNOWN_SPOT_COORDINATES: Record<string, GeoLocation> = {
   '甲骨文球場': { lat: 37.7786, lng: -122.3893 },
   'oracle park': { lat: 37.7786, lng: -122.3893 },
   '舊金山巨人': { lat: 37.7786, lng: -122.3893 },
+  'orchard garden': { lat: 37.7904, lng: -122.4056 },
+  '466 bush': { lat: 37.7904, lng: -122.4056 },
+  '行李 drop-off': { lat: 37.7904, lng: -122.4056 },
 
   // Los Angeles & Southern California
   '道奇': { lat: 34.0739, lng: -118.2400 },
@@ -276,11 +279,11 @@ export function getCoordinatesSync(
  */
 export async function searchSpotCoordinates(
   title: string,
-  cityContext?: string
+  cityContext?: string,
+  links?: string
 ): Promise<GeoLocation | null> {
   const cleanTitle = title.trim();
-  if (!cleanTitle) return null;
-  const cacheKey = `geo_spot_${cleanTitle.toLowerCase()}`;
+  const cacheKey = `geo_spot_${cleanTitle.toLowerCase()}_${links || ''}`;
 
   if (typeof window !== 'undefined') {
     const cached = localStorage.getItem(cacheKey);
@@ -292,9 +295,27 @@ export async function searchSpotCoordinates(
     }
   }
 
+  // 1. 若有 Google Maps 短網址或包含 maps 連結，打伺服器端解析端點 (100% 精準秒解)
+  if (links && (links.includes('maps.app.goo.gl') || links.includes('goo.gl/maps') || links.includes('google.com/maps'))) {
+    try {
+      const res = await fetch(`/api/resolve-maps?url=${encodeURIComponent(links)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.lat && data.lng && isValidLatLng(data.lat, data.lng)) {
+          const result = { lat: data.lat, lng: data.lng };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(cacheKey, JSON.stringify(result));
+          }
+          return result;
+        }
+      }
+    } catch {}
+  }
+
+  if (!cleanTitle) return null;
   const query = `${cleanTitle} ${cityContext || ''}`.trim();
 
-  // 1. 透過 Photon Geocoding API 搜尋 (全球 OSM 地標超精準搜尋)
+  // 2. 透過 Photon Geocoding API 搜尋 (全球 OSM 地標超精準搜尋)
   try {
     const res = await fetch(
       `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`

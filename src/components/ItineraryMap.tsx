@@ -128,7 +128,11 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         if (exactCoordsOverrides[itemKey]) continue;
 
         const dayCity = getCityForDay(spot.dayLabel, citySchedule);
-        const fetched = await searchSpotCoordinates(spot.item.title, dayCity);
+        const fetched = await searchSpotCoordinates(
+          spot.item.title,
+          dayCity,
+          spot.item.links
+        );
 
         if (fetched && !isCancelled) {
           setExactCoordsOverrides((prev) => ({
