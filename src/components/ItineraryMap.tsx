@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { ItineraryItem } from '@/types/trip';
-import { extractCoordinatesFromUrl, getDayColor, GeoLocation, calculateDistance } from '@/lib/geo';
-import { MapPin, Navigation, Layers, ExternalLink, Calendar } from 'lucide-react';
+import { getCoordinatesSync, getDayColor, GeoLocation } from '@/lib/geo';
+import { getCityForDay } from '@/lib/weather';
+import { MapPin, Navigation } from 'lucide-react';
 import type * as LeafletType from 'leaflet';
 
 interface ItineraryMapProps {
   items: ItineraryItem[];
   days: string[];
   selectedDay: string;
+  citySchedule?: string;
   onSelectDay: (day: string) => void;
   onOpenItemModal?: (item: ItineraryItem) => void;
 }
@@ -26,6 +28,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   items,
   days,
   selectedDay,
+  citySchedule,
   onSelectDay,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -46,7 +49,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     }
   }, [selectedDay, days]);
 
-  // 解析所有景點的座標與序號
+  // 解析所有景點的座標與序號（100% 覆蓋所有景點）
   const processedSpots = useMemo(() => {
     const dayCounter: Record<string, number> = {};
     const spots: ProcessedSpot[] = [];
@@ -59,23 +62,23 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       return (a.time || '').localeCompare(b.time || '');
     });
 
-    sorted.forEach((item) => {
-      const coords = extractCoordinatesFromUrl(item.links);
-      if (coords) {
-        const dayLabel = item.day || '未定日期';
-        dayCounter[dayLabel] = (dayCounter[dayLabel] || 0) + 1;
-        spots.push({
-          item,
-          coords,
-          dayLabel,
-          stepIndex: dayCounter[dayLabel],
-          dayColor: getDayColor(dayLabel),
-        });
-      }
+    sorted.forEach((item, idx) => {
+      const dayLabel = item.day || '未定日期';
+      const dayCity = getCityForDay(dayLabel, citySchedule);
+      const coords = getCoordinatesSync(item, dayCity, idx);
+
+      dayCounter[dayLabel] = (dayCounter[dayLabel] || 0) + 1;
+      spots.push({
+        item,
+        coords,
+        dayLabel,
+        stepIndex: dayCounter[dayLabel],
+        dayColor: getDayColor(dayLabel),
+      });
     });
 
     return spots;
-  }, [items]);
+  }, [items, citySchedule]);
 
   // 篩選當前 activeDays 要顯示的點
   const visibleSpots = useMemo(() => {
@@ -108,14 +111,13 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     };
   }, []);
 
-  // 初始化地圖容器
+  // 初始化地圖容器（使用 100% 免費無浮水印圖資）
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current) return;
     const L = (window as any).L as typeof LeafletType;
     if (!L) return;
 
     if (!mapInstanceRef.current) {
-      // 預設中心點 (若有景點則自動 fitBounds)
       const defaultCenter: [number, number] = [34.0522, -118.2437]; // Los Angeles
       const map = L.map(mapContainerRef.current, {
         center: defaultCenter,
@@ -123,11 +125,14 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         zoomControl: false,
       });
 
-      // 新增優雅的 OpenStreetMap 灰階風格圖資
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-        maxZoom: 19,
-      }).addTo(map);
+      // 使用 Esri World Street Map 高清免費街道圖資（絕無 API Key 浮水印）
+      L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        {
+          attribution: '&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ',
+          maxZoom: 19,
+        }
+      ).addTo(map);
 
       // 右下角縮放控制項
       L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -138,7 +143,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     }
 
     return () => {
-      // Clean up on unmount
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -242,7 +246,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   const handleToggleDay = (day: string) => {
     if (activeDays.includes(day)) {
       if (activeDays.length === 1) {
-        // 如果只剩一個點，點擊則全選
         setActiveDays(days);
         onSelectDay('ALL');
       } else {
@@ -309,7 +312,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       {/* 地圖容器 */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* 提示或點擊景點卡片預覽 */}
+      {/* 點擊景點卡片預覽 */}
       {selectedSpot ? (
         <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-[1000] bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl space-y-2.5 animate-scale-up">
           <div className="flex items-start justify-between">
@@ -339,23 +342,26 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           </div>
 
           {selectedSpot.item.content && (
-            <p className="text-xs text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-xl">
+            <p className="text-xs text-slate-600 font-medium line-clamp-2 bg-slate-50 p-2 rounded-xl whitespace-pre-line">
               {selectedSpot.item.content.replace(/<br\s*\/?>/gi, '\n')}
             </p>
           )}
 
           <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-            {selectedSpot.item.links && (
-              <a
-                href={selectedSpot.item.links}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                <span>Google Maps 導航</span>
-              </a>
-            )}
+            <a
+              href={
+                selectedSpot.item.links ||
+                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  selectedSpot.item.title
+                )}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Google Maps 導航</span>
+            </a>
           </div>
         </div>
       ) : (

@@ -283,6 +283,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           items={data}
           days={days}
           selectedDay={selectedDay}
+          citySchedule={citySchedule}
           onSelectDay={setSelectedDay}
           onOpenItemModal={onOpenModal}
         />
