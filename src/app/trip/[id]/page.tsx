@@ -780,6 +780,7 @@ export default function TripPage({ params }: PageProps) {
                     setExpenseModalOpen(true);
                   }}
                   onUpdateShoppingPrice={handleUpdateShoppingPrice}
+                  onToggleShopping={handleToggleShopping}
                 />
               )}
 
@@ -865,6 +866,8 @@ export default function TripPage({ params }: PageProps) {
         companionsList={currentCompanions}
         foreignCurrency={tripData.foreignCurrency || 'USD'}
         fxRate={tripData.fxRate}
+        shopping={tripData.shopping}
+        onToggleShopping={handleToggleShopping}
         onClose={() => setExpenseModalOpen(false)}
         onSave={handleAddExpense}
         onDelete={handleDeleteExpense}

@@ -15,6 +15,7 @@ interface ExpensesTabProps {
   onDeleteExpense: (rowIndex: number, id?: string) => Promise<void>;
   onOpenModal?: (item?: ExpenseItem) => void;
   onUpdateShoppingPrice?: (rowIndex: number, newPrice: number) => Promise<void>;
+  onToggleShopping?: (rowIndex: number, currentStatus: boolean, id?: string) => Promise<void> | void;
 }
 
 const CATEGORY_EMOJIS: Record<string, string> = {
@@ -26,6 +27,114 @@ const CATEGORY_EMOJIS: Record<string, string> = {
   '🏨': '住宿',
   '❔': '其他',
 };
+
+export interface ExpenseMeta {
+  customTwd?: number;      // 刷卡折算台幣（網銀通知）
+  customFx?: number;       // 實質匯率
+  proxyAmount?: number;    // 代購總額 (外幣)
+  proxyTwd?: number;       // 代購總額 (台幣)
+  realAmount?: number;     // 自用淨額 (外幣)
+  realTwd?: number;        // 自用淨額 (台幣)
+  proxyShoppingRows?: number[]; // 關聯之購物清單 rowIndex
+  cleanNote: string;
+}
+
+/** 解析記帳中繼資料（折算台幣、代購代墊款、實質匯率） */
+export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
+  if (!rawNote) return { cleanNote: '' };
+
+  const metaMatch = rawNote.match(/<!--(?:EXP_META:([^\->]+)|TWD:(\d+)(?:,FX:([\d.]+))?)-->/);
+
+  let customTwd: number | undefined;
+  let customFx: number | undefined;
+  let proxyAmount: number | undefined;
+  let proxyTwd: number | undefined;
+  let realAmount: number | undefined;
+  let realTwd: number | undefined;
+  let proxyShoppingRows: number[] | undefined;
+
+  if (metaMatch) {
+    if (metaMatch[1]) {
+      const pairs = metaMatch[1].split(',');
+      pairs.forEach((p) => {
+        const [k, v] = p.split('=');
+        if (!k || !v) return;
+        const key = k.trim().toUpperCase();
+        const val = v.trim();
+        if (key === 'TWD') customTwd = parseFloat(val);
+        else if (key === 'FX') customFx = parseFloat(val);
+        else if (key === 'PROXY_AMT') proxyAmount = parseFloat(val);
+        else if (key === 'PROXY_TWD') proxyTwd = parseFloat(val);
+        else if (key === 'REAL_AMT') realAmount = parseFloat(val);
+        else if (key === 'REAL_TWD') realTwd = parseFloat(val);
+        else if (key === 'PROXY_ROWS') {
+          proxyShoppingRows = val.split(/[|;]/).map((n) => parseInt(n, 10)).filter(Boolean);
+        }
+      });
+    } else if (metaMatch[2]) {
+      customTwd = parseFloat(metaMatch[2]);
+      if (metaMatch[3]) customFx = parseFloat(metaMatch[3]);
+    }
+  }
+
+  const clean = rawNote
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\[(?:折算|含代購|代購墊付)[^\]]*\]/g, '')
+    .trim();
+
+  return {
+    customTwd: customTwd && !isNaN(customTwd) ? customTwd : undefined,
+    customFx: customFx && !isNaN(customFx) ? customFx : undefined,
+    proxyAmount: proxyAmount && !isNaN(proxyAmount) ? proxyAmount : undefined,
+    proxyTwd: proxyTwd && !isNaN(proxyTwd) ? proxyTwd : undefined,
+    realAmount: realAmount && !isNaN(realAmount) ? realAmount : undefined,
+    realTwd: realTwd && !isNaN(realTwd) ? realTwd : undefined,
+    proxyShoppingRows,
+    cleanNote: clean,
+  };
+}
+
+/** 建構記帳備註中繼標記 */
+export function buildExpenseNote(
+  userNote: string,
+  meta: {
+    customTwd?: number;
+    customFx?: number;
+    proxyAmount?: number;
+    proxyTwd?: number;
+    realAmount?: number;
+    realTwd?: number;
+    proxyShoppingRows?: number[];
+  }
+): string {
+  const metaParts: string[] = [];
+  if (meta.customTwd !== undefined && meta.customTwd > 0) metaParts.push(`TWD=${meta.customTwd}`);
+  if (meta.customFx !== undefined && meta.customFx > 0) metaParts.push(`FX=${meta.customFx.toFixed(4)}`);
+  if (meta.proxyAmount !== undefined && meta.proxyAmount > 0) metaParts.push(`PROXY_AMT=${meta.proxyAmount}`);
+  if (meta.proxyTwd !== undefined && meta.proxyTwd > 0) metaParts.push(`PROXY_TWD=${meta.proxyTwd}`);
+  if (meta.realAmount !== undefined && meta.realAmount >= 0) metaParts.push(`REAL_AMT=${meta.realAmount}`);
+  if (meta.realTwd !== undefined && meta.realTwd >= 0) metaParts.push(`REAL_TWD=${meta.realTwd}`);
+  if (meta.proxyShoppingRows && meta.proxyShoppingRows.length > 0) {
+    metaParts.push(`PROXY_ROWS=${meta.proxyShoppingRows.join('|')}`);
+  }
+
+  if (metaParts.length === 0) return userNote.trim();
+
+  const commentTag = `<!--EXP_META:${metaParts.join(',')}-->`;
+
+  let label = '';
+  if (meta.customTwd && meta.proxyTwd) {
+    label = `[折算 NT$${meta.customTwd} | 代購墊付 NT$${meta.proxyTwd}]`;
+  } else if (meta.customTwd) {
+    label = `[折算 NT$${meta.customTwd}]`;
+  } else if (meta.proxyTwd) {
+    label = `[代購墊付 NT$${meta.proxyTwd}]`;
+  }
+
+  const cleanUserNote = userNote.trim();
+  const visiblePart = label ? (cleanUserNote ? `${label} ${cleanUserNote}` : label) : cleanUserNote;
+  return `${commentTag}${visiblePart}`;
+}
 
 /** 計算任一單位的換算台幣金額（自動支援正反向匯率，如 1 TWD = 5 JPY 或 1 JPY = 0.2 TWD） */
 export function computeTwdAmount(amt: number, curr: string, fxRate: number, foreignCurrencyCode: string): number {
@@ -138,6 +247,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   onDeleteExpense,
   onOpenModal,
   onUpdateShoppingPrice,
+  onToggleShopping,
 }) => {
   const activeForeignCode = (foreignCurrency || 'USD').toUpperCase();
   const fxLabel = formatFxRateLabel(fxRate, activeForeignCode);
@@ -151,6 +261,41 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       : 0),
     0,
   );
+
+  // 提取購物清單中所有代購品項
+  const availableProxyItems = React.useMemo(() => {
+    const list: {
+      rowIndex: number;
+      id?: string;
+      itemName: string;
+      personName: string;
+      quantity: number;
+      price: number;
+      totalForeign: number;
+      isDone: boolean;
+    }[] = [];
+
+    shopping.forEach((s) => {
+      const tags = parseRecipientTags(s.forWhom);
+      const price = s.price || 0;
+      tags.forEach((tag) => {
+        if (tag.isProxy) {
+          const qty = tag.quantity || 1;
+          list.push({
+            rowIndex: s.rowIndex,
+            id: s.id,
+            itemName: s.item,
+            personName: tag.name,
+            quantity: qty,
+            price: price,
+            totalForeign: price * qty,
+            isDone: !!s.isDone,
+          });
+        }
+      });
+    });
+    return list;
+  }, [shopping]);
 
   // 解析同行人員清單（排除公用與分帳關鍵字）
   const companionSet = new Set<string>();
@@ -187,6 +332,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     return initial;
   });
   const [memberAmounts, setMemberAmounts] = useState<Record<string, string>>({});
+  const [customTwd, setCustomTwd] = useState('');
+  const [hasProxy, setHasProxy] = useState(false);
+  const [selectedProxyRows, setSelectedProxyRows] = useState<number[]>([]);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -223,28 +371,35 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
   data.forEach((exp) => {
     let amt = typeof exp.amount === 'number' ? exp.amount : parseFloat(exp.amount) || 0;
-    let amtTWD = computeTwdAmount(amt, exp.currency, fxRate, activeForeignCode);
+    const expCurr = (exp.currency || activeForeignCode).toUpperCase();
+    const meta = parseExpenseMeta(exp.note);
 
     // 處理系統結清對沖紀錄
     if (exp.item && exp.item.includes('系統結清')) {
+      const settleAmtTWD = meta.customTwd || computeTwdAmount(amt, expCurr, fxRate, activeForeignCode);
       if (exp.paidBy && settlementOffsetTWD[exp.paidBy] !== undefined) {
-        settlementOffsetTWD[exp.paidBy] += amtTWD;
+        settlementOffsetTWD[exp.paidBy] += settleAmtTWD;
       }
       if (exp.split && settlementOffsetTWD[exp.split] !== undefined) {
-        settlementOffsetTWD[exp.split] -= amtTWD;
+        settlementOffsetTWD[exp.split] -= settleAmtTWD;
       }
       return;
     }
 
-    totalTWD += amtTWD;
+    const rawBillTwd = meta.customTwd || computeTwdAmount(amt, expCurr, fxRate, activeForeignCode);
+    // 自用真實旅費金額（若有代購扣除，只計算自用旅費 realTwd）：
+    const realTripTwd = meta.realTwd !== undefined ? meta.realTwd : rawBillTwd;
 
-    // 累計付款金額（如果付款人是「公用」，代表由公用金支付，不計入個人墊付款）
+    // 累計全旅程總花費：只計算自用真實旅費，徹底與外人代購代墊款脫鉤
+    totalTWD += realTripTwd;
+
+    // 累計付款金額（付款人墊付的旅費，扣除外人代購墊付款，外人代購由代購請款區向委託人請款）
     const payer = exp.paidBy ? exp.paidBy.trim() : members[0];
     if (paidTWD[payer] !== undefined) {
-      paidTWD[payer] += amtTWD;
+      paidTWD[payer] += realTripTwd;
     }
 
-    // 累計應分攤金額（按人頭權重解析進行精確分配）
+    // 累計應分攤金額（各旅伴只分攤自用真實旅費 realTripTwd）
     const splitTarget = exp.split ? exp.split.trim() : '均分';
     const weights = parseSplitWeights(splitTarget, members);
     const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -252,7 +407,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     if (totalWeight > 0) {
       members.forEach((m) => {
         const w = weights[m] || 0;
-        const memberShare = amtTWD * (w / totalWeight);
+        const memberShare = realTripTwd * (w / totalWeight);
         shareTWD[m] = (shareTWD[m] || 0) + memberShare;
       });
     }
@@ -376,9 +531,44 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     setTimeout(() => setCopiedPerson(null), 2500);
   };
 
+  const parsedAmount = parseFloat(amount) || 0;
+  const customTwdNum = parseFloat(customTwd) || 0;
+
+  // 勾選的代購品項外幣加總
+  const selectedProxyItems = availableProxyItems.filter((p) => selectedProxyRows.includes(p.rowIndex));
+  const proxyForeignTotal = hasProxy ? selectedProxyItems.reduce((sum, p) => sum + p.totalForeign, 0) : 0;
+
+  // 實質匯率 (若有折算台幣且有金額)
+  const effectiveFx = customTwdNum > 0 && parsedAmount > 0 ? (customTwdNum / parsedAmount) : 0;
+
+  // 代購折算台幣
+  let proxyTwdTotal = 0;
+  if (hasProxy && proxyForeignTotal > 0) {
+    if (customTwdNum > 0 && parsedAmount > 0) {
+      proxyTwdTotal = Math.round(proxyForeignTotal * effectiveFx);
+    } else {
+      proxyTwdTotal = Math.round(computeTwdAmount(proxyForeignTotal, currency, fxRate, activeForeignCode));
+    }
+  }
+
+  // 帳單總換算台幣 (未扣除代購)
+  const rawTotalTwd = customTwdNum > 0 ? customTwdNum : Math.round(computeTwdAmount(parsedAmount, currency, fxRate, activeForeignCode));
+
+  // 自用真實外幣與台幣
+  const realAmount = Math.max(0, Math.round((parsedAmount - proxyForeignTotal) * 100) / 100);
+  const realTwd = Math.max(0, rawTotalTwd - proxyTwdTotal);
+
+  const liveTwdEst = Math.round(computeTwdAmount(parsedAmount, currency, fxRate, activeForeignCode));
+
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!item.trim() || !amount || parseFloat(amount) <= 0) return;
+
+    // 驗證自用金額不可小於 0
+    if (hasProxy && proxyForeignTotal > parsedAmount) {
+      alert(`代購金額 ($${proxyForeignTotal}) 大於消費總額 ($${parsedAmount})，請確認勾選品項與金額。`);
+      return;
+    }
 
     let finalSplit = '均分';
     if (splitMode === 'equal') {
@@ -407,19 +597,47 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       }
     }
 
+    const finalNote = buildExpenseNote(note, {
+      customTwd: customTwdNum > 0 ? customTwdNum : undefined,
+      customFx: effectiveFx > 0 ? effectiveFx : undefined,
+      proxyAmount: hasProxy && proxyForeignTotal > 0 ? proxyForeignTotal : undefined,
+      proxyTwd: hasProxy && proxyTwdTotal > 0 ? proxyTwdTotal : undefined,
+      realAmount: hasProxy && proxyForeignTotal > 0 ? realAmount : undefined,
+      realTwd: hasProxy && proxyTwdTotal > 0 ? realTwd : undefined,
+      proxyShoppingRows: hasProxy && selectedProxyRows.length > 0 ? selectedProxyRows : undefined,
+    });
+
     setIsSubmitting(true);
     try {
       await onAddExpense({
         category,
         item: item.trim(),
         currency,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         paidBy,
         split: finalSplit,
-        note: note.trim(),
+        note: finalNote,
       });
+
+      // 同步將勾選的代購品項標記為已買
+      if (hasProxy && selectedProxyRows.length > 0 && onToggleShopping) {
+        for (const pRow of selectedProxyRows) {
+          const sItem = shopping.find((s) => s.rowIndex === pRow);
+          if (sItem && !sItem.isDone) {
+            try {
+              await onToggleShopping(sItem.rowIndex, false, sItem.id);
+            } catch (err) {
+              console.error('Failed to toggle shopping item status', err);
+            }
+          }
+        }
+      }
+
       setItem('');
       setAmount('');
+      setCustomTwd('');
+      setHasProxy(false);
+      setSelectedProxyRows([]);
       setMemberAmounts({});
       setNote('');
     } finally {
@@ -453,9 +671,6 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  const parsedAmount = parseFloat(amount) || 0;
-  const liveTwdEst = Math.round(computeTwdAmount(parsedAmount, currency, fxRate, activeForeignCode));
 
   return (
     <div className="space-y-6 pb-20">
@@ -555,12 +770,112 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               </div>
             </div>
 
-            {/* Live FX Calculation Preview */}
-            {parsedAmount > 0 && currency !== 'TWD' && (
-              <div className="text-[11px] font-bold text-amber-300 px-1 font-mono">
-                ≈ 約合 TWD ${liveTwdEst.toLocaleString()}
+            {/* Foreign Currency: Credit Card TWD Settlement Input */}
+            {currency !== 'TWD' && (
+              <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center space-x-1">
+                    <span>💳 折算台幣 (信用卡明細金額，選填)</span>
+                  </label>
+                  {customTwdNum > 0 && effectiveFx > 0 ? (
+                    <span className="text-[10px] font-black font-mono text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 rounded">
+                      實質匯率 1 {currency} ≈ {effectiveFx.toFixed(2)} TWD
+                    </span>
+                  ) : parsedAmount > 0 ? (
+                    <span className="text-[10px] font-mono text-slate-400">
+                      約合 TWD ${liveTwdEst.toLocaleString()}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-bold text-slate-400 font-mono">NT$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={customTwd}
+                    onChange={(e) => setCustomTwd(e.target.value)}
+                    placeholder={`約 $${liveTwdEst.toLocaleString()} (未填依全域匯率)`}
+                    className="w-full bg-slate-900 text-white text-xs font-bold pl-11 pr-3 py-2 rounded-lg outline-none border border-slate-700 focus:border-amber-400 font-mono transition-all placeholder:text-slate-500"
+                  />
+                </div>
               </div>
             )}
+
+            {/* Proxy Shopping Deduct Section (Checkbox toggle) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-700/50">
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasProxy}
+                    onChange={(e) => {
+                      const nextVal = e.target.checked;
+                      setHasProxy(nextVal);
+                      if (!nextVal) setSelectedProxyRows([]);
+                    }}
+                    className="w-4 h-4 rounded text-amber-400 bg-slate-800 border-slate-600 focus:ring-amber-400 focus:ring-offset-slate-900 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-slate-200">含代購品項 (自用與代購合併刷卡)</span>
+                </label>
+                {hasProxy && proxyForeignTotal > 0 && (
+                  <span className="text-[11px] font-mono font-bold text-amber-400">
+                    代墊 ${proxyForeignTotal.toLocaleString()} {currency} (約 NT${proxyTwdTotal.toLocaleString()})
+                  </span>
+                )}
+              </div>
+
+              {/* Collapsible Proxy Items Selection List */}
+              {hasProxy && (
+                <div className="bg-slate-800/90 p-3 rounded-xl border border-amber-400/30 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-b border-slate-700 pb-1.5">
+                    <span>勾選本次刷卡包含之代購品項</span>
+                    <span>自用真實旅費: <span className="font-mono text-emerald-400 font-black">${realAmount.toLocaleString()} {currency} (NT${realTwd.toLocaleString()})</span></span>
+                  </div>
+                  {availableProxyItems.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-2 text-center">購物清單中目前無標記 (代購) 的品項 🛍️</p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 no-scrollbar pr-1">
+                      {availableProxyItems.map((p) => {
+                        const isChecked = selectedProxyRows.includes(p.rowIndex);
+                        return (
+                          <label
+                            key={p.rowIndex}
+                            className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                              isChecked
+                                ? 'bg-amber-400/15 border-amber-400/50 text-white'
+                                : 'bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-900'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedProxyRows((prev) => [...prev, p.rowIndex]);
+                                  } else {
+                                    setSelectedProxyRows((prev) => prev.filter((r) => r !== p.rowIndex));
+                                  }
+                                }}
+                                className="rounded text-amber-400 bg-slate-800 border-slate-600 focus:ring-amber-400"
+                              />
+                              <span className="font-bold truncate">{p.itemName}</span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 border border-amber-400/20 whitespace-nowrap">
+                                {p.personName} ×{p.quantity}
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-amber-400 text-xs ml-2 whitespace-nowrap">
+                              ${p.totalForeign.toLocaleString()} {currency}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Category Emoji Selector */}
             <div className="bg-slate-800/80 p-1.5 rounded-xl grid grid-cols-7 gap-1">
@@ -716,22 +1031,25 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 ) : splitMode === 'exact' ? (
                   <div className="space-y-2 bg-slate-800/60 p-2.5 rounded-xl">
                     {(() => {
+                      const targetTotal = hasProxy ? realAmount : parsedAmount;
                       const totalAllocated = members.reduce((sum, m) => sum + (parseFloat(memberAmounts[m]) || 0), 0);
-                      const remaining = Math.round((parsedAmount - totalAllocated) * 100) / 100;
+                      const remaining = Math.round((targetTotal - totalAllocated) * 100) / 100;
                       return (
                         <>
                           <div className="flex items-center justify-between text-[11px] px-1 font-bold">
-                            <span className="text-slate-400">各人分擔金額 ({currency})</span>
+                            <span className="text-slate-400">
+                              各人自用分擔 ({currency}) {hasProxy ? `(待分擔: $${targetTotal})` : ''}
+                            </span>
                             <span
                               className={
-                                Math.abs(remaining) < 0.01 && parsedAmount > 0
+                                Math.abs(remaining) < 0.01 && targetTotal > 0
                                   ? 'text-emerald-400 font-mono font-black'
                                   : remaining > 0
                                   ? 'text-amber-300 font-mono'
                                   : 'text-rose-400 font-mono'
                               }
                             >
-                              {parsedAmount <= 0
+                              {targetTotal <= 0
                                 ? '請先輸入金額'
                                 : Math.abs(remaining) < 0.01
                                 ? '✓ 金額完全吻合'
@@ -946,6 +1264,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               const isSettlement = exp.item && exp.item.includes('系統結清');
               const amt = typeof exp.amount === 'number' ? exp.amount : parseFloat(exp.amount) || 0;
               const expCurr = (exp.currency || activeForeignCode).toUpperCase();
+              const meta = parseExpenseMeta(exp.note);
               const amtTWD = Math.round(computeTwdAmount(amt, expCurr, fxRate, activeForeignCode));
 
               return (
@@ -967,16 +1286,26 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       {exp.category || '🍔'}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center flex-wrap gap-x-2">
+                      <div className="flex items-center flex-wrap gap-1.5">
                         <h4 className="text-sm font-extrabold text-slate-900 truncate">
                           {exp.item}
                         </h4>
                         <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {exp.paidBy || members[0]} 付 ({formatSplitLabel(exp.split, members)})
                         </span>
+                        {meta.customTwd !== undefined && (
+                          <span className="text-[10px] font-black font-mono bg-amber-50 text-amber-700 border border-amber-200/80 px-1.5 py-0.2 rounded whitespace-nowrap">
+                            💳 刷卡 NT${meta.customTwd.toLocaleString()}
+                          </span>
+                        )}
+                        {meta.proxyTwd !== undefined && (
+                          <span className="text-[10px] font-black font-mono bg-purple-50 text-purple-700 border border-purple-200/80 px-1.5 py-0.2 rounded whitespace-nowrap">
+                            🛍️ 代墊 NT${meta.proxyTwd.toLocaleString()}
+                          </span>
+                        )}
                       </div>
-                      {exp.note && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">{exp.note}</p>
+                      {meta.cleanNote && (
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">{meta.cleanNote}</p>
                       )}
                     </div>
                   </div>
@@ -987,11 +1316,19 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       <div className="text-sm font-black font-mono text-slate-900">
                         ${amt.toLocaleString()} {expCurr}
                       </div>
-                      {expCurr !== 'TWD' && (
+                      {expCurr !== 'TWD' ? (
                         <div className="text-[10px] font-bold font-mono text-slate-400">
-                          ≈ ${amtTWD.toLocaleString()} TWD
+                          {meta.realTwd !== undefined
+                            ? `自用實質 NT$${meta.realTwd.toLocaleString()}`
+                            : meta.customTwd !== undefined
+                            ? `折算 NT$${meta.customTwd.toLocaleString()}`
+                            : `≈ $${amtTWD.toLocaleString()} TWD`}
                         </div>
-                      )}
+                      ) : meta.realTwd !== undefined ? (
+                        <div className="text-[10px] font-bold font-mono text-slate-400">
+                          自用 NT${meta.realTwd.toLocaleString()}
+                        </div>
+                      ) : null}
                     </div>
 
                     <button
