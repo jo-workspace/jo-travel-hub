@@ -20,3 +20,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **客觀建議**：給予具建設性且客觀的建議（不盲目贊同，也不為質疑而質疑）。
 - **實作計畫 (Implementation Plan)**：遇到較大範圍的程式碼修改或架構調整時，執行前先撰寫 `implementation_plan.md` 供使用者審閱確認。
 
+## 彈窗互動規範 (Modal UX Guidance)
+
+- **點擊空白處關閉**：所有彈窗元件（Modal，包含現有與未來新增者）皆必須支援點擊背景空白處（Backdrop）關閉功能。實作時外層容器加上 `onClick={onClose}`，內層對話框卡片加上 `onClick={(e) => e.stopPropagation()}` 以防事件冒泡。
+
+
