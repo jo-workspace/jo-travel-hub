@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExpenseItem, ShoppingItem } from '@/types/trip';
 import { getShoppingItemTotal, parseRecipientTags } from '@/components/tabs/ShoppingTab';
-import { Plus, Trash2, Banknote, DollarSign, Users, HandCoins, Copy, Check } from 'lucide-react';
+import { Plus, Trash2, Banknote, DollarSign, Users, HandCoins, Copy, Check, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ExpensesTabProps {
   data: ExpenseItem[];
@@ -337,6 +337,8 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [selectedProxyRows, setSelectedProxyRows] = useState<number[]>([]);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMatrixOpen, setIsMatrixOpen] = useState(true);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
 
   // 當外幣設定變更時同步預設外幣代碼
   useEffect(() => {
@@ -362,6 +364,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const paidTWD: Record<string, number> = {};
   const shareTWD: Record<string, number> = {};
   const settlementOffsetTWD: Record<string, number> = {};
+  // 類別 × 旅伴花費透視統計 (Category x Person Breakdown)
+  const categoryPersonShares: Record<string, Record<string, number>> = {};
+  const categoryTotals: Record<string, number> = {};
 
   members.forEach((m) => {
     paidTWD[m] = 0;
@@ -404,6 +409,25 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     const weights = parseSplitWeights(splitTarget, members);
     const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
 
+    // 累計類別 × 旅伴真實自用花費
+    if (realTripTwd > 0) {
+      const cat = exp.category || '❔';
+      if (!categoryPersonShares[cat]) {
+        categoryPersonShares[cat] = {};
+        members.forEach((m) => { categoryPersonShares[cat][m] = 0; });
+        categoryTotals[cat] = 0;
+      }
+      categoryTotals[cat] += realTripTwd;
+
+      if (totalWeight > 0) {
+        members.forEach((m) => {
+          const w = weights[m] || 0;
+          const memberShare = realTripTwd * (w / totalWeight);
+          categoryPersonShares[cat][m] = (categoryPersonShares[cat][m] || 0) + memberShare;
+        });
+      }
+    }
+
     if (totalWeight > 0) {
       members.forEach((m) => {
         const w = weights[m] || 0;
@@ -412,6 +436,16 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       });
     }
   });
+
+  // 依消費總額由大到小排序類別
+  const sortedCategories = Object.keys(categoryTotals).sort(
+    (a, b) => (categoryTotals[b] || 0) - (categoryTotals[a] || 0)
+  );
+
+  // 支援依類別篩選下方明細
+  const filteredExpenses = selectedCategoryFilter
+    ? data.filter((exp) => !exp.item?.includes('系統結清') && (exp.category || '❔') === selectedCategoryFilter)
+    : data;
 
   // 計算每人淨餘額 (+ 表示溢付/應收，- 表示欠款/應付)
   const netBalances: Record<string, number> = {};
@@ -1263,21 +1297,153 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
           )}
         </div>
 
-        {/* Right Column: Expense History List */}
-        <div className="md:col-span-7 space-y-3">
+        {/* Right Column: Category Breakdown & Expense History List */}
+        <div className="md:col-span-7 space-y-4">
+          {/* 類別 × 旅伴花費交叉統計透視表 (Category x Person Pivot Table) */}
+          {sortedCategories.length > 0 && totalTWD > 0 && (
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMatrixOpen(!isMatrixOpen)}
+                  className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-800 hover:text-amber-600 transition-colors cursor-pointer"
+                >
+                  <PieChart className="w-4 h-4 text-amber-500" />
+                  <span>類別 × 旅伴花費統計</span>
+                  {isMatrixOpen ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+                <span className="text-[11px] font-bold font-mono px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/60">
+                  全旅程自用 NT$ {Math.round(totalTWD).toLocaleString()}
+                </span>
+              </div>
+
+              {isMatrixOpen && (
+                <div className="space-y-1.5">
+                  <div className="overflow-x-auto rounded-xl border border-slate-200/80 no-scrollbar">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-50/90 text-slate-500 font-bold border-b border-slate-200/80">
+                        <tr>
+                          <th className="py-2.5 px-3 whitespace-nowrap">消費類別</th>
+                          {members.map((m) => (
+                            <th key={`th-${m}`} className="py-2.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap">
+                              {m} 應負擔
+                            </th>
+                          ))}
+                          <th className="py-2.5 px-3 text-right font-mono text-slate-900 whitespace-nowrap">類別總計</th>
+                          <th className="py-2.5 px-3 text-right text-slate-400 whitespace-nowrap">佔比</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {sortedCategories.map((cat) => {
+                          const catTotal = categoryTotals[cat] || 0;
+                          const percentage = totalTWD > 0 ? ((catTotal / totalTWD) * 100).toFixed(1) : '0';
+                          const isSelected = selectedCategoryFilter === cat;
+
+                          return (
+                            <tr
+                              key={`tr-${cat}`}
+                              onClick={() => setSelectedCategoryFilter(isSelected ? null : cat)}
+                              className={`transition-colors cursor-pointer select-none ${
+                                isSelected
+                                  ? 'bg-amber-50/90 font-bold text-slate-900'
+                                  : 'hover:bg-slate-50/70 text-slate-700'
+                              }`}
+                              title={isSelected ? '點擊取消篩選' : '點擊篩選此類別明細'}
+                            >
+                              <td className="py-2.5 px-3 whitespace-nowrap flex items-center space-x-1.5">
+                                <span className="text-sm">{cat}</span>
+                                <span className="font-bold text-slate-900">{CATEGORY_EMOJIS[cat] || '其他'}</span>
+                                {isSelected && (
+                                  <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1 py-0.2 rounded ml-1">
+                                    篩選中
+                                  </span>
+                                )}
+                              </td>
+                              {members.map((m) => {
+                                const mShare = Math.round(categoryPersonShares[cat]?.[m] || 0);
+                                return (
+                                  <td key={`td-${cat}-${m}`} className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                                    ${mShare.toLocaleString()}
+                                  </td>
+                                );
+                              })}
+                              <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 whitespace-nowrap">
+                                ${Math.round(catTotal).toLocaleString()}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono text-slate-400 whitespace-nowrap">
+                                {percentage}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-amber-50/60 font-black border-t-2 border-amber-200/80 text-slate-900">
+                        <tr>
+                          <td className="py-2.5 px-3 whitespace-nowrap">個人總花費</td>
+                          {members.map((m) => (
+                            <td key={`tf-${m}`} className="py-2.5 px-3 text-right font-mono text-amber-900 whitespace-nowrap">
+                              ${Math.round(shareTWD[m] || 0).toLocaleString()}
+                            </td>
+                          ))}
+                          <td className="py-2.5 px-3 text-right font-mono text-amber-950 font-black whitespace-nowrap">
+                            ${Math.round(totalTWD).toLocaleString()}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-amber-700 whitespace-nowrap">
+                            100%
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-right pr-1 select-none">
+                    💡 點擊任一類別列可直接篩選下方明細
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Filter Banner */}
+          {selectedCategoryFilter && (
+            <div className="flex items-center justify-between bg-amber-50 border border-amber-200/80 px-3.5 py-2 rounded-xl text-xs shadow-2xs">
+              <span className="font-bold text-amber-900 flex items-center space-x-1.5">
+                <span className="text-sm">{selectedCategoryFilter}</span>
+                <span>{CATEGORY_EMOJIS[selectedCategoryFilter] || '其他'}</span>
+                <span className="text-amber-700 font-medium">
+                  （共 {filteredExpenses.length} 筆，小計 NT$ {Math.round(categoryTotals[selectedCategoryFilter] || 0).toLocaleString()}）
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryFilter(null)}
+                className="text-[11px] font-bold text-amber-800 hover:text-amber-950 px-2 py-0.5 rounded-lg hover:bg-amber-100/80 transition-all cursor-pointer"
+              >
+                清除篩選 ×
+              </button>
+            </div>
+          )}
+
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1 flex items-center justify-between">
-            <span>費用明細 (共 {data.length} 筆)</span>
-            <span className="font-mono text-slate-600">總計: ${Math.round(totalTWD).toLocaleString()} TWD</span>
+            <span>費用明細 (共 {filteredExpenses.length} 筆)</span>
+            <span className="font-mono text-slate-600">
+              {selectedCategoryFilter
+                ? `篩選總計: $${Math.round(categoryTotals[selectedCategoryFilter] || 0).toLocaleString()} TWD`
+                : `總計: $${Math.round(totalTWD).toLocaleString()} TWD`}
+            </span>
           </h3>
 
-          {data.length === 0 && (
+          {filteredExpenses.length === 0 && (
             <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
-              目前無記帳紀錄 💵
+              {selectedCategoryFilter ? '該類別尚無記帳紀錄 💵' : '目前無記帳紀錄 💵'}
             </div>
           )}
 
           <div className="space-y-2">
-            {data.map((exp) => {
+            {filteredExpenses.map((exp) => {
               const isSettlement = exp.item && exp.item.includes('系統結清');
               const amt = typeof exp.amount === 'number' ? exp.amount : parseFloat(exp.amount) || 0;
               const expCurr = (exp.currency || activeForeignCode).toUpperCase();
