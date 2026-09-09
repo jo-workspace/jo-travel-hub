@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
@@ -19,6 +19,7 @@ import { TodoModal } from '@/components/modals/TodoModal';
 import { PackingModal } from '@/components/modals/PackingModal';
 import { ImportPackingModal } from '@/components/modals/ImportPackingModal';
 import { ShoppingModal } from '@/components/modals/ShoppingModal';
+import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { LightboxModal } from '@/components/modals/LightboxModal';
 
@@ -192,6 +193,9 @@ export default function TripPage({ params }: PageProps) {
   const [activeShoppingItem, setActiveShoppingItem] = useState<ShoppingItem | null>(null);
   const [defaultShoppingStore, setDefaultShoppingStore] = useState<string>('');
   const [defaultShoppingPerson, setDefaultShoppingPerson] = useState<string>('Jo');
+
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [activeExpenseItem, setActiveExpenseItem] = useState<ExpenseItem | null>(null);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -579,19 +583,19 @@ export default function TripPage({ params }: PageProps) {
   // Expense Handlers
   const handleAddExpense = async (formData: any) => {
     try {
-      showToast('正在新增記帳...');
+      showToast(formData.id || (formData.rowIndex && formData.rowIndex >= 2) ? '正在儲存記帳...' : '正在新增記帳...');
       await addExpenseData(formData, tripId);
-      showToast('記帳成功！');
+      showToast(formData.id || (formData.rowIndex && formData.rowIndex >= 2) ? '記帳更新成功！' : '記帳成功！');
       fetchData(true);
     } catch (err: any) {
       showToast(`記帳失敗: ${err.message}`);
     }
   };
 
-  const handleDeleteExpense = async (rowIndex: number) => {
+  const handleDeleteExpense = async (rowIndex: number, itemId?: string) => {
     try {
       showToast('正在刪除記帳...');
-      await deleteExpenseData(rowIndex, tripId);
+      await deleteExpenseData(rowIndex, tripId, itemId);
       showToast('刪除成功！');
       fetchData(true);
     } catch (err: any) {
@@ -771,6 +775,10 @@ export default function TripPage({ params }: PageProps) {
                   companions={tripData.companions}
                   onAddExpense={handleAddExpense}
                   onDeleteExpense={handleDeleteExpense}
+                  onOpenModal={(item) => {
+                    setActiveExpenseItem(item || null);
+                    setExpenseModalOpen(true);
+                  }}
                   onUpdateShoppingPrice={handleUpdateShoppingPrice}
                 />
               )}
@@ -849,6 +857,17 @@ export default function TripPage({ params }: PageProps) {
         onClose={() => setShoppingModalOpen(false)}
         onSave={handleSaveShopping}
         onDelete={handleDeleteShopping}
+      />
+
+      <ExpenseModal
+        isOpen={expenseModalOpen}
+        item={activeExpenseItem}
+        companionsList={currentCompanions}
+        foreignCurrency={tripData.foreignCurrency || 'USD'}
+        fxRate={tripData.fxRate}
+        onClose={() => setExpenseModalOpen(false)}
+        onSave={handleAddExpense}
+        onDelete={handleDeleteExpense}
       />
 
       <SettingsModal

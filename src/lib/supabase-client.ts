@@ -195,6 +195,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     }));
 
     const expenses: ExpenseItem[] = (expenseRes.data || []).map((row, idx) => ({
+      id: row.id,
       rowIndex: idx + 2,
       category: row.category || row.Category || '餐飲',
       // DB 欄位：title（CSV 上傳後直接對應）
@@ -763,18 +764,25 @@ export async function togglePackingStatus(rowIndex: number, isChecked: boolean, 
   return '已更新';
 }
 
-/** 記帳 */
+/** 記帳新增/編輯 */
 export async function addExpenseData(formData: any, tripId = 'la-2026'): Promise<string> {
-  const { rowIndex, item, category, amount, currency, paidBy, split, note } = formData;
+  const { id: formId, rowIndex, item, category, amount, currency, paidBy, split, note } = formData;
 
-  const { data: list } = await supabase
+  const { data: list, error: fetchErr } = await supabase
     .from('expense_items')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (fetchErr) {
+    console.warn('expense_items fetch error:', fetchErr);
+  }
 
   const sampleRow = list?.[0] || null;
-  const targetRow = (rowIndex && rowIndex >= 2 && list) ? list[rowIndex - 2] : null;
+  const targetRow = formId
+    ? list?.find((r) => r.id === formId)
+    : (rowIndex && rowIndex >= 2 && list ? list[rowIndex - 2] : null);
 
   const map: Record<string, [any, ...string[]]> = {
     category: [category || '餐飲', 'category', 'Category'],
@@ -799,10 +807,22 @@ export async function addExpenseData(formData: any, tripId = 'la-2026'): Promise
   return '記帳成功';
 }
 
-export async function deleteExpenseData(rowIndex: number, tripId = 'la-2026'): Promise<string> {
-  const { data } = await supabase.from('expense_items').select('id').eq('trip_id', tripId).order('created_at', { ascending: true });
+export async function deleteExpenseData(rowIndex: number, tripId = 'la-2026', itemId?: string): Promise<string> {
+  if (itemId) {
+    const { error } = await supabase.from('expense_items').delete().eq('id', itemId);
+    if (error) throw new Error(`刪除記帳失敗: ${error.message}`);
+    return '刪除成功';
+  }
+  const { data, error: fetchErr } = await supabase
+    .from('expense_items')
+    .select('id')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+  if (fetchErr) throw new Error(`讀取記帳清單失敗: ${fetchErr.message}`);
   if (data && data[rowIndex - 2]) {
-    await supabase.from('expense_items').delete().eq('id', data[rowIndex - 2].id);
+    const { error } = await supabase.from('expense_items').delete().eq('id', data[rowIndex - 2].id);
+    if (error) throw new Error(`刪除記帳失敗: ${error.message}`);
   }
   return '刪除成功';
 }

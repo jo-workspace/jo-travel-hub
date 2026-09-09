@@ -29,6 +29,7 @@ export interface PackingItem {
 }
 
 export interface ExpenseItem {
+  id?: string;
   rowIndex: number;
   category: string;
   item: string;

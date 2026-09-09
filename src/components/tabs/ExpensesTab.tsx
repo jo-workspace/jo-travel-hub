@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExpenseItem, ShoppingItem } from '@/types/trip';
 import { getShoppingItemTotal, parseRecipientTags } from '@/components/tabs/ShoppingTab';
-import { Plus, Trash2, Banknote, DollarSign, Users, HandCoins, Copy, Check } from 'lucide-react';
+import { Plus, Trash2, Edit3, Banknote, DollarSign, Users, HandCoins, Copy, Check } from 'lucide-react';
 
 interface ExpensesTabProps {
   data: ExpenseItem[];
@@ -12,7 +12,8 @@ interface ExpensesTabProps {
   foreignCurrency?: string;
   companions?: string;
   onAddExpense: (formData: any) => Promise<void>;
-  onDeleteExpense: (rowIndex: number) => Promise<void>;
+  onDeleteExpense: (rowIndex: number, id?: string) => Promise<void>;
+  onOpenModal?: (item?: ExpenseItem) => void;
   onUpdateShoppingPrice?: (rowIndex: number, newPrice: number) => Promise<void>;
 }
 
@@ -135,6 +136,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   companions = 'Jo, Will',
   onAddExpense,
   onDeleteExpense,
+  onOpenModal,
   onUpdateShoppingPrice,
 }) => {
   const activeForeignCode = (foreignCurrency || 'USD').toUpperCase();
@@ -987,10 +989,22 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       )}
                     </div>
 
+                    {onOpenModal && !isSettlement && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenModal(exp)}
+                        className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-all cursor-pointer active:scale-90"
+                        title="編輯"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <button
+                      type="button"
                       onClick={() => {
                         if (confirm(`確定要刪除「${exp.item}」這筆記帳嗎？`)) {
-                          onDeleteExpense(exp.rowIndex);
+                          onDeleteExpense(exp.rowIndex, exp.id);
                         }
                       }}
                       className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all cursor-pointer active:scale-90"
