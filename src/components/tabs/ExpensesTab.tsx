@@ -87,8 +87,8 @@ export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
     customFx: customFx && !isNaN(customFx) ? customFx : undefined,
     proxyAmount: proxyAmount && !isNaN(proxyAmount) ? proxyAmount : undefined,
     proxyTwd: proxyTwd && !isNaN(proxyTwd) ? proxyTwd : undefined,
-    realAmount: realAmount && !isNaN(realAmount) ? realAmount : undefined,
-    realTwd: realTwd && !isNaN(realTwd) ? realTwd : undefined,
+    realAmount: realAmount !== undefined && !isNaN(realAmount) ? realAmount : undefined,
+    realTwd: realTwd !== undefined && !isNaN(realTwd) ? realTwd : undefined,
     proxyShoppingRows,
     cleanNote: clean,
   };
@@ -458,6 +458,8 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     totalForeign: number;
     totalTwd: number;
     isDone: boolean;
+    hasLinkedFx?: boolean;
+    payer?: string;
   }
 
   const [copiedPerson, setCopiedPerson] = useState<string | null>(null);
@@ -470,13 +472,31 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   let purchasedProxyForeign = 0;
   let personalShoppingPlannedTwd = 0;
 
+  // 建立代購品項與實際刷卡匯率的對照表 (從已記帳項目中提取)
+  const proxyItemEffectiveFxMap = new Map<number, { customFx?: number; payer?: string }>();
+  data.forEach((exp) => {
+    const meta = parseExpenseMeta(exp.note);
+    if (meta.proxyShoppingRows && meta.proxyShoppingRows.length > 0) {
+      meta.proxyShoppingRows.forEach((rowIdx) => {
+        proxyItemEffectiveFxMap.set(rowIdx, {
+          customFx: meta.customFx,
+          payer: exp.paidBy,
+        });
+      });
+    }
+  });
+
   shopping.forEach((sItem) => {
     const tags = parseRecipientTags(sItem.forWhom);
     const price = sItem.price || 0;
 
     tags.forEach((tag) => {
       const itemForeign = price * tag.quantity;
-      const itemTwd = Math.round(computeTwdAmount(itemForeign, activeForeignCode, fxRate, activeForeignCode));
+      const linkedExpenseFx = proxyItemEffectiveFxMap.get(sItem.rowIndex);
+      const hasLinkedFx = !!(linkedExpenseFx && linkedExpenseFx.customFx);
+      const itemTwd = hasLinkedFx
+        ? Math.round(itemForeign * linkedExpenseFx.customFx!)
+        : Math.round(computeTwdAmount(itemForeign, activeForeignCode, fxRate, activeForeignCode));
 
       if (tag.isProxy) {
         const personName = tag.name.trim();
@@ -494,6 +514,8 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
           totalForeign: itemForeign,
           totalTwd: itemTwd,
           isDone: !!sItem.isDone,
+          hasLinkedFx,
+          payer: linkedExpenseFx?.payer,
         });
 
         totalProxyForeign += itemForeign;
@@ -516,14 +538,15 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     const personForeignTotal = targetItems.reduce((s, i) => s + i.totalForeign, 0);
     const personTwdTotal = targetItems.reduce((s, i) => s + i.totalTwd, 0);
 
+    const hasAnyLinked = targetItems.some((i) => i.hasLinkedFx);
     const lines = [
       `【代購請款明細 - ${personName}】`,
       ...targetItems.map(
         (i, idx) =>
-          `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD)${i.isDone ? ' [已買✓]' : ' [待購]'}`
+          `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD${i.hasLinkedFx ? ' / 刷卡實質匯率' : ''})${i.isDone ? ' [已買✓]' : ' [待購]'}`
       ),
       `───────────────`,
-      `合計應付：$${personTwdTotal.toLocaleString()} TWD (${personForeignTotal.toLocaleString()} ${activeForeignCode})`,
+      `合計應付：$${personTwdTotal.toLocaleString()} TWD (${personForeignTotal.toLocaleString()} ${activeForeignCode})${hasAnyLinked ? ' (含刷卡實質匯率結算)' : ''}`,
     ];
 
     navigator.clipboard.writeText(lines.join('\n'));
@@ -1224,9 +1247,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                                   setEditPriceVal(String(pItem.unitPrice || ''));
                                 }}
                                 className="font-mono text-slate-700 flex-shrink-0 text-[10px] hover:text-amber-950 hover:bg-amber-100/80 px-1.5 py-0.5 rounded transition-all cursor-pointer select-none"
-                                title="點擊直接修改實際單價"
+                                title={pItem.hasLinkedFx ? '已同步刷卡實質匯率 (點擊可修改單價)' : '點擊直接修改實際單價'}
                               >
-                                {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd})
+                                {pItem.totalForeign.toLocaleString()} {activeForeignCode} (約 ${pItem.totalTwd.toLocaleString()}{pItem.hasLinkedFx ? ' 💳' : ''})
                               </button>
                             )}
                           </div>
