@@ -442,10 +442,13 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     (a, b) => (categoryTotals[b] || 0) - (categoryTotals[a] || 0)
   );
 
-  // 支援依類別篩選下方明細
-  const filteredExpenses = selectedCategoryFilter
+  // 支援依類別篩選下方明細，並將最新的記帳排在最上面 (最新在前)
+  const filteredExpenses = (selectedCategoryFilter
     ? data.filter((exp) => !exp.item?.includes('系統結清') && (exp.category || '❔') === selectedCategoryFilter)
-    : data;
+    : data
+  )
+    .slice()
+    .reverse();
 
   // 計算每人淨餘額 (+ 表示溢付/應收，- 表示欠款/應付)
   const netBalances: Record<string, number> = {};
