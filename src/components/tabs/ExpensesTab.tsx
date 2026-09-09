@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExpenseItem, ShoppingItem } from '@/types/trip';
 import { getShoppingItemTotal, parseRecipientTags } from '@/components/tabs/ShoppingTab';
-import { Plus, Trash2, Edit3, Banknote, DollarSign, Users, HandCoins, Copy, Check } from 'lucide-react';
+import { Plus, Trash2, Banknote, DollarSign, Users, HandCoins, Copy, Check } from 'lucide-react';
 
 interface ExpensesTabProps {
   data: ExpenseItem[];
@@ -951,10 +951,15 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               return (
                 <div
                   key={exp.rowIndex}
+                  onClick={() => {
+                    if (onOpenModal && !isSettlement) {
+                      onOpenModal(exp);
+                    }
+                  }}
                   className={`border rounded-2xl p-4 flex items-center justify-between transition-all ${
                     isSettlement
                       ? 'bg-amber-50/60 border-amber-200/80'
-                      : 'bg-white border-slate-100 shadow-2xs hover:shadow-xs'
+                      : 'bg-white border-slate-100 shadow-2xs hover:shadow-xs hover:border-slate-200 cursor-pointer active:scale-[0.99]'
                   }`}
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0 pr-3">
@@ -989,20 +994,10 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       )}
                     </div>
 
-                    {onOpenModal && !isSettlement && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenModal(exp)}
-                        className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-all cursor-pointer active:scale-90"
-                        title="編輯"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                    )}
-
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (confirm(`確定要刪除「${exp.item}」這筆記帳嗎？`)) {
                           onDeleteExpense(exp.rowIndex, exp.id);
                         }
