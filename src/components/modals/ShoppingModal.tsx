@@ -14,7 +14,7 @@ interface ShoppingModalProps {
   companionsList?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
-  onDelete: (rowIndex: number) => Promise<void>;
+  onDelete: (rowIndex: number, id?: string) => Promise<void>;
 }
 
 export const ShoppingModal: React.FC<ShoppingModalProps> = ({
@@ -112,6 +112,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSave({
+        id: item?.id,
         rowIndex: item?.rowIndex || 0,
         store: store.trim(),
         forWhom: finalForWhom,
@@ -136,7 +137,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onDelete(item.rowIndex);
+      await onDelete(item.rowIndex, item.id);
       onClose();
     } finally {
       setIsSubmitting(false);

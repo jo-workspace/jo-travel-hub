@@ -600,17 +600,19 @@ export default function TripPage({ params }: PageProps) {
   };
 
   // Shopping Handlers
-  const handleToggleShopping = async (rowIndex: number, currentStatus: boolean) => {
+  const handleToggleShopping = async (rowIndex: number, currentStatus: boolean, itemId?: string) => {
     const nextStatus = !currentStatus;
     setTripData((prev) => ({
       ...prev,
       shopping: prev.shopping.map((s) =>
-        s.rowIndex === rowIndex ? { ...s, isDone: nextStatus, purchaseStatus: nextStatus ? 'purchased' : 'pending' } : s
+        (itemId ? s.id === itemId : s.rowIndex === rowIndex)
+          ? { ...s, isDone: nextStatus, purchaseStatus: nextStatus ? 'purchased' : 'pending' }
+          : s
       ),
     }));
 
     try {
-      await toggleShoppingStatus(rowIndex, nextStatus, tripId);
+      await toggleShoppingStatus(rowIndex, nextStatus, tripId, itemId);
     } catch (err: any) {
       showToast(`更新失敗，正在還原: ${err.message}`);
       fetchData(false);
@@ -628,10 +630,10 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
-  const handleDeleteShopping = async (rowIndex: number) => {
+  const handleDeleteShopping = async (rowIndex: number, itemId?: string) => {
     try {
       showToast('正在刪除購物項...');
-      await deleteShoppingData(rowIndex, tripId);
+      await deleteShoppingData(rowIndex, tripId, itemId);
       showToast('刪除成功！');
       fetchData(true);
     } catch (err: any) {

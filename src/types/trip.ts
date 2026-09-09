@@ -41,6 +41,7 @@ export interface ExpenseItem {
 }
 
 export interface ShoppingItem {
+  id?: string;
   rowIndex: number;
   store: string;
   forWhom: string;

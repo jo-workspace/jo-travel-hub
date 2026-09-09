@@ -146,11 +146,11 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       allPackingCatsRes,
       allTodoCatsRes,
     ] = await Promise.all([
-      supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
-      supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
-      supabase.from('packing_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
-      supabase.from('expense_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
-      supabase.from('shopping_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }),
+      supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+      supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+      supabase.from('packing_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+      supabase.from('expense_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+      supabase.from('shopping_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
       // 使用 select('*') 容錯讀取所有存在欄位
       supabase.from('trip_settings')
         .select('*')
@@ -209,6 +209,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     }));
 
     const shopping: ShoppingItem[] = (shoppingRes.data || []).map((row, idx) => ({
+      id: row.id,
       rowIndex: idx + 2,
       store: row.store || row.Store || '一般店家',
       // 為誰買：對應 for_whom / For Whom
@@ -808,16 +809,23 @@ export async function deleteExpenseData(rowIndex: number, tripId = 'la-2026'): P
 
 /** 購物清單 */
 export async function saveShoppingData(formData: any, tripId = 'la-2026'): Promise<string> {
-  const { rowIndex, item, store, forWhom, quantity, price, purchaseStatus, note, image } = formData;
+  const { id: formId, rowIndex, item, store, forWhom, quantity, price, purchaseStatus, note, image } = formData;
 
-  const { data: list } = await supabase
+  const { data: list, error: fetchErr } = await supabase
     .from('shopping_items')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (fetchErr) {
+    console.warn('shopping_items fetch error:', fetchErr);
+  }
 
   const sampleRow = list?.[0] || null;
-  const targetRow = (rowIndex && rowIndex >= 2 && list) ? list[rowIndex - 2] : null;
+  const targetRow = formId
+    ? list?.find((r) => r.id === formId)
+    : (rowIndex && rowIndex >= 2 && list ? list[rowIndex - 2] : null);
 
   const map: Record<string, [any, ...string[]]> = {
     store: [store || '一般店家', 'store', 'Store'],
@@ -844,20 +852,66 @@ export async function saveShoppingData(formData: any, tripId = 'la-2026'): Promi
   return '儲存成功';
 }
 
-export async function deleteShoppingData(rowIndex: number, tripId = 'la-2026'): Promise<string> {
-  const { data } = await supabase.from('shopping_items').select('id').eq('trip_id', tripId).order('created_at', { ascending: true });
+export async function deleteShoppingData(rowIndex: number, tripId = 'la-2026', itemId?: string): Promise<string> {
+  if (itemId) {
+    const { error } = await supabase.from('shopping_items').delete().eq('id', itemId);
+    if (error) throw new Error(`刪除購物清單失敗: ${error.message}`);
+    return '刪除成功';
+  }
+  const { data, error: fetchErr } = await supabase
+    .from('shopping_items')
+    .select('id')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+  if (fetchErr) throw new Error(`讀取購物清單失敗: ${fetchErr.message}`);
   if (data && data[rowIndex - 2]) {
-    await supabase.from('shopping_items').delete().eq('id', data[rowIndex - 2].id);
+    const { error } = await supabase.from('shopping_items').delete().eq('id', data[rowIndex - 2].id);
+    if (error) throw new Error(`刪除購物清單失敗: ${error.message}`);
   }
   return '刪除成功';
 }
 
-export async function toggleShoppingStatus(rowIndex: number, isChecked: boolean, tripId = 'la-2026'): Promise<string> {
-  const { data } = await supabase.from('shopping_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
-  if (data && data[rowIndex - 2]) {
-    const row = data[rowIndex - 2];
-    const key = Object.keys(row).find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k)) || 'bought';
-    await supabase.from('shopping_items').update({ [key]: isChecked, purchase_status: isChecked ? 'purchased' : 'pending' }).eq('id', row.id);
+export async function toggleShoppingStatus(
+  rowIndex: number,
+  isChecked: boolean,
+  tripId = 'la-2026',
+  itemId?: string
+): Promise<string> {
+  let targetRow: any = null;
+
+  if (itemId) {
+    const { data: row, error: getErr } = await supabase
+      .from('shopping_items')
+      .select('*')
+      .eq('id', itemId)
+      .maybeSingle();
+    if (getErr) throw new Error(`查詢購物項目失敗: ${getErr.message}`);
+    targetRow = row;
+  }
+
+  if (!targetRow) {
+    const { data, error: listErr } = await supabase
+      .from('shopping_items')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+    if (listErr) throw new Error(`讀取購物清單失敗: ${listErr.message}`);
+    if (data && data[rowIndex - 2]) {
+      targetRow = data[rowIndex - 2];
+    }
+  }
+
+  if (targetRow) {
+    const key = Object.keys(targetRow).find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k)) || 'bought';
+    const payload: Record<string, any> = { [key]: isChecked };
+    // 僅在資料庫有 purchase_status 欄位時一併更新，避免報錯
+    if ('purchase_status' in targetRow) {
+      payload.purchase_status = isChecked ? 'purchased' : 'pending';
+    }
+    const { error } = await supabase.from('shopping_items').update(payload).eq('id', targetRow.id);
+    if (error) throw new Error(`更新購物清單狀態失敗: ${error.message}`);
   }
   return '已更新';
 }
@@ -896,16 +950,25 @@ export async function checkoutShoppingStore(
     .from('shopping_items')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
   if (error) throw new Error(`讀取購物清單失敗: ${error.message}`);
 
   const boughtKey = items?.[0] && Object.keys(items[0]).find((key) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(key)) || 'bought';
+  const hasPurchaseStatus = items?.[0] && 'purchase_status' in items[0];
+
   const updateItem = async (rowIndex: number, purchaseStatus: 'purchased' | 'out_of_stock') => {
     const item = items?.[rowIndex - 2];
     if (!item) return;
+    const payload: Record<string, any> = {
+      [boughtKey]: purchaseStatus === 'purchased',
+    };
+    if (hasPurchaseStatus) {
+      payload.purchase_status = purchaseStatus;
+    }
     const { error: updateError } = await supabase
       .from('shopping_items')
-      .update({ [boughtKey]: purchaseStatus === 'purchased', purchase_status: purchaseStatus })
+      .update(payload)
       .eq('id', item.id);
     if (updateError) throw new Error(`更新購物品項失敗: ${updateError.message}`);
   };

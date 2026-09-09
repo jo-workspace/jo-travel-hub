@@ -10,7 +10,7 @@ interface ShoppingTabProps {
   foreignCurrency?: string;
   fxRate: number;
   hideDone: boolean;
-  onToggleShopping: (rowIndex: number, currentStatus: boolean) => void;
+  onToggleShopping: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: ShoppingItem, defaultStore?: string, defaultForWhom?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
   onCheckoutStore?: (store: string, items: ShoppingItem[]) => void;
@@ -314,8 +314,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
               </div>
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <button onClick={() => onOpenModal(item)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90" title="編輯"><Edit3 className="w-4 h-4" /></button>
-                {isOutOfStock && <button onClick={() => onToggleShopping(item.rowIndex, true)} className="text-[10px] font-bold text-amber-700 hover:text-amber-900" title="恢復為待購">恢復</button>}
-                <input type="checkbox" checked={item.isDone} disabled={isOutOfStock} onChange={() => onToggleShopping(item.rowIndex, item.isDone)} className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90 disabled:cursor-not-allowed" />
+                {isOutOfStock && <button onClick={() => onToggleShopping(item.rowIndex, true, item.id)} className="text-[10px] font-bold text-amber-700 hover:text-amber-900" title="恢復為待購">恢復</button>}
+                <input type="checkbox" checked={item.isDone} disabled={isOutOfStock} onChange={() => onToggleShopping(item.rowIndex, item.isDone, item.id)} className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90 disabled:cursor-not-allowed" />
               </div>
             </div>
           );
