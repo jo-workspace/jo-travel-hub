@@ -391,6 +391,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<'date' | 'amount'>('date');
+  const [keywordFilter, setKeywordFilter] = useState<string>('');
 
   // 當時區變更時同步預設消費日期
   useEffect(() => {
@@ -553,6 +554,15 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
         return false;
       }
 
+      // 關鍵字篩選（比對品項名稱與備註文字）
+      if (keywordFilter.trim()) {
+        const kw = keywordFilter.trim().toLowerCase();
+        const meta = parseExpenseMeta(exp.note);
+        const inItem = (exp.item || '').toLowerCase().includes(kw);
+        const inNote = meta.cleanNote.toLowerCase().includes(kw);
+        if (!inItem && !inNote) return false;
+      }
+
       // 成員個人花費篩選 (含僅該人或分攤中有該人份額)
       if (selectedMemberFilter) {
         const amt = typeof exp.amount === 'number' ? exp.amount : parseFloat(exp.amount) || 0;
@@ -592,7 +602,25 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
   // 計算目前篩選條件下的總額 (若篩選成員，顯示該成員在篩選條件下的負擔總額)
   let filteredSubtotalTwd = totalTWD;
-  if (selectedMemberFilter && selectedCategoryFilter) {
+  if (keywordFilter.trim()) {
+    // 關鍵字篩選時，直接從 filteredExpenses 重算加總
+    filteredSubtotalTwd = Math.round(filteredExpenses.reduce((acc, exp) => {
+      const a = typeof exp.amount === 'number' ? exp.amount : parseFloat(exp.amount) || 0;
+      const c = (exp.currency || activeForeignCode).toUpperCase();
+      const m = parseExpenseMeta(exp.note);
+      if (selectedMemberFilter) {
+        const rawBill = m.customTwd || computeTwdAmount(a, c, fxRate, activeForeignCode);
+        const realTripTwd = m.realTwd !== undefined ? m.realTwd : rawBill;
+        const splitTarget = exp.split ? exp.split.trim() : '均分';
+        const weights = parseSplitWeights(splitTarget, members);
+        const totalW = Object.values(weights).reduce((s, v) => s + v, 0);
+        const mW = weights[selectedMemberFilter] || 0;
+        return acc + (totalW > 0 ? realTripTwd * (mW / totalW) : 0);
+      }
+      const rawBill = m.customTwd || computeTwdAmount(a, c, fxRate, activeForeignCode);
+      return acc + (m.realTwd !== undefined ? m.realTwd : rawBill);
+    }, 0));
+  } else if (selectedMemberFilter && selectedCategoryFilter) {
     filteredSubtotalTwd = Math.round(categoryPersonShares[selectedCategoryFilter]?.[selectedMemberFilter] || 0);
   } else if (selectedMemberFilter) {
     filteredSubtotalTwd = Math.round(shareTWD[selectedMemberFilter] || 0);
@@ -1695,8 +1723,30 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
             </div>
           )}
 
+          {/* Keyword Search Input */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none select-none">🔍</span>
+            <input
+              type="text"
+              value={keywordFilter}
+              onChange={(e) => setKeywordFilter(e.target.value)}
+              placeholder="搜尋品項名稱或備註關鍵字..."
+              className="w-full bg-white border border-slate-200 text-slate-800 text-xs pl-8 pr-8 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all placeholder:text-slate-400 shadow-2xs"
+            />
+            {keywordFilter && (
+              <button
+                type="button"
+                onClick={() => setKeywordFilter('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 font-black text-sm cursor-pointer transition-colors"
+                title="清除關鍵字"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
           {/* Filter Banner */}
-          {(selectedCategoryFilter || selectedMemberFilter) && (
+          {(selectedCategoryFilter || selectedMemberFilter || keywordFilter.trim()) && (
             <div className="flex items-center justify-between bg-amber-50 border border-amber-200/80 px-3.5 py-2.5 rounded-xl text-xs shadow-2xs">
               <div className="flex items-center flex-wrap gap-1.5 font-bold text-amber-900">
                 <span className="text-amber-700 font-medium">正在篩選：</span>
@@ -1731,6 +1781,21 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     </button>
                   </span>
                 )}
+                {keywordFilter.trim() && (
+                  <span className="bg-amber-400/25 text-amber-950 px-2 py-0.5 rounded-md border border-amber-400/40 flex items-center space-x-1">
+                    <span>🔍 &quot;{keywordFilter.trim()}&quot;</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setKeywordFilter('');
+                      }}
+                      className="ml-1 text-amber-700 hover:text-amber-950 font-black cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
                 <span className="text-amber-700 font-normal">
                   （共 {filteredExpenses.length} 筆，
                   {selectedMemberFilter ? `${selectedMemberFilter} 應負擔` : '小計'} NT$ {filteredSubtotalTwd.toLocaleString()}）
@@ -1741,6 +1806,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 onClick={() => {
                   setSelectedCategoryFilter(null);
                   setSelectedMemberFilter(null);
+                  setKeywordFilter('');
                   setSortMode('date');
                 }}
                 className="text-[11px] font-bold text-amber-800 hover:text-amber-950 px-2.5 py-1 rounded-lg hover:bg-amber-100/80 transition-all cursor-pointer whitespace-nowrap ml-2 flex-shrink-0"
