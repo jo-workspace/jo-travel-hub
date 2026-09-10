@@ -14,7 +14,7 @@ interface PackingModalProps {
   companionsList?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
-  onDelete: (rowIndex: number) => Promise<void>;
+  onDelete: (rowIndex: number, id?: string) => Promise<void>;
 }
 
 const INVALID_PACKING_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著', '其他', '全部'];
@@ -83,6 +83,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
         // New / Duplicate mode: support batch input (one item per line)
         const items = itemName.split('\n').map((s) => s.trim()).filter(Boolean);
         await onSave({
+          id: undefined,
           rowIndex: 0,
           category: category.trim(),
           person: person.trim(),
@@ -94,6 +95,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       } else {
         // Edit mode: single item
         await onSave({
+          id: item?.id,
           rowIndex: item!.rowIndex,
           category: category.trim(),
           person: person.trim(),
@@ -115,7 +117,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onDelete(item.rowIndex);
+      await onDelete(item.rowIndex, item.id);
       onClose();
     } finally {
       setIsSubmitting(false);

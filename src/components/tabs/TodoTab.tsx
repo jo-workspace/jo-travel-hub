@@ -9,7 +9,7 @@ import { Plus, Edit3 } from 'lucide-react';
 interface TodoTabProps {
   data: TodoItem[];
   hideDone: boolean;
-  onToggleTodo: (rowIndex: number, currentStatus: boolean) => void;
+  onToggleTodo: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: TodoItem) => void;
 }
 
@@ -71,7 +71,7 @@ export const TodoTab: React.FC<TodoTabProps> = ({
             <div className="space-y-2">
               {items.map((item) => (
                 <div
-                  key={item.rowIndex}
+                  key={item.id || item.rowIndex}
                   className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
                     item.isDone
                       ? 'border-slate-100 opacity-40 bg-slate-50'
@@ -104,7 +104,7 @@ export const TodoTab: React.FC<TodoTabProps> = ({
                     <input
                       type="checkbox"
                       checked={item.isDone}
-                      onChange={() => onToggleTodo(item.rowIndex, item.isDone)}
+                      onChange={() => onToggleTodo(item.rowIndex, item.isDone, item.id)}
                       className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
                     />
                   </div>

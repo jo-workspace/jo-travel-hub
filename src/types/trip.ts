@@ -53,11 +53,12 @@ export interface ShoppingItem {
   item: string;
   quantity?: string;
   price?: number;
-  purchaseStatus?: 'pending' | 'purchased' | 'out_of_stock';
+  purchaseStatus?: 'pending' | 'purchased' | 'out_of_stock' | 'ignored';
   image?: string;
   url?: string;
   note?: string;
   isDone: boolean;
+  isIgnored?: boolean;
 }
 
 export interface AllTripData {

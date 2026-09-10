@@ -11,7 +11,7 @@ interface TodoModalProps {
   existingCategories?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
-  onDelete: (rowIndex: number) => Promise<void>;
+  onDelete: (rowIndex: number, id?: string) => Promise<void>;
 }
 
 export const TodoModal: React.FC<TodoModalProps> = ({
@@ -53,6 +53,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSave({
+        id: item?.id,
         rowIndex: item?.rowIndex || 0,
         category: category.trim(),
         task: task.trim(),
@@ -71,7 +72,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onDelete(item.rowIndex);
+      await onDelete(item.rowIndex, item.id);
       onClose();
     } finally {
       setIsSubmitting(false);

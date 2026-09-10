@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExpenseItem, ShoppingItem } from '@/types/trip';
 import { getShoppingItemTotal, parseRecipientTags } from '@/components/tabs/ShoppingTab';
+import { getTodayInTimezone } from '@/lib/tripDate';
 import { Plus, Trash2, Banknote, DollarSign, Users, HandCoins, Copy, Check, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ExpensesTabProps {
@@ -11,6 +12,7 @@ interface ExpensesTabProps {
   fxRate: number;
   foreignCurrency?: string;
   companions?: string;
+  timezone?: string;
   onAddExpense: (formData: any) => Promise<void>;
   onDeleteExpense: (rowIndex: number, id?: string) => Promise<void>;
   onOpenModal?: (item?: ExpenseItem) => void;
@@ -36,10 +38,11 @@ export interface ExpenseMeta {
   realAmount?: number;     // 自用淨額 (外幣)
   realTwd?: number;        // 自用淨額 (台幣)
   proxyShoppingRows?: number[]; // 關聯之購物清單 rowIndex
+  date?: string;           // 消費日期 YYYY-MM-DD
   cleanNote: string;
 }
 
-/** 解析記帳中繼資料（折算台幣、代購代墊款、實質匯率） */
+/** 解析記帳中繼資料（折算台幣、代購代墊款、實質匯率、日期） */
 export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
   if (!rawNote) return { cleanNote: '' };
 
@@ -52,6 +55,7 @@ export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
   let realAmount: number | undefined;
   let realTwd: number | undefined;
   let proxyShoppingRows: number[] | undefined;
+  let date: string | undefined;
 
   if (metaMatch) {
     if (metaMatch[1]) {
@@ -67,6 +71,7 @@ export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
         else if (key === 'PROXY_TWD') proxyTwd = parseFloat(val);
         else if (key === 'REAL_AMT') realAmount = parseFloat(val);
         else if (key === 'REAL_TWD') realTwd = parseFloat(val);
+        else if (key === 'DATE') date = val;
         else if (key === 'PROXY_ROWS') {
           proxyShoppingRows = val.split(/[|;]/).map((n) => parseInt(n, 10)).filter(Boolean);
         }
@@ -90,6 +95,7 @@ export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
     realAmount: realAmount !== undefined && !isNaN(realAmount) ? realAmount : undefined,
     realTwd: realTwd !== undefined && !isNaN(realTwd) ? realTwd : undefined,
     proxyShoppingRows,
+    date,
     cleanNote: clean,
   };
 }
@@ -105,6 +111,7 @@ export function buildExpenseNote(
     realAmount?: number;
     realTwd?: number;
     proxyShoppingRows?: number[];
+    date?: string;
   }
 ): string {
   const metaParts: string[] = [];
@@ -114,6 +121,7 @@ export function buildExpenseNote(
   if (meta.proxyTwd !== undefined && meta.proxyTwd > 0) metaParts.push(`PROXY_TWD=${meta.proxyTwd}`);
   if (meta.realAmount !== undefined && meta.realAmount >= 0) metaParts.push(`REAL_AMT=${meta.realAmount}`);
   if (meta.realTwd !== undefined && meta.realTwd >= 0) metaParts.push(`REAL_TWD=${meta.realTwd}`);
+  if (meta.date) metaParts.push(`DATE=${meta.date}`);
   if (meta.proxyShoppingRows && meta.proxyShoppingRows.length > 0) {
     metaParts.push(`PROXY_ROWS=${meta.proxyShoppingRows.join('|')}`);
   }
@@ -243,6 +251,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   fxRate = 32.5,
   foreignCurrency = 'USD',
   companions = 'Jo, Will',
+  timezone,
   onAddExpense,
   onDeleteExpense,
   onOpenModal,
@@ -335,11 +344,17 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [customTwd, setCustomTwd] = useState('');
   const [hasProxy, setHasProxy] = useState(false);
   const [selectedProxyRows, setSelectedProxyRows] = useState<number[]>([]);
+  const [date, setDate] = useState(() => getTodayInTimezone(timezone));
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMatrixOpen, setIsMatrixOpen] = useState(true);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string | null>(null);
+
+  // 當時區變更時同步預設消費日期
+  useEffect(() => {
+    setDate(getTodayInTimezone(timezone));
+  }, [timezone]);
 
   // 當外幣設定變更時同步預設外幣代碼
   useEffect(() => {
@@ -699,6 +714,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       realAmount: hasProxy && proxyForeignTotal > 0 ? realAmount : undefined,
       realTwd: hasProxy && proxyTwdTotal > 0 ? realTwd : undefined,
       proxyShoppingRows: hasProxy && selectedProxyRows.length > 0 ? selectedProxyRows : undefined,
+      date: date || undefined,
     });
 
     setIsSubmitting(true);
@@ -711,6 +727,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
         paidBy,
         split: finalSplit,
         note: finalNote,
+        date: date || undefined,
       });
 
       // 同步將勾選的代購品項標記為已買
@@ -734,6 +751,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       setSelectedProxyRows([]);
       setMemberAmounts({});
       setNote('');
+      setDate(getTodayInTimezone(timezone));
     } finally {
       setIsSubmitting(false);
     }
@@ -1193,14 +1211,28 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               </div>
             </div>
 
-            {/* Note Input */}
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="備註說明 (選填)..."
-              className="w-full bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
-            />
+            {/* Date & Note Inputs */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 flex-shrink-0">
+                <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap mr-1 select-none flex-shrink-0">
+                  📅
+                </span>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="bg-transparent text-white text-xs font-bold font-mono outline-none cursor-pointer [color-scheme:dark] w-28"
+                  title="消費日期"
+                />
+              </div>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="備註說明 (選填)..."
+                className="flex-1 bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500 min-w-0"
+              />
+            </div>
 
             {/* Submit Button */}
             <button
@@ -1612,6 +1644,11 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                         <h4 className="text-sm font-extrabold text-slate-900 truncate">
                           {exp.item}
                         </h4>
+                        {(exp.date || meta.date) && (
+                          <span className="text-[10px] font-bold font-mono bg-slate-100 text-slate-600 border border-slate-200/60 px-1.5 py-0.2 rounded whitespace-nowrap">
+                            📅 {(exp.date || meta.date)!.length >= 10 ? (exp.date || meta.date)!.slice(5) : (exp.date || meta.date)}
+                          </span>
+                        )}
                         <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {exp.paidBy || members[0]} 付 ({formatSplitLabel(exp.split, members)})
                         </span>

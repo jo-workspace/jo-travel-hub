@@ -37,12 +37,14 @@ import {
   savePackingData,
   batchSavePackingData,
   deletePackingData,
+  deletePackingItemsBatch,
   togglePackingStatus,
   addExpenseData,
   deleteExpenseData,
   saveShoppingData,
   deleteShoppingData,
   toggleShoppingStatus,
+  toggleShoppingIgnoredStatus,
   checkoutShoppingStore,
 } from '@/lib/supabase-client';
 import Link from 'next/link';
@@ -461,17 +463,18 @@ export default function TripPage({ params }: PageProps) {
   };
 
   // Todo Handlers
-  const handleToggleTodo = async (rowIndex: number, currentStatus: boolean) => {
+  const handleToggleTodo = async (rowIndex: number, currentStatus: boolean, itemId?: string) => {
     const nextStatus = !currentStatus;
     setTripData((prev) => ({
       ...prev,
-      todo: prev.todo.map((t) =>
-        t.rowIndex === rowIndex ? { ...t, isDone: nextStatus } : t
-      ),
+      todo: prev.todo.map((t) => {
+        const matches = itemId ? t.id === itemId : t.rowIndex === rowIndex;
+        return matches ? { ...t, isDone: nextStatus } : t;
+      }),
     }));
 
     try {
-      await toggleTodoStatus(rowIndex, nextStatus, tripId);
+      await toggleTodoStatus(rowIndex, nextStatus, tripId, itemId);
     } catch (err: any) {
       showToast(`更新失敗，正在還原: ${err.message}`);
       fetchData(false);
@@ -489,29 +492,36 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
-  const handleDeleteTodo = async (rowIndex: number) => {
+  const handleDeleteTodo = async (rowIndex: number, itemId?: string) => {
+    setTripData((prev) => ({
+      ...prev,
+      todo: prev.todo.filter((t) => !(itemId ? t.id === itemId : t.rowIndex === rowIndex)),
+    }));
+
     try {
       showToast('正在刪除待辦...');
-      await deleteTodoData(rowIndex, tripId);
+      await deleteTodoData(rowIndex, tripId, itemId);
       showToast('刪除成功！');
       fetchData(true);
     } catch (err: any) {
       showToast(`刪除失敗: ${err.message}`);
+      fetchData(false);
     }
   };
 
   // Packing Handlers
-  const handleTogglePacking = async (rowIndex: number, currentStatus: boolean) => {
+  const handleTogglePacking = async (rowIndex: number, currentStatus: boolean, itemId?: string) => {
     const nextStatus = !currentStatus;
     setTripData((prev) => ({
       ...prev,
-      packing: prev.packing.map((p) =>
-        p.rowIndex === rowIndex ? { ...p, isPacked: nextStatus } : p
-      ),
+      packing: prev.packing.map((p) => {
+        const matches = itemId ? p.id === itemId : p.rowIndex === rowIndex;
+        return matches ? { ...p, isPacked: nextStatus } : p;
+      }),
     }));
 
     try {
-      await togglePackingStatus(rowIndex, nextStatus, tripId);
+      await togglePackingStatus(rowIndex, nextStatus, tripId, itemId);
     } catch (err: any) {
       showToast(`更新失敗，正在還原: ${err.message}`);
       fetchData(false);
@@ -579,14 +589,39 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
-  const handleDeletePacking = async (rowIndex: number) => {
+  const handleDeletePacking = async (rowIndex: number, itemId?: string) => {
+    setTripData((prev) => ({
+      ...prev,
+      packing: prev.packing.filter((p) => !(itemId ? p.id === itemId : p.rowIndex === rowIndex)),
+    }));
+
     try {
       showToast('正在刪除打包項...');
-      await deletePackingData(rowIndex, tripId);
+      await deletePackingData(rowIndex, tripId, itemId);
       showToast('刪除成功！');
       fetchData(true);
     } catch (err: any) {
       showToast(`刪除失敗: ${err.message}`);
+      fetchData(false);
+    }
+  };
+
+  const handleBatchDeletePacking = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const count = ids.length;
+    setTripData((prev) => ({
+      ...prev,
+      packing: prev.packing.filter((p) => !p.id || !ids.includes(p.id)),
+    }));
+
+    try {
+      showToast(`正在批次刪除 ${count} 項行李...`);
+      await deletePackingItemsBatch(ids, tripId);
+      showToast(`成功刪除 ${count} 個項目！`);
+      fetchData(true);
+    } catch (err: any) {
+      showToast(`批次刪除失敗: ${err.message}`);
+      fetchData(false);
     }
   };
 
@@ -631,7 +666,7 @@ export default function TripPage({ params }: PageProps) {
       ...prev,
       shopping: prev.shopping.map((s) =>
         (itemId ? s.id === itemId : s.rowIndex === rowIndex)
-          ? { ...s, isDone: nextStatus, purchaseStatus: nextStatus ? 'purchased' : 'pending' }
+          ? { ...s, isDone: nextStatus, purchaseStatus: nextStatus ? 'purchased' : 'pending', isIgnored: false }
           : s
       ),
     }));
@@ -640,6 +675,31 @@ export default function TripPage({ params }: PageProps) {
       await toggleShoppingStatus(rowIndex, nextStatus, tripId, itemId);
     } catch (err: any) {
       showToast(`更新失敗，正在還原: ${err.message}`);
+      fetchData(false);
+    }
+  };
+
+  const handleToggleShoppingIgnored = async (rowIndex: number, currentIgnored: boolean, itemId?: string) => {
+    const nextIgnored = !currentIgnored;
+    setTripData((prev) => ({
+      ...prev,
+      shopping: prev.shopping.map((s) => {
+        const matches = itemId ? s.id === itemId : s.rowIndex === rowIndex;
+        return matches
+          ? {
+              ...s,
+              isIgnored: nextIgnored,
+              purchaseStatus: nextIgnored ? 'ignored' : 'pending',
+            }
+          : s;
+      }),
+    }));
+
+    try {
+      const msg = await toggleShoppingIgnoredStatus(rowIndex, currentIgnored, tripId, itemId);
+      showToast(msg);
+    } catch (err: any) {
+      showToast(`略過更新失敗: ${err.message}`);
       fetchData(false);
     }
   };
@@ -776,6 +836,8 @@ export default function TripPage({ params }: PageProps) {
                   tripTitle={tripData.tripTitle || tripConfig.title}
                   itinerary={tripData.itinerary}
                   onTogglePacking={handleTogglePacking}
+                  onDeletePacking={handleDeletePacking}
+                  onBatchDeletePacking={handleBatchDeletePacking}
                   onQuickAdd={handleQuickAddPacking}
                   onOpenImportModal={() => setImportPackingModalOpen(true)}
                   onOpenModal={(item, defaultPerson, defaultCategory, defaultLocation) => {
@@ -795,6 +857,7 @@ export default function TripPage({ params }: PageProps) {
                   fxRate={tripData.fxRate}
                   foreignCurrency={tripData.foreignCurrency || 'USD'}
                   companions={tripData.companions}
+                  timezone={tripData.timezone}
                   onAddExpense={handleAddExpense}
                   onDeleteExpense={handleDeleteExpense}
                   onOpenModal={(item) => {
@@ -813,6 +876,7 @@ export default function TripPage({ params }: PageProps) {
                   fxRate={tripData.fxRate}
                   hideDone={hideVisited}
                   onToggleShopping={handleToggleShopping}
+                  onToggleIgnoreShopping={handleToggleShoppingIgnored}
                   onOpenModal={(item, defaultStore, defaultForWhom) => {
                     setActiveShoppingItem(item || null);
                     setDefaultShoppingStore(defaultStore || '');
@@ -889,6 +953,7 @@ export default function TripPage({ params }: PageProps) {
         foreignCurrency={tripData.foreignCurrency || 'USD'}
         fxRate={tripData.fxRate}
         shopping={tripData.shopping}
+        timezone={tripData.timezone}
         onToggleShopping={handleToggleShopping}
         onClose={() => setExpenseModalOpen(false)}
         onSave={handleAddExpense}

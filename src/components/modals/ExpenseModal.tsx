@@ -9,6 +9,7 @@ import {
   buildExpenseNote,
 } from '@/components/tabs/ExpensesTab';
 import { parseRecipientTags } from '@/components/tabs/ShoppingTab';
+import { getTodayInTimezone } from '@/lib/tripDate';
 import { X, Trash2, DollarSign } from 'lucide-react';
 
 export const CATEGORY_EMOJIS: Record<string, string> = {
@@ -28,6 +29,7 @@ interface ExpenseModalProps {
   foreignCurrency?: string;
   fxRate?: number;
   shopping?: ShoppingItem[];
+  timezone?: string;
   onToggleShopping?: (rowIndex: number, currentStatus: boolean, id?: string) => Promise<void> | void;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
@@ -41,6 +43,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   foreignCurrency = 'USD',
   fxRate = 32.5,
   shopping = [],
+  timezone,
   onToggleShopping,
   onClose,
   onSave,
@@ -110,6 +113,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   const [customTwd, setCustomTwd] = useState('');
   const [hasProxy, setHasProxy] = useState(false);
   const [selectedProxyRows, setSelectedProxyRows] = useState<number[]>([]);
+  const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -124,6 +128,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
       const meta = parseExpenseMeta(item.note);
       setNote(meta.cleanNote || '');
+      setDate(item.date || meta.date || getTodayInTimezone(timezone));
       setCustomTwd(meta.customTwd ? String(meta.customTwd) : '');
 
       if (meta.proxyShoppingRows && meta.proxyShoppingRows.length > 0) {
@@ -185,8 +190,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       setHasProxy(false);
       setSelectedProxyRows([]);
       setNote('');
+      setDate(getTodayInTimezone(timezone));
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, timezone]);
 
   if (!isOpen) return null;
 
@@ -246,6 +252,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       realAmount: hasProxy && proxyForeignTotal > 0 ? realAmount : undefined,
       realTwd: hasProxy && proxyTwdTotal > 0 ? realTwd : undefined,
       proxyShoppingRows: hasProxy && selectedProxyRows.length > 0 ? selectedProxyRows : undefined,
+      date: date || undefined,
     });
 
     setIsSubmitting(true);
@@ -260,6 +267,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
         paidBy,
         split: finalSplit,
         note: finalNote,
+        date: date || undefined,
       });
 
       if (hasProxy && selectedProxyRows.length > 0 && onToggleShopping) {
@@ -672,13 +680,28 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             </div>
           </div>
 
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="備註說明 (選填)..."
-            className="w-full bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
-          />
+          {/* Date & Note Inputs */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 flex-shrink-0">
+              <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap mr-1 select-none flex-shrink-0">
+                📅
+              </span>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="bg-transparent text-white text-xs font-bold font-mono outline-none cursor-pointer [color-scheme:dark] w-28"
+                title="消費日期"
+              />
+            </div>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="備註說明 (選填)..."
+              className="flex-1 bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500 min-w-0"
+            />
+          </div>
 
           <div className="flex items-center space-x-2 pt-2">
             {item && item.rowIndex >= 2 && (

@@ -11,6 +11,7 @@ interface ShoppingTabProps {
   fxRate: number;
   hideDone: boolean;
   onToggleShopping: (rowIndex: number, currentStatus: boolean, id?: string) => void;
+  onToggleIgnoreShopping?: (rowIndex: number, currentIgnored: boolean, id?: string) => void;
   onOpenModal: (item?: ShoppingItem, defaultStore?: string, defaultForWhom?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
   onCheckoutStore?: (store: string, items: ShoppingItem[]) => void;
@@ -79,7 +80,9 @@ export const getShoppingItemTotal = (item: ShoppingItem): number => {
 };
 
 export const sortShoppingItemsByPriceDesc = (a: ShoppingItem, b: ShoppingItem): number => {
-  if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
+  const aDone = a.isDone || a.isIgnored || a.purchaseStatus === 'ignored';
+  const bDone = b.isDone || b.isIgnored || b.purchaseStatus === 'ignored';
+  if (aDone !== bDone) return aDone ? 1 : -1;
   const aOutOfStock = a.purchaseStatus === 'out_of_stock';
   const bOutOfStock = b.purchaseStatus === 'out_of_stock';
   if (aOutOfStock !== bOutOfStock) return aOutOfStock ? 1 : -1;
@@ -98,6 +101,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   fxRate,
   hideDone,
   onToggleShopping,
+  onToggleIgnoreShopping,
   onOpenModal,
   onOpenLightbox,
 }) => {
@@ -114,7 +118,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
 
   const filteredItems = data
     .filter((item) => {
-      if (hideDone && item.isDone) return false;
+      const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
+      if (hideDone && (item.isDone || isIgnored)) return false;
       const matchStore = isAllStores || splitTokens(item.store).includes(selectedStore);
       const recipientNames = parseRecipientTags(item.forWhom).map((t) => t.name);
       const matchPerson = isAllPeople || recipientNames.includes(selectedPerson);
@@ -128,6 +133,9 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   let selectedEstimate = 0;
 
   data.forEach((item) => {
+    const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
+    if (isIgnored) return; // 略過的品項不計入自用與代購預估
+
     const price = item.price || 0;
     const tags = parseRecipientTags(item.forWhom);
     const itemTotal = getShoppingItemTotal(item);
@@ -242,11 +250,23 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
           const displayStores = isAllStores ? stores : stores.filter((s) => s !== selectedStore);
           const recipientTags = parseRecipientTags(item.forWhom);
           const isOutOfStock = item.purchaseStatus === 'out_of_stock';
+          const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
           const totalQty = recipientTags.reduce((sum, t) => sum + t.quantity, 0) || parseShoppingQuantity(item.quantity);
           const itemTotal = (item.price || 0) * totalQty;
 
           return (
-            <div key={item.rowIndex} className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${isOutOfStock ? 'border-amber-200 bg-amber-50' : item.isDone ? 'border-slate-100 opacity-40 bg-slate-50' : 'border-slate-100 shadow-2xs hover:shadow-xs'}`}>
+            <div
+              key={item.id || item.rowIndex}
+              className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
+                isOutOfStock
+                  ? 'border-amber-200 bg-amber-50'
+                  : item.isDone
+                  ? 'border-slate-100 opacity-40 bg-slate-50'
+                  : isIgnored
+                  ? 'border-slate-200 opacity-60 bg-slate-50/70'
+                  : 'border-slate-100 shadow-2xs hover:shadow-xs'
+              }`}
+            >
               <div className="flex-1 pr-4 min-w-0">
                 <div className="flex items-start">
                   <div className="relative flex-shrink-0 mr-3.5 select-none">
@@ -283,7 +303,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
 
                     {/* Item Name, Quantity & Price */}
                     <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
-                      <h3 className={`text-base font-extrabold text-slate-900 leading-tight ${item.isDone || isOutOfStock ? 'line-through text-slate-400' : ''}`}>
+                      <h3 className={`text-base font-extrabold text-slate-900 leading-tight ${item.isDone || isOutOfStock || isIgnored ? 'line-through text-slate-400' : ''}`}>
                         {item.item}
                       </h3>
                       {totalQty > 1 && (
@@ -302,20 +322,45 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                         </span>
                       )}
                       {isOutOfStock && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">缺貨</span>}
+                      {isIgnored && <span className="text-[10px] font-bold text-slate-500 bg-slate-200/80 border border-slate-300 px-1.5 py-0.5 rounded">略過</span>}
                       {item.url && (
                         <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700 transition-colors" title="商品連結">
                           <LinkIcon className="w-4 h-4 ml-0.5 inline-block" />
                         </a>
                       )}
                     </div>
-                    {item.note && <div className="text-xs text-slate-500 font-medium mt-1 leading-relaxed whitespace-pre-line">{item.note.replace(/<br\s*\/?>/gi, '\n')}</div>}
+                    {item.note && (
+                      <div className="text-xs text-slate-500 font-medium mt-1 leading-relaxed whitespace-pre-line">
+                        {item.note.replace(/<!--[\s\S]*?-->/g, '').replace(/<br\s*\/?>/gi, '\n').trim()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <button onClick={() => onOpenModal(item)} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90" title="編輯"><Edit3 className="w-4 h-4" /></button>
                 {isOutOfStock && <button onClick={() => onToggleShopping(item.rowIndex, true, item.id)} className="text-[10px] font-bold text-amber-700 hover:text-amber-900" title="恢復為待購">恢復</button>}
-                <input type="checkbox" checked={item.isDone} disabled={isOutOfStock} onChange={() => onToggleShopping(item.rowIndex, item.isDone, item.id)} className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90 disabled:cursor-not-allowed" />
+                {onToggleIgnoreShopping && !item.isDone && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleIgnoreShopping(item.rowIndex, !!isIgnored, item.id)}
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer active:scale-90 ${
+                      isIgnored
+                        ? 'bg-slate-200 text-slate-700 border-slate-300 hover:bg-slate-300'
+                        : 'bg-white text-slate-400 border-slate-200 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50'
+                    }`}
+                    title={isIgnored ? '取消略過' : '略過此項（不計入預估，連動隱藏）'}
+                  >
+                    {isIgnored ? '已略過' : '✕ 略過'}
+                  </button>
+                )}
+                <input
+                  type="checkbox"
+                  checked={item.isDone}
+                  disabled={isOutOfStock || isIgnored}
+                  onChange={() => onToggleShopping(item.rowIndex, item.isDone, item.id)}
+                  className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90 disabled:cursor-not-allowed"
+                />
               </div>
             </div>
           );

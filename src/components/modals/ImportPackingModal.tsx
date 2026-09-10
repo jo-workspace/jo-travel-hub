@@ -30,6 +30,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
   const [sourcePackingItems, setSourcePackingItems] = useState<PackingItem[]>([]);
   const [selectedPersonFilter, setSelectedPersonFilter] = useState<string>('全人員');
   const [selectedItemKeys, setSelectedItemKeys] = useState<Set<string>>(new Set());
+  const [includeNotes, setIncludeNotes] = useState<boolean>(false);
 
   // 載入可供選擇的來源旅程清單（排除當前旅程）
   useEffect(() => {
@@ -103,6 +104,31 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
     return ['全人員', ...Array.from(set)];
   }, [sourcePackingItems]);
 
+  // 切換人員篩選時，自動更新選取範圍為該人員未重複項目
+  const handleSelectPerson = (person: string) => {
+    setSelectedPersonFilter(person);
+    const newSelected = new Set<string>();
+    const targetItems = person === '全人員'
+      ? sourcePackingItems
+      : sourcePackingItems.filter((it) => {
+          const pTokens = it.person ? it.person.split(/[\n,，]+/).map((t) => t.trim()) : [];
+          return pTokens.includes(person);
+        });
+
+    targetItems.forEach((item) => {
+      const idx = sourcePackingItems.indexOf(item);
+      const key = `${item.item}__${item.category}__${item.person || ''}__${idx}`;
+      const isDuplicate = existingItems.some(
+        (e) => e.item.trim().toLowerCase() === item.item.trim().toLowerCase() &&
+               (e.person || '').trim() === (item.person || '').trim()
+      );
+      if (!isDuplicate) {
+        newSelected.add(key);
+      }
+    });
+    setSelectedItemKeys(newSelected);
+  };
+
   // 依人員過濾後的來源清單
   const filteredSourceItems = useMemo(() => {
     if (selectedPersonFilter === '全人員') return sourcePackingItems;
@@ -157,18 +183,18 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
   };
 
   const handleConfirmImport = async () => {
-    if (selectedItemKeys.size === 0) return;
-
+    // 嚴格僅從當前過濾清單 filteredSourceItems 中匯入被勾選的項目
     const itemsToImport: Array<{ category: string; person: string; item: string; note?: string; location?: string }> = [];
 
-    sourcePackingItems.forEach((it, idx) => {
+    filteredSourceItems.forEach((it) => {
+      const idx = sourcePackingItems.indexOf(it);
       const key = `${it.item}__${it.category}__${it.person || ''}__${idx}`;
       if (selectedItemKeys.has(key)) {
         itemsToImport.push({
           item: it.item.trim(),
           category: (it.category || '個人物品').trim(),
           person: (it.person || '').trim(),
-          note: (it.note || '').trim(),
+          note: includeNotes ? (it.note || '').trim() : '',
           location: (it.location || '').trim(),
         });
       }
@@ -184,6 +210,14 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  const currentFilteredSelectedCount = useMemo(() => {
+    return filteredSourceItems.filter((it) => {
+      const idx = sourcePackingItems.indexOf(it);
+      const key = `${it.item}__${it.category}__${it.person || ''}__${idx}`;
+      return selectedItemKeys.has(key);
+    }).length;
+  }, [filteredSourceItems, sourcePackingItems, selectedItemKeys]);
 
   return (
     <div
@@ -277,7 +311,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
                     <button
                       key={p}
                       type="button"
-                      onClick={() => setSelectedPersonFilter(p)}
+                      onClick={() => handleSelectPerson(p)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                         isSelected
                           ? 'bg-slate-900 text-white shadow-xs'
@@ -291,6 +325,20 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Include Notes Checkbox */}
+          <div className="pt-0.5">
+            <label className="inline-flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeNotes}
+                onChange={(e) => setIncludeNotes(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
+              />
+              <span>包含原旅程備註 (Note)</span>
+              <span className="text-[10px] text-slate-400 font-normal">（預設不勾選，以維持新旅程清爽）</span>
+            </label>
+          </div>
         </div>
 
         {/* Items List Preview */}
@@ -361,8 +409,8 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
                               )}
                             </div>
                             {item.note && (
-                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                                {item.note}
+                              <p className={`text-[10px] truncate mt-0.5 transition-opacity ${includeNotes ? 'text-slate-500' : 'text-slate-400/60 line-through'}`}>
+                                {item.note} {!includeNotes && <span className="no-underline text-slate-400">(匯入時將忽略)</span>}
                               </p>
                             )}
                           </div>
@@ -379,7 +427,8 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
         {/* Footer Submit Button */}
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 flex-shrink-0">
           <span className="text-xs font-bold text-slate-500">
-            已選取 <strong className="text-slate-900 font-mono text-sm">{selectedItemKeys.size}</strong> 項
+            已選取 {selectedPersonFilter !== '全人員' ? `${selectedPersonFilter} 的 ` : ''}
+            <strong className="text-slate-900 font-mono text-sm">{currentFilteredSelectedCount}</strong> 項
           </span>
           <div className="flex items-center space-x-2">
             <button
@@ -392,7 +441,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
             <button
               type="button"
               onClick={handleConfirmImport}
-              disabled={selectedItemKeys.size === 0 || isSubmitting}
+              disabled={currentFilteredSelectedCount === 0 || isSubmitting}
               className="px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-40 flex items-center space-x-1.5"
             >
               {isSubmitting ? (
@@ -403,7 +452,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
               ) : (
                 <>
                   <Download className="w-3.5 h-3.5" />
-                  <span>匯入 ({selectedItemKeys.size})</span>
+                  <span>匯入 ({currentFilteredSelectedCount})</span>
                 </>
               )}
             </button>

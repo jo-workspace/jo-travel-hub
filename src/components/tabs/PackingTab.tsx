@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PackingItem, ItineraryItem } from '@/types/trip';
-import { Plus, Edit3, Copy, Download, CornerDownLeft, CloudSun } from 'lucide-react';
+import { Plus, Edit3, Copy, Download, CornerDownLeft, CloudSun, Trash2, CheckSquare, Square } from 'lucide-react';
 import { fetchWeatherForCity, getCityForDay, CityWeatherData } from '@/lib/weather';
 import { WeatherGuideModal, DayWeatherGuideItem } from '@/components/modals/WeatherGuideModal';
 
@@ -13,10 +13,12 @@ interface PackingTabProps {
   startDate?: string;
   tripTitle?: string;
   itinerary?: ItineraryItem[];
-  onTogglePacking: (rowIndex: number, currentStatus: boolean) => void;
+  onTogglePacking: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
   onOpenImportModal?: () => void;
   onQuickAdd: (newItem: { item: string; category: string; person: string; location: string }) => Promise<void>;
+  onDeletePacking?: (rowIndex: number, id?: string) => Promise<void> | void;
+  onBatchDeletePacking?: (ids: string[]) => Promise<void> | void;
 }
 
 const stripEmoji = (str: string) =>
@@ -37,10 +39,16 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   onOpenModal,
   onOpenImportModal,
   onQuickAdd,
+  onDeletePacking,
+  onBatchDeletePacking,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
   const [selectedPerson, setSelectedPerson] = useState<string>(ALL_PERSONS);
   const [selectedLocation, setSelectedLocation] = useState<string>(ALL_LOCATIONS);
+
+  const [isBatchMode, setIsBatchMode] = useState<boolean>(false);
+  const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchDeleting, setIsBatchDeleting] = useState<boolean>(false);
 
   const [quickItemName, setQuickItemName] = useState('');
   const [showCategoryError, setShowCategoryError] = useState(false);
@@ -311,6 +319,29 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     }
   };
 
+  const visibleItems = Object.values(groupedByCategory).flat();
+
+  const handleBatchDelete = async () => {
+    if (batchSelectedIds.size === 0) return;
+    if (!confirm(`確定要刪除選取的 ${batchSelectedIds.size} 項打包物品嗎？`)) return;
+
+    setIsBatchDeleting(true);
+    try {
+      if (onBatchDeletePacking) {
+        await onBatchDeletePacking(Array.from(batchSelectedIds));
+      } else if (onDeletePacking) {
+        for (const id of Array.from(batchSelectedIds)) {
+          const target = data.find((d) => (d.id && d.id === id) || String(d.rowIndex) === id);
+          if (target) await onDeletePacking(target.rowIndex, target.id);
+        }
+      }
+      setBatchSelectedIds(new Set());
+      setIsBatchMode(false);
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 pb-36 md:pb-20">
       {/* Sticky Header Container: Freeze right below top header during scroll */}
@@ -394,6 +425,19 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
                 <button
                   type="button"
+                  onClick={() => {
+                    setIsBatchMode(!isBatchMode);
+                    setBatchSelectedIds(new Set());
+                  }}
+                  className={`p-1 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                    isBatchMode ? 'bg-rose-500 text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                  title={isBatchMode ? '退出批次管理' : '批次管理'}
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => setWeatherGuideOpen(true)}
                   className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center"
                   title="行程天氣穿搭指南"
@@ -441,6 +485,22 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
                 {/* Right: Pure SVG Tool Icons (No Text) */}
                 <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBatchMode(!isBatchMode);
+                      setBatchSelectedIds(new Set());
+                    }}
+                    className={`p-1.5 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs ${
+                      isBatchMode
+                        ? 'bg-rose-500 text-white border border-rose-600'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60'
+                    }`}
+                    title={isBatchMode ? '退出批次管理' : '批次管理'}
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setWeatherGuideOpen(true)}
@@ -584,10 +644,65 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           {showCategoryError && (
             <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pl-2">
               請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
-            </p>
+          </p>
           )}
         </div>
       </div>
+
+      {/* Batch Mode Management Bar */}
+      {isBatchMode && (
+        <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl flex items-center justify-between gap-2 shadow-sm animate-fadeIn">
+          <div className="flex items-center space-x-2 text-xs font-bold text-rose-900 flex-wrap gap-y-1">
+            <span className="flex items-center space-x-1">
+              <CheckSquare className="w-4 h-4 text-rose-600 inline" />
+              <span>批次管理模式</span>
+            </span>
+            <span className="bg-rose-200/70 text-rose-900 px-2 py-0.5 rounded-full text-[11px] font-mono">
+              已選 {batchSelectedIds.size} 項
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const allKeys = new Set(visibleItems.map((it) => it.id || String(it.rowIndex)));
+                setBatchSelectedIds(allKeys);
+              }}
+              className="text-rose-700 hover:text-rose-900 hover:underline cursor-pointer ml-1"
+            >
+              全選當前
+            </button>
+            <span className="text-rose-300">|</span>
+            <button
+              type="button"
+              onClick={() => setBatchSelectedIds(new Set())}
+              className="text-rose-700 hover:text-rose-900 hover:underline cursor-pointer"
+            >
+              清空
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setIsBatchMode(false);
+                setBatchSelectedIds(new Set());
+              }}
+              className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-rose-100 rounded-xl transition-all cursor-pointer"
+            >
+              關閉
+            </button>
+            <button
+              type="button"
+              onClick={handleBatchDelete}
+              disabled={batchSelectedIds.size === 0 || isBatchDeleting}
+              className="px-3.5 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-xs transition-all flex items-center space-x-1.5 disabled:opacity-40 cursor-pointer active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isBatchDeleting ? '刪除中...' : `刪除所選 (${batchSelectedIds.size})`}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Layout: Frameless High-Density Clean Items List */}
       <div className="w-full p-2 md:p-4 space-y-6">
@@ -598,10 +713,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               <button
                 type="button"
                 onClick={onOpenImportModal}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all inline-flex items-center space-x-1.5 shadow-xs active:scale-95 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>從其他旅程匯入打包清單</span>
+                <span>從其他旅程匯入</span>
               </button>
             )}
           </div>
@@ -609,26 +724,35 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
         {categories.map((cat) => {
           const items = groupedByCategory[cat];
-          items.sort((a, b) => a.rowIndex - b.rowIndex);
-          const packedCount = items.filter((i) => i.isPacked).length;
-          const allItemsPacked = items.length > 0 && packedCount === items.length;
+          if (!items || items.length === 0) return null;
 
           return (
-            <div key={cat} className="space-y-1.5">
-              {/* Minimalist Category Header without emoji */}
-              <div className="flex items-center justify-between px-1 py-1 select-none border-b border-slate-100 pb-1.5 mb-1">
+            <div key={cat} className="space-y-2">
+              {/* Category Header Bar with Dynamic Quick-Add Button */}
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5 pt-1">
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm font-black text-slate-900 tracking-wide">
-                    {cat}
-                  </span>
-                  <span className="text-[11px] font-extrabold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                    {packedCount}/{items.length}
-                  </span>
+                  <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center space-x-1">
+                    <span>{cat}</span>
+                    <span className="text-[10px] text-slate-400 font-mono font-bold">
+                      ({items.length})
+                    </span>
+                  </h3>
                 </div>
-                {allItemsPacked && (
-                  <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                    ✓ COMPLETED
-                  </span>
+
+                {/* Sub-header Quick Add Button */}
+                {selectedCategory === ALL_CATEGORIES && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      if (showCategoryError) setShowCategoryError(false);
+                      setTimeout(() => desktopInputRef.current?.focus(), 50);
+                    }}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-900 px-2 py-0.5 rounded-lg hover:bg-slate-100 transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>新增</span>
+                  </button>
                 )}
               </div>
 
@@ -637,28 +761,59 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 {items.map((item) => {
                   const pTokens = item.person ? item.person.split(/[\n,，]+/).map((t) => t.trim()) : [];
                   const cleanLoc = item.location ? stripEmoji(item.location) : '';
+                  const itemKey = item.id || String(item.rowIndex);
+                  const isBatchChecked = batchSelectedIds.has(itemKey);
 
                   return (
                     <div
-                      key={item.rowIndex}
+                      key={item.id || item.rowIndex}
                       className={`group flex items-start justify-between px-2 py-1.5 rounded-xl transition-all hover:bg-slate-100/70 ${
-                        item.isPacked ? 'opacity-40' : ''
-                      }`}
+                        isBatchChecked ? 'bg-rose-50/70 ring-1 ring-rose-200' : ''
+                      } ${item.isPacked && !isBatchMode ? 'opacity-40' : ''}`}
                     >
                       {/* Checkbox & Item Content */}
                       <div className="flex items-start space-x-2.5 min-w-0 flex-1 pr-2">
-                        <input
-                          type="checkbox"
-                          checked={item.isPacked}
-                          onChange={() => onTogglePacking(item.rowIndex, item.isPacked)}
-                          className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer flex-shrink-0 transition-transform active:scale-90"
-                        />
+                        {isBatchMode ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const next = new Set(batchSelectedIds);
+                              if (next.has(itemKey)) next.delete(itemKey);
+                              else next.add(itemKey);
+                              setBatchSelectedIds(next);
+                            }}
+                            className="p-0.5 text-slate-700 cursor-pointer flex-shrink-0 mt-0.5"
+                          >
+                            {isBatchChecked ? (
+                              <CheckSquare className="w-4 h-4 text-rose-600" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-300 hover:text-slate-500" />
+                            )}
+                          </button>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={item.isPacked}
+                            onChange={() => onTogglePacking(item.rowIndex, item.isPacked, item.id)}
+                            className="w-4.5 h-4.5 mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer flex-shrink-0 transition-transform active:scale-90"
+                          />
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center flex-wrap gap-1">
                             <span
-                              onClick={() => onOpenModal(item)}
+                              onClick={() => {
+                                if (isBatchMode) {
+                                  const next = new Set(batchSelectedIds);
+                                  if (next.has(itemKey)) next.delete(itemKey);
+                                  else next.add(itemKey);
+                                  setBatchSelectedIds(next);
+                                } else {
+                                  onOpenModal(item);
+                                }
+                              }}
                               className={`text-sm font-semibold text-slate-800 leading-snug cursor-pointer hover:text-indigo-600 transition-colors ${
-                                item.isPacked ? 'line-through text-slate-400' : ''
+                                item.isPacked && !isBatchMode ? 'line-through text-slate-400' : ''
                               }`}
                             >
                               {item.item}
@@ -700,7 +855,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                         </div>
                       </div>
 
-                      {/* Action Buttons: Copy & Edit */}
+                      {/* Action Buttons: Copy, Edit & Direct Delete */}
                       <div className="flex items-center space-x-0.5 flex-shrink-0 opacity-80 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100">
                         <button
                           onClick={() => onOpenModal({ ...item, rowIndex: 0, isPacked: false })}
@@ -716,6 +871,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
+                        {onDeletePacking && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`確定要刪除「${item.item}」嗎？`)) return;
+                              await onDeletePacking(item.rowIndex, item.id);
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                            title="刪除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
