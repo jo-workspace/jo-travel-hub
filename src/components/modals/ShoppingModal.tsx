@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShoppingItem } from '@/types/trip';
-import { parseRecipientTags, serializeRecipientTags, RecipientTag } from '@/components/tabs/ShoppingTab';
+import { parseRecipientTags, serializeRecipientTags, inferOwnerFromName, RecipientTag } from '@/components/tabs/ShoppingTab';
 import { X, Trash2, Plus, User, HandCoins } from 'lucide-react';
 
 interface ShoppingModalProps {
@@ -29,7 +29,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   onDelete,
 }) => {
   const [store, setStore] = useState('');
-  const [recipientTags, setRecipientTags] = useState<RecipientTag[]>([{ name: 'Jo', isProxy: false, quantity: 1 }]);
+  const [recipientTags, setRecipientTags] = useState<RecipientTag[]>([{ name: 'Jo', isProxy: false, quantity: 1, owner: 'Jo' }]);
   const [isProxy, setIsProxy] = useState(false);
   const [customPerson, setCustomPerson] = useState('');
   const [itemName, setItemName] = useState('');
@@ -56,7 +56,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   useEffect(() => {
     if (item) {
       setStore(item.store || '');
-      const parsed = parseRecipientTags(item.forWhom || defaultForWhom || 'Jo');
+      const parsed = parseRecipientTags(item.forWhom || defaultForWhom || 'Jo', personPresets);
       setRecipientTags(parsed);
       setIsProxy(parsed.some((t) => t.isProxy));
       setItemName(item.item || '');
@@ -66,7 +66,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setNote(item.note || '');
     } else {
       setStore(defaultStore || '');
-      const parsed = parseRecipientTags(defaultForWhom || 'Jo');
+      const parsed = parseRecipientTags(defaultForWhom || 'Jo', personPresets);
       setRecipientTags(parsed);
       setIsProxy(false);
       setItemName('');
@@ -92,9 +92,23 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
         updated[existingIdx] = { ...updated[existingIdx], quantity: updated[existingIdx].quantity + 1 };
         return updated;
       }
-      return [...prev, { name: trimmed, isProxy, quantity: 1 }];
+      const initialOwner = inferOwnerFromName(trimmed, personPresets);
+      return [...prev, { name: trimmed, isProxy, quantity: 1, owner: initialOwner }];
     });
     setCustomPerson('');
+  };
+
+  const handleToggleOwner = (index: number) => {
+    setRecipientTags((prev) => {
+      const updated = [...prev];
+      const tag = updated[index];
+      if (!tag) return prev;
+      const currentOwner = tag.owner || inferOwnerFromName(tag.name, personPresets);
+      const currentIdx = personPresets.indexOf(currentOwner);
+      const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % personPresets.length : 0;
+      updated[index] = { ...tag, owner: personPresets[nextIdx] };
+      return updated;
+    });
   };
 
   const handleRemoveTag = (index: number) => {
@@ -105,9 +119,13 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     e.preventDefault();
     if (!itemName.trim()) return;
 
-    const baseTags = recipientTags.length > 0 ? recipientTags : [{ name: 'Jo', isProxy: false, quantity: 1 }];
-    const normalizedTags = baseTags.map((t) => ({ ...t, isProxy }));
-    const finalForWhom = serializeRecipientTags(normalizedTags);
+    const baseTags = recipientTags.length > 0 ? recipientTags : [{ name: 'Jo', isProxy: false, quantity: 1, owner: 'Jo' }];
+    const normalizedTags = baseTags.map((t) => ({
+      ...t,
+      isProxy,
+      owner: t.owner || inferOwnerFromName(t.name, personPresets),
+    }));
+    const finalForWhom = serializeRecipientTags(normalizedTags, personPresets);
 
     setIsSubmitting(true);
     try {
@@ -236,6 +254,20 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                     >
                       {tag.name} {tag.quantity > 1 ? `×${tag.quantity}` : ''}
                     </span>
+
+                    {isProxy && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleOwner(idx);
+                        }}
+                        className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-200/90 hover:bg-amber-300 text-amber-950 font-bold transition-all cursor-pointer shadow-2xs"
+                        title="點擊切換負責歸屬同行人 (例如 Jo / Will)"
+                      >
+                        歸屬: {tag.owner || inferOwnerFromName(tag.name, personPresets)}
+                      </button>
+                    )}
 
                     <button
                       type="button"

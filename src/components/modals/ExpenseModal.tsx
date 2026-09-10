@@ -8,7 +8,7 @@ import {
   parseExpenseMeta,
   buildExpenseNote,
 } from '@/components/tabs/ExpensesTab';
-import { parseRecipientTags } from '@/components/tabs/ShoppingTab';
+import { parseRecipientTags, inferOwnerFromName } from '@/components/tabs/ShoppingTab';
 import { getTodayInTimezone } from '@/lib/tripDate';
 import { X, Trash2, DollarSign } from 'lucide-react';
 
@@ -73,14 +73,16 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
       price: number;
       totalForeign: number;
       isDone: boolean;
+      owner?: string;
     }[] = [];
 
     shopping.forEach((s) => {
-      const tags = parseRecipientTags(s.forWhom);
+      const tags = parseRecipientTags(s.forWhom, members);
       const price = s.price || 0;
       tags.forEach((tag) => {
         if (tag.isProxy) {
           const qty = tag.quantity || 1;
+          const owner = tag.owner || inferOwnerFromName(tag.name, members);
           list.push({
             rowIndex: s.rowIndex,
             id: s.id,
@@ -90,12 +92,13 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             price: price,
             totalForeign: price * qty,
             isDone: !!s.isDone,
+            owner,
           });
         }
       });
     });
     return list;
-  }, [shopping]);
+  }, [shopping, members]);
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -443,7 +446,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                             />
                             <span className="font-bold truncate">{p.itemName}</span>
                             <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 border border-amber-400/20 whitespace-nowrap">
-                              {p.personName} ×{p.quantity}
+                              {p.personName} ×{p.quantity} {p.owner ? `(${p.owner})` : ''}
                             </span>
                           </div>
                           <span className="font-mono font-bold text-amber-400 text-xs ml-2 whitespace-nowrap">

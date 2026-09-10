@@ -21,39 +21,67 @@ export interface RecipientTag {
   name: string;
   isProxy: boolean;
   quantity: number;
+  owner?: string;
 }
 
-export const parseRecipientTags = (forWhomStr?: string): RecipientTag[] => {
-  if (!forWhomStr) return [{ name: 'Jo', isProxy: false, quantity: 1 }];
+export const inferOwnerFromName = (name: string, members: string[] = ['Jo', 'Will']): string => {
+  const clean = name.trim();
+  for (const m of members) {
+    if (clean.toLowerCase().startsWith(m.toLowerCase())) {
+      return m;
+    }
+  }
+  return members[0] || 'Jo';
+};
+
+export const parseRecipientTags = (forWhomStr?: string, members: string[] = ['Jo', 'Will']): RecipientTag[] => {
+  if (!forWhomStr) return [{ name: 'Jo', isProxy: false, quantity: 1, owner: 'Jo' }];
   const tokens = forWhomStr.split(/[\n,、+/]/).map((t) => t.trim()).filter(Boolean);
-  if (tokens.length === 0) return [{ name: 'Jo', isProxy: false, quantity: 1 }];
+  if (tokens.length === 0) return [{ name: 'Jo', isProxy: false, quantity: 1, owner: 'Jo' }];
 
   return tokens.map((token) => {
-    // 檢查代購標記：例如 媽媽(代購)、小明(代購*2)
-    const proxyMatch = token.match(/\((代購|代)(?:[*x×](\d+))?\)/);
+    // 檢查代購標記：例如 媽媽(代購)、小明(代購*2)、小明(代購@Will)、小明(代購*2@Will)
+    const proxyMatch = token.match(/\((代購|代)(?:[*x×](\d+))?(?:[@:：]([^)*x×]+))?(?:[*x×](\d+))?\)/);
     if (proxyMatch) {
-      const cleanName = token.replace(/\((代購|代)(?:[*x×](\d+))?\)/, '').trim();
-      const qty = proxyMatch[2] ? parseInt(proxyMatch[2], 10) : 1;
-      return { name: cleanName || token, isProxy: true, quantity: qty > 0 ? qty : 1 };
+      const cleanName = token.replace(/\((代購|代)(?:[*x×](\d+))?(?:[@:：]([^)*x×]+))?(?:[*x×](\d+))?\)/, '').trim();
+      const qtyStr = proxyMatch[2] || proxyMatch[4];
+      const qty = qtyStr ? parseInt(qtyStr, 10) : 1;
+      const explicitOwner = proxyMatch[3]?.trim();
+      const owner = explicitOwner || inferOwnerFromName(cleanName || token, members);
+      return {
+        name: cleanName || token,
+        isProxy: true,
+        quantity: qty > 0 ? qty : 1,
+        owner,
+      };
     }
     // 檢查純數量標記：例如 同事(2)
     const qtyMatch = token.match(/\((?:[*x×]?(\d+))\)/);
     if (qtyMatch) {
       const cleanName = token.replace(/\((?:[*x×]?(\d+))\)/, '').trim();
       const qty = parseInt(qtyMatch[1], 10);
-      return { name: cleanName || token, isProxy: false, quantity: qty > 0 ? qty : 1 };
+      return {
+        name: cleanName || token,
+        isProxy: false,
+        quantity: qty > 0 ? qty : 1,
+        owner: inferOwnerFromName(cleanName || token, members),
+      };
     }
-    return { name: token, isProxy: false, quantity: 1 };
+    return { name: token, isProxy: false, quantity: 1, owner: inferOwnerFromName(token, members) };
   });
 };
 
-export const serializeRecipientTags = (tags: RecipientTag[]): string => {
+export const serializeRecipientTags = (tags: RecipientTag[], members: string[] = ['Jo', 'Will']): string => {
   return tags
     .map((t) => {
       const cleanName = t.name.trim();
       if (!cleanName) return '';
       if (t.isProxy) {
-        return t.quantity > 1 ? `${cleanName}(代購*${t.quantity})` : `${cleanName}(代購)`;
+        const inferred = inferOwnerFromName(cleanName, members);
+        const hasCustomOwner = t.owner && t.owner.toLowerCase() !== inferred.toLowerCase();
+        const ownerPart = hasCustomOwner ? `@${t.owner}` : '';
+        const qtyPart = t.quantity > 1 ? `*${t.quantity}` : '';
+        return `${cleanName}(代購${qtyPart}${ownerPart})`;
       }
       return t.quantity > 1 ? `${cleanName}(${t.quantity})` : cleanName;
     })
@@ -296,7 +324,11 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                         >
                           <span>{tag.name}</span>
                           {tag.quantity > 1 && <span className="font-mono text-[9px] opacity-80">×{tag.quantity}</span>}
-                          {tag.isProxy && <span className="text-[9px] font-bold opacity-80">(代購)</span>}
+                          {tag.isProxy && (
+                            <span className="text-[9px] font-bold opacity-80">
+                              (代購{tag.owner ? `·${tag.owner}` : ''})
+                            </span>
+                          )}
                         </span>
                       ))}
                     </div>
