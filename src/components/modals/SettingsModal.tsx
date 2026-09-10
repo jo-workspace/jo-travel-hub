@@ -52,7 +52,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [budget, setBudget] = useState('');
   const [note, setNote] = useState('');
   const [currency, setCurrency] = useState('USD');
-  const [people, setPeople] = useState('Jo, Will');
+  const [hasWill, setHasWill] = useState(true);
+  const [otherCompanions, setOtherCompanions] = useState('');
   const [tz, setTz] = useState('Asia/Taipei');
   const [citySched, setCitySched] = useState('');
   const [iconDataUrl, setIconDataUrl] = useState('');
@@ -77,7 +78,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setBudget(budgetTwd ? String(budgetTwd) : '');
       setNote(tripNote || '');
       setCurrency(foreignCurrency || 'USD');
-      setPeople(companions || 'Jo, Will');
+      const tokens = (companions || '').split(/[\n,，]+/).map((p) => p.trim()).filter(Boolean);
+      setHasWill(tokens.includes('Will'));
+      setOtherCompanions(tokens.filter((p) => p !== 'Jo' && p !== 'Will').join(', '));
       setTz(timezone || 'Asia/Taipei');
       setCitySched(citySchedule || '');
       setIconDataUrl(customIcon || svgIcon || '');
@@ -119,6 +122,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     e.preventDefault();
     setIsSaving(true);
     setError('');
+
+    const otherTokens = otherCompanions
+      .split(/[\n,，]+/)
+      .map((p) => p.trim())
+      .filter((p) => p && p !== 'Jo' && p !== 'Will');
+    const combined = ['Jo', ...(hasWill ? ['Will'] : []), ...otherTokens];
+    const finalCompanions = Array.from(new Set(combined)).join(', ');
+
     try {
       await updateTripSettings(tripId, {
         title: title.trim(),
@@ -129,7 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         budgetTwd: budget ? parseInt(budget, 10) : 0,
         tripNote: note,
         foreignCurrency: currency.trim().toUpperCase() || 'USD',
-        companions: people.trim() || 'Jo, Will',
+        companions: finalCompanions,
         timezone: tz.trim() || 'Asia/Taipei',
         citySchedule: citySched.trim(),
         customIcon: iconDataUrl,
@@ -199,15 +210,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">人員</label>
-                  <input
-                    type="text"
-                    value={people}
-                    onChange={(e) => setPeople(e.target.value)}
-                    placeholder="Jo, Will"
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-                  />
+                <div className="flex flex-col justify-end">
+                  <label className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px]">
+                    <input
+                      type="checkbox"
+                      checked={hasWill}
+                      onChange={(e) => setHasWill(e.target.checked)}
+                      className="w-4 h-4 rounded text-slate-900 bg-white border-slate-300 focus:ring-slate-900 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Will 同行</span>
+                  </label>
                 </div>
 
                 <div>
@@ -347,6 +359,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  其他分帳人員
+                  <span className="text-slate-400 font-normal ml-1">(選填，逗號區隔，僅記帳分錢，不影響打包)</span>
+                </label>
+                <input
+                  type="text"
+                  value={otherCompanions}
+                  onChange={(e) => setOtherCompanions(e.target.value)}
+                  placeholder="例：Ting, Amy（Jo 預設永遠加入）"
+                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+                />
               </div>
             </div>
 

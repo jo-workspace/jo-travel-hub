@@ -10,6 +10,7 @@ interface ImportPackingModalProps {
   isOpen: boolean;
   currentTripId: string;
   existingItems: PackingItem[];
+  hasWill?: boolean;
   onClose: () => void;
   onImport: (items: Array<{ category: string; person: string; item: string; note?: string; location?: string }>) => Promise<void>;
 }
@@ -18,6 +19,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
   isOpen,
   currentTripId,
   existingItems,
+  hasWill = false,
   onClose,
   onImport,
 }) => {
@@ -70,9 +72,10 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
         const initialSelected = new Set<string>();
         packing.forEach((item, idx) => {
           const key = `${item.item}__${item.category}__${item.person || ''}__${idx}`;
+          const targetPerson = !hasWill ? 'Jo' : ((item.person || '').trim() || 'Jo');
           const isDuplicate = existingItems.some(
             (e) => e.item.trim().toLowerCase() === item.item.trim().toLowerCase() &&
-                   (e.person || '').trim() === (item.person || '').trim()
+                   ((e.person || '').trim() || 'Jo') === targetPerson
           );
           if (!isDuplicate) {
             initialSelected.add(key);
@@ -88,7 +91,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
     };
 
     loadSourceItems();
-  }, [isOpen, selectedSourceTripId, existingItems]);
+  }, [isOpen, selectedSourceTripId, existingItems, hasWill]);
 
   // 提取來源清單中的人員標籤
   const availablePersons = useMemo(() => {
@@ -118,9 +121,10 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
     targetItems.forEach((item) => {
       const idx = sourcePackingItems.indexOf(item);
       const key = `${item.item}__${item.category}__${item.person || ''}__${idx}`;
+      const targetPerson = !hasWill ? 'Jo' : ((item.person || '').trim() || 'Jo');
       const isDuplicate = existingItems.some(
         (e) => e.item.trim().toLowerCase() === item.item.trim().toLowerCase() &&
-               (e.person || '').trim() === (item.person || '').trim()
+               ((e.person || '').trim() || 'Jo') === targetPerson
       );
       if (!isDuplicate) {
         newSelected.add(key);
@@ -190,10 +194,18 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
       const idx = sourcePackingItems.indexOf(it);
       const key = `${it.item}__${it.category}__${it.person || ''}__${idx}`;
       if (selectedItemKeys.has(key)) {
+        let person = (it.person || '').trim();
+        if (!hasWill) {
+          // 本趟旅程無 Will 同行，匯入行李一律歸入 Jo
+          person = 'Jo';
+        } else if (!person) {
+          person = 'Jo';
+        }
+
         itemsToImport.push({
           item: it.item.trim(),
           category: (it.category || '個人物品').trim(),
-          person: (it.person || '').trim(),
+          person,
           note: includeNotes ? (it.note || '').trim() : '',
           location: (it.location || '').trim(),
         });
@@ -239,7 +251,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
                 跨旅程匯入打包清單
               </h3>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
-                從其他旅程快速複製必備行李項目
+                {!hasWill ? '本旅程為 Jo 個人打包，匯入項目將統一歸入 Jo' : '從其他旅程快速複製必備行李項目'}
               </p>
             </div>
           </div>
@@ -364,9 +376,10 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
                   {items.map(({ item, originalIdx }) => {
                     const key = `${item.item}__${item.category}__${item.person || ''}__${originalIdx}`;
                     const isChecked = selectedItemKeys.has(key);
+                    const targetPerson = !hasWill ? 'Jo' : ((item.person || '').trim() || 'Jo');
                     const isDuplicate = existingItems.some(
                       (e) => e.item.trim().toLowerCase() === item.item.trim().toLowerCase() &&
-                             (e.person || '').trim() === (item.person || '').trim()
+                             ((e.person || '').trim() || 'Jo') === targetPerson
                     );
 
                     return (
@@ -394,7 +407,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
                               </span>
                               {item.person && (
                                 <span className="text-[10px] font-bold bg-slate-200/70 text-slate-600 px-1.5 py-0.2 rounded">
-                                  {item.person}
+                                  {!hasWill ? 'Jo' : item.person}
                                 </span>
                               )}
                               {item.location && (

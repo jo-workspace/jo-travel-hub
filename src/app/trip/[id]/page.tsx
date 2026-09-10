@@ -203,9 +203,17 @@ export default function TripPage({ params }: PageProps) {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  // 嚴格限定於「當前旅程同行人員 / 記帳分帳成員」
+  // 判斷旅程是否有 Will 同行（基本資訊 checkbox 或設定中包含 Will）
+  const companionTokens = useMemo(() => {
+    return (tripData.companions || '').split(/[\n,，]+/).map((p) => p.trim()).filter(Boolean);
+  }, [tripData.companions]);
+  const hasWillCompanion = companionTokens.includes('Will');
+
+  // 嚴格限定於「當前旅程同行人員 / 記帳分帳成員」（Jo 預設永遠加入）
   const currentCompanions = useMemo(() => {
     const set = new Set<string>();
+    set.add('Jo');
+    if (hasWillCompanion) set.add('Will');
     const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
     if (tripData.companions) {
       tripData.companions.split(/[\n,，]+/).forEach((p) => {
@@ -220,35 +228,43 @@ export default function TripPage({ params }: PageProps) {
       if (p && !EXCLUDED_KEYWORDS.includes(p) && !p.includes(':') && !p.includes('：')) set.add(p);
       if (s && !EXCLUDED_KEYWORDS.includes(s) && !s.includes(':') && !s.includes('：')) set.add(s);
     });
-    return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
-  }, [tripData.companions, tripData.expenses]);
+    return Array.from(set);
+  }, [tripData.companions, tripData.expenses, hasWillCompanion]);
 
-  // 嚴格限定於「當前旅程攜帶人員」（只抓旅程同行設定 + 打包既有歷史人員，絕對不抓購物清單伴手禮對象）
+  // 嚴格限定於「當前旅程攜帶人員」（Jo 預設永遠加入；若 Will 同行才加入 Will 與公用；財務分帳旅伴絕不加入）
   const currentPackingPersons = useMemo(() => {
     const set = new Set<string>();
-    const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
-    if (tripData.companions) {
-      tripData.companions.split(/[\n,，]+/).forEach((p) => {
-        const trimmed = p.trim();
-        if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
-      });
+    set.add('Jo');
+    if (hasWillCompanion) {
+      set.add('Will');
+      set.add('公用');
     }
+    // 若歷史打包清單中有其他人員（若 Will 沒去，過濾掉誤留的 Will 與公用）
     tripData.packing.forEach((p) => {
-      if (p.person && p.person !== '公用') {
+      if (p.person) {
         p.person.split(/[\n,，]+/).forEach((name) => {
           const trimmed = name.trim();
-          if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
+          if (!hasWillCompanion && (trimmed === 'Will' || trimmed === '公用')) return;
+          if (trimmed && !['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'].includes(trimmed)) {
+            set.add(trimmed);
+          }
         });
       }
     });
-    return Array.from(set).length > 0 ? Array.from(set) : ['Jo', 'Will'];
-  }, [tripData.companions, tripData.packing]);
+    return Array.from(set);
+  }, [tripData.packing, hasWillCompanion]);
 
-  // 嚴格限定於「當前旅程購物幫買/對象」（同行人員固定排前 ＋ 其餘對象按名字自然排序）
+  // 嚴格限定於「當前旅程購物幫買/對象」（Jo 永遠排首位，同行人員固定排前 ＋ 其餘對象按名字自然排序）
   const currentShoppingPersons = useMemo(() => {
     const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
     const companionSet = new Set<string>();
-    const companionList: string[] = [];
+    const companionList: string[] = ['Jo'];
+    companionSet.add('Jo');
+
+    if (hasWillCompanion) {
+      companionList.push('Will');
+      companionSet.add('Will');
+    }
 
     if (tripData.companions) {
       tripData.companions.split(/[\n,，]+/).forEach((p) => {
@@ -256,15 +272,6 @@ export default function TripPage({ params }: PageProps) {
         if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed) && !companionSet.has(trimmed)) {
           companionSet.add(trimmed);
           companionList.push(trimmed);
-        }
-      });
-    }
-
-    if (companionList.length === 0) {
-      ['Jo', 'Will'].forEach((c) => {
-        if (!companionSet.has(c)) {
-          companionSet.add(c);
-          companionList.push(c);
         }
       });
     }
@@ -287,7 +294,7 @@ export default function TripPage({ params }: PageProps) {
     );
 
     return [...companionList, ...sortedOtherPersons];
-  }, [tripData.companions, tripData.shopping]);
+  }, [tripData.companions, tripData.shopping, hasWillCompanion]);
 
   // 跨旅程歷史打包類別（純歷史資料，過濾掉誤填為類別的位置或公用關鍵字）
   const currentPackingCategories = useMemo(() => {
@@ -553,11 +560,12 @@ export default function TripPage({ params }: PageProps) {
     person: string;
     location: string;
   }) => {
+    const finalPerson = newItem.person || (hasWillCompanion ? '' : 'Jo');
     const tempRowIndex = (tripData.packing[tripData.packing.length - 1]?.rowIndex || 1) + 1;
     const optimisticItem: PackingItem = {
       rowIndex: tempRowIndex,
       category: newItem.category,
-      person: newItem.person,
+      person: finalPerson,
       item: newItem.item,
       note: '',
       location: newItem.location,
@@ -574,7 +582,7 @@ export default function TripPage({ params }: PageProps) {
         {
           rowIndex: 0,
           category: newItem.category,
-          person: newItem.person,
+          person: finalPerson,
           item: newItem.item,
           note: '',
           location: newItem.location,
@@ -842,7 +850,7 @@ export default function TripPage({ params }: PageProps) {
                   onOpenImportModal={() => setImportPackingModalOpen(true)}
                   onOpenModal={(item, defaultPerson, defaultCategory, defaultLocation) => {
                     setActivePackingItem(item || null);
-                    setDefaultPackingPerson(defaultPerson || '');
+                    setDefaultPackingPerson(defaultPerson || (hasWillCompanion ? '' : 'Jo'));
                     setDefaultPackingCategory(defaultCategory || '');
                     setDefaultPackingLocation(defaultLocation || '');
                     setPackingModalOpen(true);
@@ -930,6 +938,7 @@ export default function TripPage({ params }: PageProps) {
         isOpen={importPackingModalOpen}
         currentTripId={tripId}
         existingItems={tripData.packing}
+        hasWill={hasWillCompanion}
         onClose={() => setImportPackingModalOpen(false)}
         onImport={handleBatchImportPacking}
       />

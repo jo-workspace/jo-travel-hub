@@ -48,9 +48,9 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   const [location, setLocation] = useState(defaultLocation || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 當前旅程攜帶人員清單（僅限同行人員與攜帶歷史，並包含公用）
+  // 當前旅程攜帶人員清單（由 page.tsx 精確傳入，不再強制加入公用）
   const personPresets = Array.from(
-    new Set([...companionsList.map((p) => p.trim()).filter(Boolean), '公用'])
+    new Set(companionsList.map((p) => p.trim()).filter(Boolean))
   );
 
   useEffect(() => {
@@ -62,12 +62,12 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       setLocation(item.location || '');
     } else {
       setCategory(defaultCategory || categoryPresets[0] || '衣物');
-      setPerson(defaultPerson || '');
+      setPerson(defaultPerson || (personPresets.length === 1 ? personPresets[0] : ''));
       setItemName('');
       setNote('');
       setLocation(defaultLocation || '');
     }
-  }, [item, isOpen, defaultPerson, defaultCategory, defaultLocation]);
+  }, [item, isOpen, defaultPerson, defaultCategory, defaultLocation, personPresets]);
 
   if (!isOpen) return null;
 
