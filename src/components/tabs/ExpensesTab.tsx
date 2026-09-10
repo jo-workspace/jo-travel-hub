@@ -46,7 +46,7 @@ export interface ExpenseMeta {
 export function parseExpenseMeta(rawNote?: string): ExpenseMeta {
   if (!rawNote) return { cleanNote: '' };
 
-  const metaMatch = rawNote.match(/<!--(?:EXP_META:([^\->]+)|TWD:(\d+)(?:,FX:([\d.]+))?)-->/);
+  const metaMatch = rawNote.match(/<!--(?:EXP_META:([\s\S]*?)|TWD:(\d+)(?:,FX:([\d.]+))?)-->/);
 
   let customTwd: number | undefined;
   let customFx: number | undefined;
@@ -1001,7 +1001,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                         const isChecked = selectedProxyRows.includes(p.rowIndex);
                         return (
                           <label
-                            key={p.rowIndex}
+                            key={`${p.rowIndex}-${p.personName}`}
                             className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all ${
                               isChecked
                                 ? 'bg-amber-400/15 border-amber-400/50 text-white'
