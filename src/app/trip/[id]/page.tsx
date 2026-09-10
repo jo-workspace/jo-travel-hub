@@ -883,6 +883,7 @@ export default function TripPage({ params }: PageProps) {
                   foreignCurrency={tripData.foreignCurrency || 'USD'}
                   fxRate={tripData.fxRate}
                   hideDone={hideVisited}
+                  companionsList={currentCompanions}
                   onToggleShopping={handleToggleShopping}
                   onToggleIgnoreShopping={handleToggleShoppingIgnored}
                   onOpenModal={(item, defaultStore, defaultForWhom) => {
@@ -950,7 +951,8 @@ export default function TripPage({ params }: PageProps) {
         defaultStore={defaultShoppingStore}
         defaultForWhom={defaultShoppingPerson}
         existingStores={currentShoppingStores}
-        companionsList={currentShoppingPersons}
+        companionsList={currentCompanions}
+        recipientPresets={currentShoppingPersons}
         onClose={() => setShoppingModalOpen(false)}
         onSave={handleSaveShopping}
         onDelete={handleDeleteShopping}

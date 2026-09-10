@@ -10,6 +10,7 @@ interface ShoppingTabProps {
   foreignCurrency?: string;
   fxRate: number;
   hideDone: boolean;
+  companionsList?: string[];
   onToggleShopping: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onToggleIgnoreShopping?: (rowIndex: number, currentIgnored: boolean, id?: string) => void;
   onOpenModal: (item?: ShoppingItem, defaultStore?: string, defaultForWhom?: string) => void;
@@ -47,7 +48,11 @@ export const parseRecipientTags = (forWhomStr?: string, members: string[] = ['Jo
       const qtyStr = proxyMatch[2] || proxyMatch[4];
       const qty = qtyStr ? parseInt(qtyStr, 10) : 1;
       const explicitOwner = proxyMatch[3]?.trim();
-      const owner = explicitOwner || inferOwnerFromName(cleanName || token, members);
+      let owner = explicitOwner || inferOwnerFromName(cleanName || token, members);
+      // 確保歸屬人嚴格限定於 members（有分帳的人）；若誤帶入「Will 姊」等親友，自動轉化推斷為合法同行人（如 Will）
+      if (owner && !members.includes(owner)) {
+        owner = inferOwnerFromName(owner, members);
+      }
       return {
         name: cleanName || token,
         isProxy: true,
@@ -77,9 +82,13 @@ export const serializeRecipientTags = (tags: RecipientTag[], members: string[] =
       const cleanName = t.name.trim();
       if (!cleanName) return '';
       if (t.isProxy) {
+        // 確保歸屬人必須在 members 內
+        const validOwner = (t.owner && members.includes(t.owner))
+          ? t.owner
+          : inferOwnerFromName(t.owner || cleanName, members);
         const inferred = inferOwnerFromName(cleanName, members);
-        const hasCustomOwner = t.owner && t.owner.toLowerCase() !== inferred.toLowerCase();
-        const ownerPart = hasCustomOwner ? `@${t.owner}` : '';
+        const hasCustomOwner = validOwner.toLowerCase() !== inferred.toLowerCase();
+        const ownerPart = hasCustomOwner ? `@${validOwner}` : '';
         const qtyPart = t.quantity > 1 ? `*${t.quantity}` : '';
         return `${cleanName}(代購${qtyPart}${ownerPart})`;
       }
@@ -128,17 +137,19 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   foreignCurrency = 'USD',
   fxRate,
   hideDone,
+  companionsList,
   onToggleShopping,
   onToggleIgnoreShopping,
   onOpenModal,
   onOpenLightbox,
 }) => {
+  const members = companionsList && companionsList.length > 0 ? companionsList : ['Jo', 'Will'];
   const [selectedStore, setSelectedStore] = useState(ALL_STORES);
   const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
 
   const storeList = Array.from(new Set(data.flatMap((item) => splitTokens(item.store))));
   const personList = Array.from(
-    new Set(data.flatMap((item) => parseRecipientTags(item.forWhom).map((t) => t.name)))
+    new Set(data.flatMap((item) => parseRecipientTags(item.forWhom, members).map((t) => t.name)))
   ).sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true, sensitivity: 'base' }));
 
   const isAllStores = selectedStore === ALL_STORES;
@@ -149,7 +160,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
       if (hideDone && (item.isDone || isIgnored)) return false;
       const matchStore = isAllStores || splitTokens(item.store).includes(selectedStore);
-      const recipientNames = parseRecipientTags(item.forWhom).map((t) => t.name);
+      const recipientNames = parseRecipientTags(item.forWhom, members).map((t) => t.name);
       const matchPerson = isAllPeople || recipientNames.includes(selectedPerson);
       return matchStore && matchPerson;
     })
@@ -276,7 +287,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
         {filteredItems.map((item) => {
           const stores = splitTokens(item.store);
           const displayStores = isAllStores ? stores : stores.filter((s) => s !== selectedStore);
-          const recipientTags = parseRecipientTags(item.forWhom);
+          const recipientTags = parseRecipientTags(item.forWhom, members);
           const isOutOfStock = item.purchaseStatus === 'out_of_stock';
           const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
           const totalQty = recipientTags.reduce((sum, t) => sum + t.quantity, 0) || parseShoppingQuantity(item.quantity);

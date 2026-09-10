@@ -11,6 +11,7 @@ interface ShoppingModalProps {
   defaultStore?: string;
   defaultForWhom?: string;
   existingStores?: string[];
+  recipientPresets?: string[];
   companionsList?: string[];
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
@@ -23,6 +24,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   defaultStore = '',
   defaultForWhom = 'Jo',
   existingStores = [],
+  recipientPresets = [],
   companionsList = [],
   onClose,
   onSave,
@@ -44,8 +46,8 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     new Set(existingStores.map((s) => s.trim()).filter(Boolean))
   );
 
-  // 當前旅程同行人員 / 曾買對象清單（去重）
-  const personPresets = Array.from(
+  // 真正有分帳的同行成員清單（嚴格限定，例如 Jo、Will）
+  const splitCompanions = Array.from(
     new Set(
       companionsList.length > 0
         ? companionsList.map((p) => p.trim()).filter(Boolean)
@@ -53,11 +55,22 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     )
   );
 
+  // 當前旅程快捷選取受贈對象清單（包含同行人員與親友清單）
+  const personPresets = Array.from(
+    new Set(
+      (recipientPresets.length > 0 ? recipientPresets : splitCompanions).map((p) => p.trim()).filter(Boolean)
+    )
+  );
+
   useEffect(() => {
     if (item) {
       setStore(item.store || '');
-      const parsed = parseRecipientTags(item.forWhom || defaultForWhom || 'Jo', personPresets);
-      setRecipientTags(parsed);
+      const parsed = parseRecipientTags(item.forWhom || defaultForWhom || 'Jo', splitCompanions);
+      const sanitized = parsed.map((t) => ({
+        ...t,
+        owner: (t.owner && splitCompanions.includes(t.owner)) ? t.owner : inferOwnerFromName(t.name, splitCompanions),
+      }));
+      setRecipientTags(sanitized);
       setIsProxy(parsed.some((t) => t.isProxy));
       setItemName(item.item || '');
       setPrice(item.price ? String(item.price) : '');
@@ -66,8 +79,12 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setNote(item.note || '');
     } else {
       setStore(defaultStore || '');
-      const parsed = parseRecipientTags(defaultForWhom || 'Jo', personPresets);
-      setRecipientTags(parsed);
+      const parsed = parseRecipientTags(defaultForWhom || 'Jo', splitCompanions);
+      const sanitized = parsed.map((t) => ({
+        ...t,
+        owner: (t.owner && splitCompanions.includes(t.owner)) ? t.owner : inferOwnerFromName(t.name, splitCompanions),
+      }));
+      setRecipientTags(sanitized);
       setIsProxy(false);
       setItemName('');
       setPrice('');
@@ -75,7 +92,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setUrl('');
       setNote('');
     }
-  }, [item, isOpen, defaultStore, defaultForWhom]);
+  }, [item, isOpen, defaultStore, defaultForWhom, splitCompanions.join(',')]);
 
   if (!isOpen) return null;
 
@@ -92,7 +109,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
         updated[existingIdx] = { ...updated[existingIdx], quantity: updated[existingIdx].quantity + 1 };
         return updated;
       }
-      const initialOwner = inferOwnerFromName(trimmed, personPresets);
+      const initialOwner = inferOwnerFromName(trimmed, splitCompanions);
       return [...prev, { name: trimmed, isProxy, quantity: 1, owner: initialOwner }];
     });
     setCustomPerson('');
@@ -103,10 +120,12 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       const updated = [...prev];
       const tag = updated[index];
       if (!tag) return prev;
-      const currentOwner = tag.owner || inferOwnerFromName(tag.name, personPresets);
-      const currentIdx = personPresets.indexOf(currentOwner);
-      const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % personPresets.length : 0;
-      updated[index] = { ...tag, owner: personPresets[nextIdx] };
+      const currentOwner = (tag.owner && splitCompanions.includes(tag.owner))
+        ? tag.owner
+        : inferOwnerFromName(tag.name, splitCompanions);
+      const currentIdx = splitCompanions.indexOf(currentOwner);
+      const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % splitCompanions.length : 0;
+      updated[index] = { ...tag, owner: splitCompanions[nextIdx] };
       return updated;
     });
   };
@@ -123,9 +142,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     const normalizedTags = baseTags.map((t) => ({
       ...t,
       isProxy,
-      owner: t.owner || inferOwnerFromName(t.name, personPresets),
+      owner: (t.owner && splitCompanions.includes(t.owner)) ? t.owner : inferOwnerFromName(t.name, splitCompanions),
     }));
-    const finalForWhom = serializeRecipientTags(normalizedTags, personPresets);
+    const finalForWhom = serializeRecipientTags(normalizedTags, splitCompanions);
 
     setIsSubmitting(true);
     try {
@@ -265,7 +284,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                         className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-200/90 hover:bg-amber-300 text-amber-950 font-bold transition-all cursor-pointer shadow-2xs"
                         title="點擊切換負責歸屬同行人 (例如 Jo / Will)"
                       >
-                        歸屬: {tag.owner || inferOwnerFromName(tag.name, personPresets)}
+                        歸屬: {(tag.owner && splitCompanions.includes(tag.owner)) ? tag.owner : inferOwnerFromName(tag.name, splitCompanions)}
                       </button>
                     )}
 
