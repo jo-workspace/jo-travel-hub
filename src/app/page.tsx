@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TripConfig } from '@/config/trips';
 import { getTripsList, createTrip } from '@/lib/supabase-client';
-import { Compass, ArrowRight, Plus, MapPin, X, Sparkles } from 'lucide-react';
+import { Compass, ArrowRight, Plus, MapPin, X, Sparkles, ChevronDown, Archive } from 'lucide-react';
 
 export default function HomePage() {
   const [tripList, setTripList] = useState<TripConfig[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
@@ -26,6 +27,14 @@ export default function HomePage() {
   useEffect(() => {
     loadTrips();
   }, []);
+
+  const isArchived = (t: TripConfig) => {
+    const badge = t.badgeText || '';
+    return badge.includes('封存') || badge.includes('結束');
+  };
+
+  const activeTrips = tripList.filter((t) => !isArchived(t));
+  const archivedTrips = tripList.filter((t) => isArchived(t));
 
   const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,71 +89,153 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-8 space-y-8">
-        {/* Trip Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tripList.map((trip) => (
-            <Link
-              key={trip.id}
-              href={`/trip/${trip.id}`}
-              className="group bg-slate-800/80 border border-slate-700/80 rounded-3xl p-6 transition-all duration-300 hover:border-amber-400/80 hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between relative overflow-hidden"
+      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-8 space-y-10">
+        {/* Active Trip Cards Grid */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-2">
+              <span>進行與籌備中</span>
+              <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">
+                {activeTrips.length}
+              </span>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeTrips.map((trip) => (
+              <Link
+                key={trip.id}
+                href={`/trip/${trip.id}`}
+                className="group bg-slate-800/80 border border-slate-700/80 rounded-3xl p-6 transition-all duration-300 hover:border-amber-400/80 hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between relative overflow-hidden"
+              >
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl group-hover:bg-amber-400/20 transition-all" />
+
+                <div className="space-y-4 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-slate-900/90 text-amber-400 border border-amber-400/20 font-mono">
+                      {trip.dates || '2026'}
+                    </span>
+                    <span className="text-xs font-bold text-slate-300 bg-slate-700/60 px-2.5 py-0.5 rounded-full">
+                      {trip.badgeText || '進行中'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-black text-white group-hover:text-amber-400 transition-colors flex items-center justify-between">
+                      <span>{trip.title}</span>
+                      <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+                    </h3>
+                    {trip.description && (
+                      <p className="text-xs text-slate-400 font-medium leading-relaxed">
+                        {trip.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-700/50 mt-6 flex items-center justify-between text-xs text-slate-400 font-semibold relative z-10">
+                  <span className="flex items-center space-x-1">
+                    <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                    <span>進入專屬助理</span>
+                  </span>
+                  <span className="text-amber-400 font-extrabold group-hover:underline">
+                    開啟網頁 →
+                  </span>
+                </div>
+              </Link>
+            ))}
+
+            {/* Card: Add Trip Action */}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-slate-900/40 border border-dashed border-slate-700/80 rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-amber-400/60 transition-all text-left group cursor-pointer min-h-[220px]"
             >
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 -mr-16 -mt-16 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl group-hover:bg-amber-400/20 transition-all" />
-
-              <div className="space-y-4 relative z-10">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-slate-900/90 text-amber-400 border border-amber-400/20 font-mono">
-                    {trip.dates || '2026'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-300 bg-slate-700/60 px-2.5 py-0.5 rounded-full">
-                    {trip.badgeText || '進行中'}
-                  </span>
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-2xl bg-slate-800 group-hover:bg-amber-400/20 flex items-center justify-center text-slate-400 group-hover:text-amber-400 transition-all">
+                  <Plus className="w-5 h-5" />
                 </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-white group-hover:text-amber-400 transition-colors flex items-center justify-between">
-                    <span>{trip.title}</span>
-                    <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
-                  </h3>
-                  {trip.description && (
-                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
-                      {trip.description}
-                    </p>
-                  )}
-                </div>
+                <h3 className="text-lg font-extrabold text-white group-hover:text-amber-400 transition-all">
+                  建立新旅程
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                  點擊一鍵開立全新旅程！免去繁瑣的 Google Sheet 腳本與 API 部署。
+                </p>
               </div>
-
-              <div className="pt-6 border-t border-slate-700/50 mt-6 flex items-center justify-between text-xs text-slate-400 font-semibold relative z-10">
-                <span className="flex items-center space-x-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  <span>進入專屬助理</span>
-                </span>
-                <span className="text-amber-400 font-extrabold group-hover:underline">
-                  開啟網頁 →
-                </span>
-              </div>
-            </Link>
-          ))}
-
-          {/* Card: Add Trip Action */}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-slate-900/40 border border-dashed border-slate-700/80 rounded-3xl p-6 flex flex-col justify-between space-y-4 hover:border-amber-400/60 transition-all text-left group cursor-pointer"
-          >
-            <div className="space-y-3">
-              <div className="w-10 h-10 rounded-2xl bg-slate-800 group-hover:bg-amber-400/20 flex items-center justify-center text-slate-400 group-hover:text-amber-400 transition-all">
-                <Plus className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-extrabold text-white group-hover:text-amber-400 transition-all">
-                建立新旅程
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                點擊一鍵開立全新旅程！免去繁瑣的 Google Sheet 腳本與 API 部署。
-              </p>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
+
+        {/* Archived Trips Section */}
+        {archivedTrips.length > 0 && (
+          <div className="pt-6 border-t border-slate-800/80 space-y-4">
+            <button
+              type="button"
+              onClick={() => setShowArchived(!showArchived)}
+              className="flex items-center justify-between w-full p-4 bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/60 rounded-2xl transition-all cursor-pointer group select-none"
+            >
+              <div className="flex items-center space-x-3">
+                <span className="text-lg">📦</span>
+                <span className="text-sm font-extrabold text-slate-300 group-hover:text-white">
+                  歷史封存旅程 ({archivedTrips.length})
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  {showArchived ? '點擊收合' : '點擊展開回顧'}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  showArchived ? 'rotate-180 text-amber-400' : ''
+                }`}
+              />
+            </button>
+
+            {showArchived && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in pt-1">
+                {archivedTrips.map((trip) => (
+                  <Link
+                    key={trip.id}
+                    href={`/trip/${trip.id}`}
+                    className="group bg-slate-800/40 border border-slate-700/60 hover:border-slate-500 rounded-3xl p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col justify-between opacity-80 hover:opacity-100 relative overflow-hidden"
+                  >
+                    <div className="space-y-4 relative z-10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-slate-900/90 text-slate-400 border border-slate-700 font-mono">
+                          {trip.dates || '已完成'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400 bg-slate-700/50 px-2.5 py-0.5 rounded-full">
+                          {trip.badgeText || '已封存'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <h3 className="text-xl font-black text-slate-200 group-hover:text-amber-400 transition-colors flex items-center justify-between">
+                          <span>{trip.title}</span>
+                          <ArrowRight className="w-5 h-5 text-slate-600 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+                        </h3>
+                        {trip.description && (
+                          <p className="text-xs text-slate-400 font-medium leading-relaxed">
+                            {trip.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-700/40 mt-6 flex items-center justify-between text-xs text-slate-500 font-semibold relative z-10">
+                      <span className="flex items-center space-x-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-600" />
+                        <span>回顧旅程足跡</span>
+                      </span>
+                      <span className="text-amber-400/90 font-extrabold group-hover:underline">
+                        開啟網頁 →
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Add Trip Modal */}

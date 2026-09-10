@@ -31,7 +31,7 @@ export function sortTrips(trips: TripConfig[]): TripConfig[] {
   const getStatusRank = (badge: string) => {
     if (badge.includes('進行中')) return 1;
     if (badge.includes('籌備中')) return 2;
-    if (badge.includes('已結束') || badge.includes('完成')) return 3;
+    if (badge.includes('已結束') || badge.includes('完成') || badge.includes('封存')) return 3;
     return 4;
   };
 
@@ -164,19 +164,28 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       supabase.from('todo_items').select('category'),
     ]);
 
-    const itinerary: ItineraryItem[] = (itineraryRes.data || []).map((row, idx) => ({
-      rowIndex: idx + 2, // 保持相容性 1-indexed
-      day: row.Day || row.day || `Day ${row.day_number || 1}`,
-      date: row.Date || row.date || row.date_str || '',
-      time: row.Time || row.time || '',
-      type: row.Type || row.type || row.category || '觀光',
-      title: row.Title || row.title || '未命名行程',
-      content: row.Content || row.content || row.note || '',
-      links: row.Links || row.links || row.location || row.url || row.URL || '',
-      isVisited: !!(row.Is_Visited ?? row.is_visited ?? false),
-    }));
+    const itinerary: ItineraryItem[] = (itineraryRes.data || []).map((row, idx) => {
+      const rawContent = row.Content || row.content || row.note || '';
+      const isIgnored = rawContent.includes('<!--IGNORED-->') || (row.time || '') === '略過';
+      const cleanContent = rawContent.replace(/<!--IGNORED-->/g, '').trim();
+
+      return {
+        id: row.id,
+        rowIndex: idx + 2, // 保持相容性 1-indexed
+        day: row.Day || row.day || `Day ${row.day_number || 1}`,
+        date: row.Date || row.date || row.date_str || '',
+        time: row.Time || row.time || '',
+        type: row.Type || row.type || row.category || '觀光',
+        title: row.Title || row.title || '未命名行程',
+        content: cleanContent,
+        links: row.Links || row.links || row.location || row.url || row.URL || '',
+        isVisited: !!(row.Is_Visited ?? row.is_visited ?? false),
+        isIgnored,
+      };
+    });
 
     const todo: TodoItem[] = (todoRes.data || []).map((row, idx) => ({
+      id: row.id,
       rowIndex: idx + 2,
       category: row.category || row.Category || '待辦',
       task: row.task || row.Task || row.task_name || '',
@@ -185,6 +194,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     }));
 
     const packing: PackingItem[] = (packingRes.data || []).map((row, idx) => ({
+      id: row.id,
       rowIndex: idx + 2,
       category: row.category || row.Category || '個人物品',
       person: row.owner || row.person || row.Person || '全員',
@@ -286,6 +296,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const companions = settingsData?.companions || 'Jo, Will';
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
+    const badgeText = tripData?.badge_text || '進行中';
     const timezone = settingsData?.timezone || TRIPS[tripId]?.timezone || 'Asia/Taipei';
 
     // 跨旅程歷史分類聚合（去重並過濾無效關鍵字）
@@ -315,6 +326,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       companions,
       tripTitle,
       tripDates,
+      badgeText,
       timezone,
       customIcon,
       svgIcon: customIcon,
@@ -359,6 +371,7 @@ export async function updateTripSettings(
     timezone?: string;
     title?: string;
     dates?: string;
+    badgeText?: string;
     customIcon?: string;
     svgIcon?: string;
     citySchedule?: string;
@@ -474,17 +487,28 @@ export async function updateTripSettings(
 
   if (settingsError) throw new Error(`設定儲存失敗: ${settingsError.message}`);
 
-  // 2. 同步更新 trips 資料表（旅程卡片名稱與日期）
-  if (settings.title !== undefined || settings.dates !== undefined) {
+  // 2. 同步更新 trips 資料表（旅程卡片名稱、日期與狀態）
+  if (settings.title !== undefined || settings.dates !== undefined || settings.badgeText !== undefined) {
     try {
+      const updateData: Record<string, any> = {};
+      if (settings.title !== undefined) updateData.title = settings.title;
+      if (settings.dates !== undefined) updateData.dates = settings.dates;
+      if (settings.badgeText !== undefined) updateData.badge_text = settings.badgeText;
+
       await supabase
         .from('trips')
-        .update({ title: settings.title, dates: settings.dates })
+        .update(updateData)
         .eq('id', tripId);
     } catch (e) {
       console.warn('trips update skipped:', e);
     }
   }
+}
+
+/** 一鍵更新旅程狀態（進行中 / 籌備中 / 已封存） */
+export async function setTripBadge(tripId: string, badgeText: string): Promise<void> {
+  const { error } = await supabase.from('trips').update({ badge_text: badgeText }).eq('id', tripId);
+  if (error) throw new Error(`更新狀態失敗: ${error.message}`);
 }
 
 /** 根據 DB 實際擁有的欄位動態建立 Payload */
@@ -509,9 +533,9 @@ function matchDbPayload(sampleRow: any, map: Record<string, [any, ...string[]]>,
   return payload;
 }
 
-/** 行程新增/編輯/儲存 */
+/** 行程新增/編輯/儲存（支援精準 UUID 鎖定更新） */
 export async function saveItineraryData(formData: any, tripId = 'la-2026'): Promise<string> {
-  const { rowIndex, day, time, type, title, content, links } = formData;
+  const { id, rowIndex, day, time, type, title, content, links, isIgnored } = formData;
   const dayMatch = day ? day.match(/\d+/) : null;
   const dayNumber = dayMatch ? parseInt(dayMatch[0], 10) : 1;
 
@@ -519,14 +543,33 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
     .from('itinerary_items')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
 
   if (fetchErr) {
     console.warn('itinerary_items fetch error:', fetchErr);
   }
 
   const sampleRow = list?.[0] || null;
-  const targetRow = (rowIndex && rowIndex >= 2 && list) ? list[rowIndex - 2] : null;
+  let targetRow: any = null;
+  if (id) {
+    targetRow = list?.find((item) => item.id === id) || null;
+    if (!targetRow) {
+      const { data: byId } = await supabase.from('itinerary_items').select('*').eq('id', id).limit(1);
+      targetRow = byId?.[0] || null;
+    }
+  } else if (rowIndex && rowIndex >= 2 && list) {
+    targetRow = list[rowIndex - 2] || null;
+  }
+
+  let finalNote = (content || '').trim();
+  if (isIgnored) {
+    if (!finalNote.includes('<!--IGNORED-->')) {
+      finalNote = finalNote ? `${finalNote}\n<!--IGNORED-->` : '<!--IGNORED-->';
+    }
+  } else {
+    finalNote = finalNote.replace(/<!--IGNORED-->/g, '').trim();
+  }
 
   // 優先採用標準 Supabase 欄位名稱 (day_number, url, note, category, title, time)
   const map: Record<string, [any, ...string[]]> = {
@@ -534,7 +577,7 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
     time: [time || '', 'time', 'Time'],
     category: [type || '觀光', 'category', 'Category', 'type', 'Type'],
     title: [title || '未命名行程', 'title', 'Title'],
-    note: [content || '', 'note', 'Note', 'content', 'Content'],
+    note: [finalNote, 'note', 'Note', 'content', 'Content'],
     url: [links || '', 'url', 'URL', 'links', 'Links', 'location'],
   };
 
@@ -550,7 +593,10 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
   }
 
   const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['is_visited', 'Is_Visited', 'visited'].includes(k)) || 'is_visited';
-  const { error } = await supabase.from('itinerary_items').insert({ ...payload, [statusKey]: false });
+  const { error } = await supabase.from('itinerary_items').insert({
+    ...payload,
+    [statusKey]: !!formData.isVisited || !!isIgnored,
+  });
   if (error) {
     console.error('儲存行程失敗 Supabase Error:', error);
     throw new Error(`儲存行程失敗: ${error.message}`);
@@ -558,22 +604,107 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
   return '儲存成功';
 }
 
-export async function deleteItineraryData(rowIndex: number, tripId = 'la-2026'): Promise<string> {
-  const { data } = await supabase.from('itinerary_items').select('id').eq('trip_id', tripId).order('created_at', { ascending: true });
-  if (data && data[rowIndex - 2]) {
-    await supabase.from('itinerary_items').delete().eq('id', data[rowIndex - 2].id);
+export async function deleteItineraryData(
+  target: number | { id?: string; rowIndex?: number },
+  tripId = 'la-2026'
+): Promise<string> {
+  const targetId = typeof target === 'object' ? target.id : undefined;
+  const rowIndex = typeof target === 'number' ? target : target?.rowIndex;
+
+  if (targetId) {
+    const { error } = await supabase.from('itinerary_items').delete().eq('id', targetId);
+    if (error) throw new Error(`刪除失敗: ${error.message}`);
+    return '刪除成功';
+  }
+
+  const { data } = await supabase
+    .from('itinerary_items')
+    .select('id')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (rowIndex && data && data[rowIndex - 2]) {
+    const { error } = await supabase.from('itinerary_items').delete().eq('id', data[rowIndex - 2].id);
+    if (error) throw new Error(`刪除失敗: ${error.message}`);
   }
   return '刪除成功';
 }
 
-export async function toggleVisitedStatus(rowIndex: number, isChecked: boolean, tripId = 'la-2026'): Promise<string> {
-  const { data } = await supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
-  if (data && data[rowIndex - 2]) {
-    const row = data[rowIndex - 2];
+export async function toggleVisitedStatus(
+  target: number | { id?: string; rowIndex?: number },
+  isChecked: boolean,
+  tripId = 'la-2026'
+): Promise<string> {
+  const targetId = typeof target === 'object' ? target.id : undefined;
+  const rowIndex = typeof target === 'number' ? target : target?.rowIndex;
+
+  let row: any = null;
+  if (targetId) {
+    const { data } = await supabase.from('itinerary_items').select('*').eq('id', targetId).limit(1);
+    row = data?.[0];
+  } else if (rowIndex) {
+    const { data } = await supabase
+      .from('itinerary_items')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+    row = data ? data[rowIndex - 2] : null;
+  }
+
+  if (row) {
     const key = Object.keys(row).find((k) => ['is_visited', 'Is_Visited', 'visited'].includes(k)) || 'is_visited';
-    await supabase.from('itinerary_items').update({ [key]: isChecked }).eq('id', row.id);
+    let note = row.note || '';
+    if (note.includes('<!--IGNORED-->')) {
+      note = note.replace(/<!--IGNORED-->/g, '').trim();
+    }
+    const { error } = await supabase.from('itinerary_items').update({ [key]: isChecked, note }).eq('id', row.id);
+    if (error) throw new Error(`更新狀態失敗: ${error.message}`);
   }
   return '已更新';
+}
+
+/** 切換略過（Ignore）狀態 */
+export async function toggleIgnoredStatus(
+  target: number | { id?: string; rowIndex?: number },
+  currentIgnored: boolean,
+  tripId = 'la-2026'
+): Promise<string> {
+  const targetId = typeof target === 'object' ? target.id : undefined;
+  const rowIndex = typeof target === 'number' ? target : target?.rowIndex;
+  const nextIgnored = !currentIgnored;
+
+  let row: any = null;
+  if (targetId) {
+    const { data } = await supabase.from('itinerary_items').select('*').eq('id', targetId).limit(1);
+    row = data?.[0];
+  } else if (rowIndex) {
+    const { data } = await supabase
+      .from('itinerary_items')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+    row = data ? data[rowIndex - 2] : null;
+  }
+
+  if (row) {
+    const key = Object.keys(row).find((k) => ['is_visited', 'Is_Visited', 'visited'].includes(k)) || 'is_visited';
+    let cleanNote = (row.note || '').replace(/<!--IGNORED-->/g, '').trim();
+    let finalNote = cleanNote;
+    if (nextIgnored) {
+      finalNote = cleanNote ? `${cleanNote}\n<!--IGNORED-->` : '<!--IGNORED-->';
+    }
+
+    // 略過時同步標記為已去/已結案（is_visited = true），取消略過時恢復為 false
+    const { error } = await supabase.from('itinerary_items').update({
+      [key]: nextIgnored,
+      note: finalNote,
+    }).eq('id', row.id);
+    if (error) throw new Error(`略過狀態更新失敗: ${error.message}`);
+  }
+  return nextIgnored ? '已標記略過' : '已取消略過';
 }
 
 /** 對調兩個行程的時間順序 */
@@ -582,11 +713,23 @@ export async function swapItineraryTimes(
   itemB: ItineraryItem,
   tripId = 'la-2026'
 ): Promise<void> {
+  const idA = itemA.id;
+  const idB = itemB.id;
+  const timeA = itemA.time || '';
+  const timeB = itemB.time || '';
+
+  if (idA && idB) {
+    await supabase.from('itinerary_items').update({ time: timeB }).eq('id', idA);
+    await supabase.from('itinerary_items').update({ time: timeA }).eq('id', idB);
+    return;
+  }
+
   const { data: list } = await supabase
     .from('itinerary_items')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
 
   if (!list) return;
 
@@ -594,10 +737,6 @@ export async function swapItineraryTimes(
   const rowB = list[itemB.rowIndex - 2];
 
   if (rowA && rowB) {
-    const timeA = itemA.time || '';
-    const timeB = itemB.time || '';
-
-    // 對調時間
     await supabase.from('itinerary_items').update({ time: timeB }).eq('id', rowA.id);
     await supabase.from('itinerary_items').update({ time: timeA }).eq('id', rowB.id);
   }
@@ -605,24 +744,29 @@ export async function swapItineraryTimes(
 
 /** 批次更新行程時間列表（套用智慧順路排序） */
 export async function batchUpdateItineraryTimes(
-  updates: Array<{ rowIndex: number; time: string }>,
+  updates: Array<{ id?: string; rowIndex: number; time: string }>,
   tripId = 'la-2026'
 ): Promise<void> {
   const { data: list } = await supabase
     .from('itinerary_items')
     .select('*')
     .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
 
   if (!list) return;
 
   for (const u of updates) {
-    const targetRow = list[u.rowIndex - 2];
-    if (targetRow) {
-      await supabase
-        .from('itinerary_items')
-        .update({ time: u.time })
-        .eq('id', targetRow.id);
+    if (u.id) {
+      await supabase.from('itinerary_items').update({ time: u.time }).eq('id', u.id);
+    } else {
+      const targetRow = list[u.rowIndex - 2];
+      if (targetRow) {
+        await supabase
+          .from('itinerary_items')
+          .update({ time: u.time })
+          .eq('id', targetRow.id);
+      }
     }
   }
 }

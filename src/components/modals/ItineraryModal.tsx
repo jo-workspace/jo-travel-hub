@@ -10,7 +10,7 @@ interface ItineraryModalProps {
   defaultDay?: string;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
-  onDelete: (rowIndex: number) => Promise<void>;
+  onDelete: (target: any) => Promise<void>;
 }
 
 export const ItineraryModal: React.FC<ItineraryModalProps> = ({
@@ -56,6 +56,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSave({
+        id: item?.id,
         rowIndex: item?.rowIndex || 0,
         day: day.trim(),
         time: time.trim(),
@@ -64,6 +65,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
         content: content.trim(),
         links: links.trim(),
         isVisited: item?.isVisited || false,
+        isIgnored: item?.isIgnored || false,
       });
       onClose();
     } finally {
@@ -72,12 +74,12 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
   };
 
   const handleDelete = async () => {
-    if (!item?.rowIndex || item.rowIndex <= 1) return;
+    if (!item) return;
     if (!confirm('確定要刪除此行程嗎？')) return;
 
     setIsSubmitting(true);
     try {
-      await onDelete(item.rowIndex);
+      await onDelete(item.id ? { id: item.id, rowIndex: item.rowIndex } : item.rowIndex);
       onClose();
     } finally {
       setIsSubmitting(false);

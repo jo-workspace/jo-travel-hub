@@ -22,6 +22,7 @@ interface SettingsModalProps {
   customIcon?: string;
   svgIcon?: string;
   citySchedule?: string;
+  badgeText?: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -41,9 +42,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   customIcon,
   svgIcon,
   citySchedule,
+  badgeText,
 }) => {
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
+  const [status, setStatus] = useState('進行中');
   const [start, setStart] = useState('');
   const [rate, setRate] = useState('');
   const [budget, setBudget] = useState('');
@@ -68,6 +71,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setTitle(tripTitle || '');
       setDates(tripDates || '');
+      setStatus(badgeText || '進行中');
       setStart(startDate || '');
       setRate(fxRate ? String(fxRate) : '');
       setBudget(budgetTwd ? String(budgetTwd) : '');
@@ -79,7 +83,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setIconDataUrl(customIcon || svgIcon || '');
       setError('');
     }
-  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule]);
+  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule, badgeText]);
 
   if (!isOpen) return null;
 
@@ -119,6 +123,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       await updateTripSettings(tripId, {
         title: title.trim(),
         dates: dates.trim(),
+        badgeText: status,
         startDate: start.trim(),
         fxRate: rate ? parseFloat(rate) : 32.5,
         budgetTwd: budget ? parseInt(budget, 10) : 0,
@@ -164,7 +169,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <form onSubmit={handleSave} className="overflow-y-auto overflow-x-hidden max-h-[75vh]">
           <div className="px-6 py-4 space-y-5">
 
-            {/* 基本資訊 (2 x 2 網格) */}
+            {/* 基本資訊 (2 x 2 網格 + 狀態) */}
             <div className="space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <Globe className="w-3.5 h-3.5" />
@@ -235,6 +240,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       />
                     </label>
                   )}
+                </div>
+              </div>
+
+              {/* 旅程狀態切換 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">旅程狀態</label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                  {(['進行中', '籌備中', '已封存'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        status === s
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      {s === '已封存' ? '📦 已封存' : s === '進行中' ? '⚡ 進行中' : '📋 籌備中'}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

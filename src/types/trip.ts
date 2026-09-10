@@ -1,4 +1,5 @@
 export interface ItineraryItem {
+  id?: string;
   rowIndex: number;
   day: string;
   date?: string;
@@ -8,9 +9,11 @@ export interface ItineraryItem {
   content?: string;
   links?: string;
   isVisited: boolean;
+  isIgnored?: boolean;
 }
 
 export interface TodoItem {
+  id?: string;
   rowIndex: number;
   category: string;
   task: string;
@@ -19,6 +22,7 @@ export interface TodoItem {
 }
 
 export interface PackingItem {
+  id?: string;
   rowIndex: number;
   category: string;
   person: string;
@@ -68,6 +72,7 @@ export interface AllTripData {
   budgetTwd?: number;     // 總預算（台幣）
   tripTitle?: string;     // 旅程名稱（from trips table）
   tripDates?: string;     // 旅程日期顯示（from trips table）
+  badgeText?: string;     // 旅程狀態（進行中 / 籌備中 / 已封存）
   foreignCurrency?: string; // 外幣代碼，例如 USD / JPY / EUR
   companions?: string;    // 同行人員，例如 Jo, Will, 特特
   timezone?: string;      // 旅程目的地時區（IANA），例如 America/Los_Angeles

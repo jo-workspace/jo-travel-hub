@@ -28,6 +28,7 @@ import {
   saveItineraryData,
   deleteItineraryData,
   toggleVisitedStatus,
+  toggleIgnoredStatus,
   swapItineraryTimes,
   batchUpdateItineraryTimes,
   saveTodoData,
@@ -376,19 +377,39 @@ export default function TripPage({ params }: PageProps) {
   }
 
   // Itinerary Handlers
-  const handleToggleVisited = async (rowIndex: number, currentStatus: boolean) => {
+  const handleToggleVisited = async (rowIndex: number, currentStatus: boolean, id?: string) => {
     const nextStatus = !currentStatus;
     setTripData((prev) => ({
       ...prev,
-      itinerary: prev.itinerary.map((i) =>
-        i.rowIndex === rowIndex ? { ...i, isVisited: nextStatus } : i
-      ),
+      itinerary: prev.itinerary.map((i) => {
+        const matches = id ? i.id === id : i.rowIndex === rowIndex;
+        return matches ? { ...i, isVisited: nextStatus, isIgnored: false } : i;
+      }),
     }));
 
     try {
-      await toggleVisitedStatus(rowIndex, nextStatus, tripId);
+      await toggleVisitedStatus(id ? { id, rowIndex } : rowIndex, nextStatus, tripId);
     } catch (err: any) {
       showToast(`更新失敗，正在還原: ${err.message}`);
+      fetchData(false);
+    }
+  };
+
+  const handleToggleIgnored = async (rowIndex: number, currentIgnored: boolean, id?: string) => {
+    const nextIgnored = !currentIgnored;
+    setTripData((prev) => ({
+      ...prev,
+      itinerary: prev.itinerary.map((i) => {
+        const matches = id ? i.id === id : i.rowIndex === rowIndex;
+        return matches ? { ...i, isVisited: nextIgnored, isIgnored: nextIgnored } : i;
+      }),
+    }));
+
+    try {
+      const msg = await toggleIgnoredStatus(id ? { id, rowIndex } : rowIndex, currentIgnored, tripId);
+      showToast(msg);
+    } catch (err: any) {
+      showToast(`略過更新失敗: ${err.message}`);
       fetchData(false);
     }
   };
@@ -404,10 +425,10 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
-  const handleDeleteItinerary = async (rowIndex: number) => {
+  const handleDeleteItinerary = async (target: number | { id?: string; rowIndex?: number }) => {
     try {
       showToast('正在刪除行程...');
-      await deleteItineraryData(rowIndex, tripId);
+      await deleteItineraryData(target, tripId);
       showToast('刪除成功！');
       fetchData(true);
     } catch (err: any) {
@@ -722,6 +743,7 @@ export default function TripPage({ params }: PageProps) {
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
                   onToggleVisited={handleToggleVisited}
+                  onToggleIgnored={handleToggleIgnored}
                   onOpenModal={(item, initialDay) => {
                     setActiveItineraryItem(item || null);
                     if (initialDay) setDefaultItineraryDay(initialDay);
@@ -889,6 +911,7 @@ export default function TripPage({ params }: PageProps) {
         companions={tripData.companions}
         customIcon={tripData.customIcon || tripData.svgIcon}
         citySchedule={tripData.citySchedule}
+        badgeText={tripData.badgeText || tripConfig.badgeText || '進行中'}
       />
 
       <LightboxModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
