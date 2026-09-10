@@ -54,3 +54,13 @@ input, textarea, [contenteditable="true"] {
   -ms-user-select: text;
   user-select: text;
 }
+
+::selection {
+  background-color: #fbbf24;
+  color: #020617;
+}
+
+input::selection, textarea::selection {
+  background-color: #fbbf24;
+  color: #020617;
+}

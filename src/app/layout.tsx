@@ -44,7 +44,7 @@ export default function RootLayout({
       lang="zh-Hant"
       className={`${inter.variable} ${outfit.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-slate-50 text-slate-800 font-sans selection:bg-slate-800 selection:text-white">
+      <body className="min-h-full bg-slate-50 text-slate-800 font-sans selection:bg-amber-400 selection:text-slate-950">
         {children}
       </body>
     </html>
