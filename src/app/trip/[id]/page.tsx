@@ -115,7 +115,7 @@ export default function TripPage({ params }: PageProps) {
     foreignCurrency: 'USD',
     tripTitle: '',
     tripDates: '',
-    timezone: 'Asia/Taipei',
+    timezone: tripConfig?.timezone || 'Asia/Taipei',
   });
 
   // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (安全更新 href，切勿刪除 DOM 節點以免損壞 React 19 Fiber 樹)
