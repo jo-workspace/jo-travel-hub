@@ -560,7 +560,7 @@ export default function TripPage({ params }: PageProps) {
     person: string;
     location: string;
   }) => {
-    const finalPerson = newItem.person || (hasWillCompanion ? '' : 'Jo');
+    const finalPerson = newItem.person || 'Jo';
     const tempRowIndex = (tripData.packing[tripData.packing.length - 1]?.rowIndex || 1) + 1;
     const optimisticItem: PackingItem = {
       rowIndex: tempRowIndex,

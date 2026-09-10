@@ -197,7 +197,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       id: row.id,
       rowIndex: idx + 2,
       category: row.category || row.Category || '個人物品',
-      person: row.owner || row.person || row.Person || '全員',
+      person: (row.owner || row.person || row.Person || 'Jo').replace('全員', 'Jo'),
       item: row.item_name || row.item || row.Item || '',
       note: row.note || row.Note || '',
       location: row.location || row.Location || row.place || row.storage || '',
@@ -903,7 +903,7 @@ export async function savePackingData(formData: any, tripId = 'la-2026'): Promis
 
   const map: Record<string, [any, ...string[]]> = {
     category: [category || '個人物品', 'category', 'Category'],
-    person: [person || '全員', 'owner', 'person', 'Person'],
+    person: [(person || 'Jo').replace('全員', 'Jo'), 'owner', 'person', 'Person'],
     item: [item || '物品', 'item_name', 'item', 'Item'],
     note: [note || '', 'note', 'Note'],
     location: [location || '', 'location', 'Location', 'place', 'storage'],
@@ -942,7 +942,7 @@ export async function batchSavePackingData(
   const payloads = items.map((it) => {
     const map: Record<string, [any, ...string[]]> = {
       category: [it.category || '個人物品', 'category', 'Category'],
-      person: [it.person || '全員', 'owner', 'person', 'Person'],
+      person: [(it.person || 'Jo').replace('全員', 'Jo'), 'owner', 'person', 'Person'],
       item: [it.item || '物品', 'item_name', 'item', 'Item'],
       note: [it.note || '', 'note', 'Note'],
       location: [it.location || '', 'location', 'Location', 'place', 'storage'],

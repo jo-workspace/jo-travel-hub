@@ -51,6 +51,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [isBatchDeleting, setIsBatchDeleting] = useState<boolean>(false);
 
   const [quickItemName, setQuickItemName] = useState('');
+  const [quickPerson, setQuickPerson] = useState<string>('Jo');
   const [showCategoryError, setShowCategoryError] = useState(false);
   const [isQuickAdding, setIsQuickAdding] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -250,6 +251,19 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   })];
 
   const hasMultiplePersons = personSet.size > 1;
+  const effectiveQuickPerson = hasMultiplePersons
+    ? (selectedPerson !== ALL_PERSONS ? selectedPerson : quickPerson)
+    : 'Jo';
+
+  const handleCycleQuickPerson = () => {
+    const cycle = ['Jo', 'Will', '公用'];
+    const current = effectiveQuickPerson;
+    const next = cycle[(cycle.indexOf(current) + 1) % cycle.length];
+    setQuickPerson(next);
+    if (selectedPerson !== ALL_PERSONS) {
+      setSelectedPerson(next);
+    }
+  };
 
   // Group items by category after filters
   const groupedByCategory: Record<string, PackingItem[]> = {};
@@ -298,7 +312,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       await onQuickAdd({
         item: trimmed,
         category: selectedCategory,
-        person: selectedPerson !== ALL_PERSONS ? selectedPerson : '',
+        person: hasMultiplePersons ? effectiveQuickPerson : 'Jo',
         location: selectedLocation !== ALL_LOCATIONS ? selectedLocation : '',
       });
       setQuickItemName('');
@@ -589,6 +603,23 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 : 'border-slate-200/90 focus-within:border-slate-800 focus-within:ring-2 focus-within:ring-slate-100'
             }`}
           >
+            {hasMultiplePersons && (
+              <button
+                type="button"
+                onClick={handleCycleQuickPerson}
+                className={`px-2 py-1 text-xs font-extrabold rounded-xl border transition-all cursor-pointer flex items-center space-x-1 flex-shrink-0 select-none active:scale-95 shadow-2xs ${
+                  effectiveQuickPerson === 'Jo'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                    : effectiveQuickPerson === 'Will'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                }`}
+                title="點擊切換行李歸屬人員 (Jo / Will / 公用)"
+              >
+                <span>{effectiveQuickPerson}</span>
+              </button>
+            )}
+
             <input
               ref={desktopInputRef}
               type="text"
@@ -600,7 +631,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               onKeyDown={(e) => handleKeyDown(e, false)}
               placeholder={
                 selectedCategory !== ALL_CATEGORIES
-                  ? `新增至「${selectedCategory}」... (按 Enter 新增)`
+                  ? (hasMultiplePersons
+                      ? `新增至「${selectedCategory}」(${effectiveQuickPerson})... (按 Enter 新增)`
+                      : `新增至「${selectedCategory}」... (按 Enter 新增)`)
                   : '請先在上方點選類別以快速新增...'
               }
               className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
@@ -613,7 +646,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 onClick={() =>
                   onOpenModal(
                     undefined,
-                    selectedPerson !== ALL_PERSONS ? selectedPerson : undefined,
+                    hasMultiplePersons ? effectiveQuickPerson : 'Jo',
                     selectedCategory !== ALL_CATEGORIES ? selectedCategory : undefined,
                     selectedLocation !== ALL_LOCATIONS ? selectedLocation : undefined
                   )
@@ -896,12 +929,29 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       {/* Mobile Bottom-Docked Quick-Add Bar (Floats right above MobileNav) */}
       <div className="md:hidden fixed bottom-14 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 shadow-lg">
         <div
-          className={`bg-slate-50 p-1.5 pl-3 rounded-2xl border transition-all flex items-center gap-2 ${
+          className={`bg-slate-50 p-1.5 pl-2.5 rounded-2xl border transition-all flex items-center gap-1.5 ${
             showCategoryError
               ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50/40'
               : 'border-slate-200 focus-within:border-slate-800 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-100'
           }`}
         >
+          {hasMultiplePersons && (
+            <button
+              type="button"
+              onClick={handleCycleQuickPerson}
+              className={`px-2 py-1 text-xs font-extrabold rounded-xl border transition-all cursor-pointer flex items-center space-x-1 flex-shrink-0 select-none active:scale-95 shadow-2xs ${
+                effectiveQuickPerson === 'Jo'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                  : effectiveQuickPerson === 'Will'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+              title="點擊切換行李歸屬人員 (Jo / Will / 公用)"
+            >
+              <span>{effectiveQuickPerson}</span>
+            </button>
+          )}
+
           <input
             ref={mobileInputRef}
             type="text"
@@ -913,7 +963,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
             onKeyDown={(e) => handleKeyDown(e, true)}
             placeholder={
               selectedCategory !== ALL_CATEGORIES
-                ? `新增至「${selectedCategory}」... (按 Enter 新增)`
+                ? (hasMultiplePersons
+                    ? `新增至「${selectedCategory}」(${effectiveQuickPerson})...`
+                    : `新增至「${selectedCategory}」... (按 Enter 新增)`)
                 : '請先在上方點選類別以快速新增...'
             }
             className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
@@ -925,12 +977,12 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               onClick={() =>
                 onOpenModal(
                   undefined,
-                  selectedPerson !== ALL_PERSONS ? selectedPerson : undefined,
+                  hasMultiplePersons ? effectiveQuickPerson : 'Jo',
                   selectedCategory !== ALL_CATEGORIES ? selectedCategory : undefined,
                   selectedLocation !== ALL_LOCATIONS ? selectedLocation : undefined
                 )
               }
-              className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+              className="px-2 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>詳細</span>
