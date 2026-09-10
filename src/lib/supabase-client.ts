@@ -206,7 +206,10 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
 
     const expenses: ExpenseItem[] = (expenseRes.data || []).map((row, idx) => {
       const rawNote = row.note || row.Note || row.notes || '';
-      const metaDate = rawNote.match(/<!--(?:EXP_META:[^>]*DATE=([^,>]+)|DATE:([^>]+))-->/)?.[1] || '';
+      const metaDateMatch = rawNote.match(/<!--(?:EXP_META:[^>]*DATE=([^,>]+)|DATE:([^>]+))-->/);
+      const metaDate = metaDateMatch?.[1] || metaDateMatch?.[2] || '';
+      const rawDate = row.date || row.Date || metaDate || (row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '');
+      const cleanDate = typeof rawDate === 'string' && rawDate.length >= 10 ? rawDate.slice(0, 10).replace(/\//g, '-') : String(rawDate || '');
       return {
         id: row.id,
         rowIndex: idx + 2,
@@ -219,7 +222,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         paidBy: row.paid_by || row['Paid By'] || row.Paid_By || row.payer || 'Jo',
         split: row.split || row.Split || 'Both',
         note: rawNote,
-        date: row.date || row.Date || metaDate || (row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : ''),
+        date: cleanDate,
       };
     });
 

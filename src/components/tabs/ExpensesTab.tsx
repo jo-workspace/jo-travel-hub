@@ -245,6 +245,43 @@ export function formatSplitLabel(splitStr: string, members: string[]): string {
   return activeMembers.map((m) => `${m} ${weights[m]}份`).join(', ');
 }
 
+/** 獲取記帳項目的標準排序日期 (YYYY-MM-DD) */
+export function getExpenseSortDate(exp: ExpenseItem): string {
+  const meta = parseExpenseMeta(exp.note);
+  const rawDate = (exp.date || meta.date || '').trim();
+  if (!rawDate) return '';
+  const normalized = rawDate.replace(/\//g, '-');
+  return normalized.length >= 10 ? normalized.slice(0, 10) : normalized;
+}
+
+/** 獲取記帳項目的排序金額（若篩選成員則計算該成員應負擔份額，否則為實質自用總額換算台幣） */
+export function getExpenseSortAmount(
+  exp: ExpenseItem,
+  selectedMemberFilter: string | null,
+  activeForeignCode: string,
+  fxRate: number,
+  members: string[]
+): number {
+  const amt = typeof exp.amount === 'number' ? exp.amount : parseFloat(exp.amount) || 0;
+  const expCurr = (exp.currency || activeForeignCode).toUpperCase();
+  const meta = parseExpenseMeta(exp.note);
+  const rawBillTwd = meta.customTwd || computeTwdAmount(amt, expCurr, fxRate, activeForeignCode);
+  const realTripTwd = meta.realTwd !== undefined ? meta.realTwd : rawBillTwd;
+
+  if (selectedMemberFilter) {
+    const splitTarget = exp.split ? exp.split.trim() : '均分';
+    const weights = parseSplitWeights(splitTarget, members);
+    const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+    const memberWeight = weights[selectedMemberFilter] || 0;
+    if (totalWeight > 0 && memberWeight > 0) {
+      return realTripTwd * (memberWeight / totalWeight);
+    }
+    return 0;
+  }
+
+  return realTripTwd;
+}
+
 export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   data,
   shopping,
@@ -350,6 +387,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [isMatrixOpen, setIsMatrixOpen] = useState(true);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<'date' | 'amount'>('date');
 
   // 當時區變更時同步預設消費日期
   useEffect(() => {
@@ -458,7 +496,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     (a, b) => (categoryTotals[b] || 0) - (categoryTotals[a] || 0)
   );
 
-  // 支援依類別與成員個人花費篩選下方明細，並將最新的記帳排在最上面 (最新在前)
+  // 支援依類別與成員個人花費篩選下方明細，並依指定模式（日期新到舊 / 金額大到小）排序
   const filteredExpenses = data
     .filter((exp) => {
       if (exp.item && exp.item.includes('系統結清')) return false;
@@ -486,8 +524,24 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
       return true;
     })
-    .slice()
-    .reverse();
+    .sort((a, b) => {
+      if (sortMode === 'amount') {
+        const amtA = getExpenseSortAmount(a, selectedMemberFilter, activeForeignCode, fxRate, members);
+        const amtB = getExpenseSortAmount(b, selectedMemberFilter, activeForeignCode, fxRate, members);
+        if (Math.abs(amtB - amtA) > 0.01) {
+          return amtB - amtA;
+        }
+      }
+
+      // 預設或金額相同時，依消費日期新到舊 (最新在最上面)
+      const dateA = getExpenseSortDate(a);
+      const dateB = getExpenseSortDate(b);
+      const dateDiff = dateB.localeCompare(dateA);
+      if (dateDiff !== 0) return dateDiff;
+
+      // 日期相同時，依建立順序 (rowIndex 倒序，新建立在上)
+      return (b.rowIndex || 0) - (a.rowIndex || 0);
+    });
 
   // 計算目前篩選條件下的總額 (若篩選成員，顯示該成員在篩選條件下的負擔總額)
   let filteredSubtotalTwd = totalTWD;
@@ -1402,7 +1456,11 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                             return (
                               <th
                                 key={`th-${m}`}
-                                onClick={() => setSelectedMemberFilter(isColActive ? null : m)}
+                                onClick={() => {
+                                  const next = isColActive ? null : m;
+                                  setSelectedMemberFilter(next);
+                                  if (next) setSortMode('amount');
+                                }}
                                 className={`py-2.5 px-3 text-right font-mono whitespace-nowrap cursor-pointer transition-colors select-none ${
                                   isColActive
                                     ? 'bg-amber-100 text-amber-950 font-black ring-1 ring-amber-400'
@@ -1441,7 +1499,11 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                               }`}
                             >
                               <td
-                                onClick={() => setSelectedCategoryFilter(isCatSelected ? null : cat)}
+                                onClick={() => {
+                                  const next = isCatSelected ? null : cat;
+                                  setSelectedCategoryFilter(next);
+                                  if (next) setSortMode('amount');
+                                }}
                                 className={`py-2.5 px-3 whitespace-nowrap flex items-center space-x-1.5 cursor-pointer transition-colors ${
                                   isCatSelected ? 'text-amber-950 font-black' : 'hover:text-amber-700'
                                 }`}
@@ -1471,6 +1533,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                                       } else {
                                         setSelectedCategoryFilter(cat);
                                         setSelectedMemberFilter(m);
+                                        setSortMode('amount');
                                       }
                                     }}
                                     className={`py-2.5 px-3 text-right font-mono whitespace-nowrap cursor-pointer transition-colors ${
@@ -1493,7 +1556,11 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                                 );
                               })}
                               <td
-                                onClick={() => setSelectedCategoryFilter(isCatSelected ? null : cat)}
+                                onClick={() => {
+                                  const next = isCatSelected ? null : cat;
+                                  setSelectedCategoryFilter(next);
+                                  if (next) setSortMode('amount');
+                                }}
                                 className="py-2.5 px-3 text-right font-mono font-black text-slate-900 whitespace-nowrap cursor-pointer"
                                 title={isCatSelected ? '點擊取消類別篩選' : '點擊篩選此類別明細'}
                               >
@@ -1514,7 +1581,11 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                             return (
                               <td
                                 key={`tf-${m}`}
-                                onClick={() => setSelectedMemberFilter(isColActive ? null : m)}
+                                onClick={() => {
+                                  const next = isColActive ? null : m;
+                                  setSelectedMemberFilter(next);
+                                  if (next) setSortMode('amount');
+                                }}
                                 className={`py-2.5 px-3 text-right font-mono whitespace-nowrap cursor-pointer transition-colors ${
                                   isColActive
                                     ? 'bg-amber-200 text-amber-950 font-black ring-1 ring-amber-400'
@@ -1590,6 +1661,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 onClick={() => {
                   setSelectedCategoryFilter(null);
                   setSelectedMemberFilter(null);
+                  setSortMode('date');
                 }}
                 className="text-[11px] font-bold text-amber-800 hover:text-amber-950 px-2.5 py-1 rounded-lg hover:bg-amber-100/80 transition-all cursor-pointer whitespace-nowrap ml-2 flex-shrink-0"
               >
@@ -1598,14 +1670,47 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
             </div>
           )}
 
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1 flex items-center justify-between">
-            <span>費用明細 (共 {filteredExpenses.length} 筆)</span>
-            <span className="font-mono text-slate-600">
+          <div className="flex items-center justify-between pl-1 flex-wrap gap-2">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                費用明細 (共 {filteredExpenses.length} 筆)
+              </h3>
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 text-[11px] shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setSortMode('date')}
+                  className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+                    sortMode === 'date'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="依消費日期排序（新到舊）"
+                >
+                  <span>📅</span>
+                  <span>日期新到舊</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortMode('amount')}
+                  className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+                    sortMode === 'amount'
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title={selectedMemberFilter ? `依 ${selectedMemberFilter} 應負擔金額排序（大到小）` : '依消費金額排序（大到小）'}
+                >
+                  <span>💰</span>
+                  <span>金額大到小</span>
+                </button>
+              </div>
+            </div>
+
+            <span className="font-mono text-xs font-bold text-slate-600">
               {selectedCategoryFilter || selectedMemberFilter
                 ? `篩選小計: $${filteredSubtotalTwd.toLocaleString()} TWD`
                 : `總計: $${Math.round(totalTWD).toLocaleString()} TWD`}
             </span>
-          </h3>
+          </div>
 
           {filteredExpenses.length === 0 && (
             <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
