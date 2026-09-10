@@ -1880,7 +1880,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                                 <div className="text-[10px] font-bold font-mono text-slate-400">
                                   {isSole
                                     ? (meta.realTwd !== undefined ? `全單自用 (全單 NT$${amt.toLocaleString()})` : '全單自用')
-                                    : `全單 NT$${amt.toLocaleString()} (${formatSplitLabel(exp.split, members)})`}
+                                    : `全單 NT$${amt.toLocaleString()}`}
                                 </div>
                               </>
                             );
@@ -1889,12 +1889,12 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                           return (
                             <>
                               <div className="text-sm font-black font-mono text-slate-900">
-                                ${mShareForeign.toLocaleString()} {expCurr}
+                                NT$ {mShareTwd.toLocaleString()}
                               </div>
                               <div className="text-[10px] font-bold font-mono text-slate-400">
                                 {isSole
-                                  ? `折合 NT$${mShareTwd.toLocaleString()} (全單自用)`
-                                  : `折合 NT$${mShareTwd.toLocaleString()} (全單 $${amt.toLocaleString()} ${expCurr})`}
+                                  ? `${mShareForeign.toLocaleString()} ${expCurr} (全單自用)`
+                                  : `${mShareForeign.toLocaleString()} ${expCurr} (全單 ${amt.toLocaleString()} ${expCurr})`}
                               </div>
                             </>
                           );
