@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PackingItem } from '@/types/trip';
 import { X, Trash2 } from 'lucide-react';
 
@@ -33,13 +33,20 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   onDelete,
 }) => {
   // 跨旅程歷史類別清單（排除誤歸為類別的位置或公用關鍵字）
-  const categoryPresets = Array.from(
-    new Set(
-      existingCategories
-        .map((c) => c.trim())
-        .filter((c) => c && !INVALID_PACKING_CATEGORIES.includes(c))
-    )
-  );
+  const categoryPresets = useMemo(() => {
+    return Array.from(
+      new Set(
+        existingCategories
+          .map((c) => c.trim())
+          .filter((c) => c && !INVALID_PACKING_CATEGORIES.includes(c))
+      )
+    );
+  }, [existingCategories]);
+
+  // 當前旅程攜帶人員清單（由 page.tsx 精確傳入，不再強制加入公用）
+  const personPresets = useMemo(() => {
+    return Array.from(new Set(companionsList.map((p) => p.trim()).filter(Boolean)));
+  }, [companionsList]);
 
   const [category, setCategory] = useState(defaultCategory || categoryPresets[0] || '衣物');
   const [person, setPerson] = useState(defaultPerson || '');
@@ -47,11 +54,6 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   const [note, setNote] = useState('');
   const [location, setLocation] = useState(defaultLocation || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // 當前旅程攜帶人員清單（由 page.tsx 精確傳入，不再強制加入公用）
-  const personPresets = Array.from(
-    new Set(companionsList.map((p) => p.trim()).filter(Boolean))
-  );
 
   useEffect(() => {
     if (item) {
@@ -67,7 +69,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       setNote('');
       setLocation(defaultLocation || '');
     }
-  }, [item, isOpen, defaultPerson, defaultCategory, defaultLocation, personPresets]);
+  }, [item, isOpen, defaultPerson, defaultCategory, defaultLocation]);
 
   if (!isOpen) return null;
 
