@@ -929,6 +929,7 @@ export default function TripPage({ params }: PageProps) {
         defaultLocation={defaultPackingLocation}
         existingCategories={currentPackingCategories}
         companionsList={currentPackingPersons}
+        hasWill={hasWillCompanion}
         onClose={() => setPackingModalOpen(false)}
         onSave={handleSavePacking}
         onDelete={handleDeletePacking}
