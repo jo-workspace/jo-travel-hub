@@ -206,7 +206,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
 
     const expenses: ExpenseItem[] = (expenseRes.data || []).map((row, idx) => {
       const rawNote = row.note || row.Note || row.notes || '';
-      const metaDateMatch = rawNote.match(/<!--(?:EXP_META:[^>]*DATE=([^,>]+)|DATE:([^>]+))-->/);
+      const metaDateMatch = rawNote.match(/<!--[\s\S]*?(?:DATE=([^,>]+)|DATE:([^>]+))[\s\S]*?-->/);
       const metaDate = metaDateMatch?.[1] || metaDateMatch?.[2] || '';
       const rawDate = row.date || row.Date || metaDate || (row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : '');
       const cleanDate = typeof rawDate === 'string' && rawDate.length >= 10 ? rawDate.slice(0, 10).replace(/\//g, '-') : String(rawDate || '');
