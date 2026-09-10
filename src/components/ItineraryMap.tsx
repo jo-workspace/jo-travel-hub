@@ -5,6 +5,7 @@ import { ItineraryItem } from '@/types/trip';
 import {
   getCoordinatesSync,
   searchSpotCoordinates,
+  isGoogleMapsUrl,
   getDayColor,
   GeoLocation,
 } from '@/lib/geo';
@@ -99,7 +100,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     }
   }, [selectedDay, days]);
 
-  // 解析所有景點的座標與序號
+  // 解析所有景點的座標與序號（無 Google Maps 網址一律不加入地圖點位）
   const processedSpots = useMemo(() => {
     const dayCounter: Record<string, number> = {};
     const spots: ProcessedSpot[] = [];
@@ -112,22 +113,24 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       return (a.time || '').localeCompare(b.time || '');
     });
 
-    sorted.forEach((item, idx) => {
+    sorted.forEach((item) => {
       const dayLabel = item.day || '未定日期';
-      const dayCity = getCityForDay(dayLabel, citySchedule);
       const itemKey = `${item.rowIndex}_${item.title}_${item.day}`;
 
-      let coords: GeoLocation;
+      let coords: GeoLocation | null = null;
       let isExact = false;
 
       if (exactCoordsOverrides[itemKey]) {
         coords = exactCoordsOverrides[itemKey];
         isExact = true;
       } else {
-        const syncResult = getCoordinatesSync(item, dayCity, idx);
+        const syncResult = getCoordinatesSync(item);
         coords = syncResult.coords;
         isExact = syncResult.isExact;
       }
+
+      // 若無有效 Google Maps 座標，嚴格不生成地圖點位！
+      if (!coords) return;
 
       const isCandidate =
         !item.time ||
@@ -176,25 +179,26 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     });
 
     return deduplicatedSpots;
-  }, [items, citySchedule, exactCoordsOverrides]);
+  }, [items, exactCoordsOverrides]);
 
-  // 背景非同步精準搜尋尚未 exact 的景點座標
+  // 背景非同步精準解析 Google Maps 短網址 (例如 maps.app.goo.gl)
   useEffect(() => {
     let isCancelled = false;
 
     const fetchMissingCoordinates = async () => {
-      const nonExactSpots = processedSpots.filter((s) => !s.isExact);
-      for (const spot of nonExactSpots) {
-        if (isCancelled) break;
-        const itemKey = `${spot.item.rowIndex}_${spot.item.title}_${spot.item.day}`;
-        if (exactCoordsOverrides[itemKey]) continue;
+      // 僅針對有 Google Maps 網址但尚未取得經緯度的項目進行重定向解析
+      const pendingItems = items.filter((item) => {
+        if (!item.links || !isGoogleMapsUrl(item.links)) return false;
+        const itemKey = `${item.rowIndex}_${item.title}_${item.day}`;
+        if (exactCoordsOverrides[itemKey]) return false;
+        const syncResult = getCoordinatesSync(item);
+        return !syncResult.coords;
+      });
 
-        const dayCity = getCityForDay(spot.dayLabel, citySchedule);
-        const fetched = await searchSpotCoordinates(
-          spot.item.title,
-          dayCity,
-          spot.item.links
-        );
+      for (const item of pendingItems) {
+        if (isCancelled) break;
+        const itemKey = `${item.rowIndex}_${item.title}_${item.day}`;
+        const fetched = await searchSpotCoordinates(item.links);
 
         if (fetched && !isCancelled) {
           setExactCoordsOverrides((prev) => ({
@@ -205,14 +209,14 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       }
     };
 
-    if (processedSpots.length > 0) {
+    if (items.some((it) => it.links && isGoogleMapsUrl(it.links))) {
       fetchMissingCoordinates();
     }
 
     return () => {
       isCancelled = true;
     };
-  }, [processedSpots, citySchedule, exactCoordsOverrides]);
+  }, [items, exactCoordsOverrides]);
 
   // 篩選當前 activeDays 要顯示的點（支援 hideVisited 連動隱藏）
   const visibleSpots = useMemo(() => {
@@ -260,7 +264,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     if (!L) return;
 
     if (!mapInstanceRef.current) {
-      const defaultCenter: [number, number] = [37.7749, -122.4194]; // San Francisco
+      const defaultCenter: [number, number] =
+        processedSpots.length > 0
+          ? [processedSpots[0].coords.lat, processedSpots[0].coords.lng]
+          : [25.0330, 121.5654];
       const map = L.map(mapContainerRef.current, {
         center: defaultCenter,
         zoom: 12,
@@ -781,6 +788,8 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           <span>
             {activeDays.length === 0
               ? '請點選上方天數以在地圖上查看景點'
+              : visibleSpots.length === 0
+              ? '此天行程未填寫 Google Maps 連結，填寫後將自動顯示於地圖'
               : '點擊圖釘查看景點資訊與調序'}
           </span>
         </div>

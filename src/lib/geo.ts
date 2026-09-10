@@ -203,29 +203,39 @@ function isValidLatLng(lat: number, lng: number): boolean {
   return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-/** 取得統一的快取 Key */
-export function getGeoCacheKey(title: string, links?: string): string {
-  const cleanLink = (links || '').trim().toLowerCase();
-  if (cleanLink) {
-    return `geo_url_${cleanLink}`;
-  }
-  return `geo_title_${(title || '').trim().toLowerCase()}`;
+/** 判斷是否為有效的 Google Maps 連結 */
+export function isGoogleMapsUrl(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.trim().toLowerCase();
+  return (
+    lower.includes('google.com/maps') ||
+    lower.includes('maps.google.') ||
+    lower.includes('maps.app.goo.gl') ||
+    lower.includes('goo.gl/maps')
+  );
 }
 
-/** 同步解析景點座標（含 URL 解析 ＋ 離線字典 ＋ 本地快取 ＋ 相同地點嚴格重疊） */
+/** 取得 Google Maps 網址專屬的快取 Key */
+export function getGeoCacheKey(url?: string): string | null {
+  if (!url || !isGoogleMapsUrl(url)) return null;
+  return `geo_map_url_${url.trim().toLowerCase()}`;
+}
+
+/** 同步解析景點座標（嚴格僅解析 Google Maps 網址，無網址一律回傳 null，不繪製任何地圖點） */
 export function getCoordinatesSync(
-  item: ItineraryItem,
-  cityContext?: string,
-  indexOffset = 0
-): { coords: GeoLocation; isExact: boolean } {
-  // 1. 優先從卡片上的 Google Maps 完整連結秒解析 (100% 準確且 0ms)
+  item: ItineraryItem
+): { coords: GeoLocation | null; isExact: boolean } {
+  if (!item.links || !isGoogleMapsUrl(item.links)) {
+    return { coords: null, isExact: false };
+  }
+
+  // 1. 優先從 Google Maps 完整連結秒解析 (100% 準確且 0ms)
   const fromUrl = extractCoordinatesFromUrl(item.links);
   if (fromUrl) return { coords: fromUrl, isExact: true };
 
-  const cacheKey = getGeoCacheKey(item.title, item.links);
-
-  // 2. 查 LocalStorage 快取（若非同步已查過，秒取精準座標）
-  if (typeof window !== 'undefined') {
+  // 2. 查 LocalStorage 快取（若短網址先前已透過 API 解析過）
+  const cacheKey = getGeoCacheKey(item.links);
+  if (cacheKey && typeof window !== 'undefined') {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -237,60 +247,17 @@ export function getCoordinatesSync(
     }
   }
 
-  const titleLower = (item.title || '').toLowerCase();
-  const hasUrl = !!(item.links && item.links.trim());
-
-  // 3. 只有在「沒有提供網址」時才允許命中標題字典（若有網址，必須以 URL 為準，不可被標題字典帶偏！）
-  if (!hasUrl) {
-    for (const [key, coords] of Object.entries(KNOWN_SPOT_COORDINATES)) {
-      if (titleLower.includes(key)) {
-        return { coords, isExact: true };
-      }
-    }
-  }
-
-  // 4. 查城市中心點並微量排開（同 URL 或同標題保證重疊在同一點！）
-  let baseCoords = CITY_COORDINATES['san francisco'];
-  if (cityContext) {
-    const cityKey = cityContext.toLowerCase().trim();
-    for (const [cName, cCoords] of Object.entries(CITY_COORDINATES)) {
-      if (cityKey.includes(cName)) {
-        baseCoords = cCoords;
-        break;
-      }
-    }
-  }
-
-  // 若有相同的 link 或 title，以 link/title 做 hash，確保同地點 100% 重疊！
-  const seedString = (item.links || item.title || '').trim();
-  let hash = 0;
-  for (let i = 0; i < seedString.length; i++) {
-    hash = (hash << 5) - hash + seedString.charCodeAt(i);
-    hash |= 0;
-  }
-  const effectiveOffset = seedString ? Math.abs(hash) % 20 : indexOffset;
-
-  const angle = (effectiveOffset * 137.5 * Math.PI) / 180;
-  const radius = 0.002 * Math.sqrt((effectiveOffset % 6) + 1);
-
-  return {
-    coords: {
-      lat: baseCoords.lat + radius * Math.cos(angle),
-      lng: baseCoords.lng + radius * Math.sin(angle),
-    },
-    isExact: false,
-  };
+  return { coords: null, isExact: false };
 }
 
-/** 非同步精準搜尋景點經緯度（短網址伺服器解析 ＋ 全球 OSM 地標搜尋） */
+/** 非同步精準搜尋 Google Maps 連結之真實座標（僅解析 Google Maps 網址，不進行模糊文字搜尋） */
 export async function searchSpotCoordinates(
-  title: string,
-  cityContext?: string,
   links?: string
 ): Promise<GeoLocation | null> {
-  const cacheKey = getGeoCacheKey(title, links);
+  if (!links || !isGoogleMapsUrl(links)) return null;
 
-  if (typeof window !== 'undefined') {
+  const cacheKey = getGeoCacheKey(links);
+  if (cacheKey && typeof window !== 'undefined') {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -300,70 +267,22 @@ export async function searchSpotCoordinates(
     }
   }
 
-  const cleanLinks = (links || '').trim();
-
-  // 1. 若有 Google Maps 短網址或包含 maps 連結，打伺服器端解析端點
-  if (cleanLinks && (cleanLinks.includes('maps.app.goo.gl') || cleanLinks.includes('goo.gl') || cleanLinks.includes('google.com/maps'))) {
-    try {
-      const res = await fetch(`/api/resolve-maps?url=${encodeURIComponent(cleanLinks)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.lat && data.lng && isValidLatLng(data.lat, data.lng)) {
-          const result = { lat: data.lat, lng: data.lng };
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(cacheKey, JSON.stringify(result));
-          }
-          return result;
-        }
-      }
-    } catch (err) {
-      console.warn('resolve-maps fetch error:', err);
-    }
-  }
-
-  const cleanTitle = (title || '').trim();
-  if (!cleanTitle) return null;
-  const query = `${cleanTitle} ${cityContext || ''}`.trim();
-
-  // 2. 透過 Photon Geocoding API 搜尋 (全球 OSM 地標超精準搜尋)
+  // 若為 Google Maps 短網址或需解析之連結，呼叫後端 resolve-maps API (追蹤 302 重定向)
   try {
-    const res = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`
-    );
+    const res = await fetch(`/api/resolve-maps?url=${encodeURIComponent(links.trim())}`);
     if (res.ok) {
       const data = await res.json();
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].geometry.coordinates;
-        if (isValidLatLng(lat, lng)) {
-          const result = { lat, lng };
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(cacheKey, JSON.stringify(result));
-          }
-          return result;
-        }
-      }
-    }
-  } catch {}
-
-  // 3. 備用 Open-Meteo Geocoding
-  try {
-    const res = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanTitle)}&count=1&language=zh&format=json`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data.results && data.results.length > 0) {
-        const result = {
-          lat: data.results[0].latitude,
-          lng: data.results[0].longitude,
-        };
-        if (typeof window !== 'undefined') {
+      if (data.lat && data.lng && isValidLatLng(data.lat, data.lng)) {
+        const result = { lat: data.lat, lng: data.lng };
+        if (cacheKey && typeof window !== 'undefined') {
           localStorage.setItem(cacheKey, JSON.stringify(result));
         }
         return result;
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn('resolve-maps fetch error:', err);
+  }
 
   return null;
 }
