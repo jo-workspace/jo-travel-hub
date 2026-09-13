@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShoppingItem } from '@/types/trip';
+import { ShoppingItem, CouponItem } from '@/types/trip';
 import { computeTwdAmount } from '@/components/tabs/ExpensesTab';
-import { Plus, Edit3, Link as LinkIcon, User, HandCoins } from 'lucide-react';
+import { Plus, Edit3, Link as LinkIcon, User, HandCoins, Ticket, Maximize2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 
 interface ShoppingTabProps {
   data: ShoppingItem[];
+  coupons?: CouponItem[];
   foreignCurrency?: string;
   fxRate: number;
   hideDone: boolean;
@@ -15,6 +16,7 @@ interface ShoppingTabProps {
   onToggleIgnoreShopping?: (rowIndex: number, currentIgnored: boolean, id?: string) => void;
   onOpenModal: (item?: ShoppingItem, defaultStore?: string, defaultForWhom?: string) => void;
   onOpenLightbox: (imageUrl: string) => void;
+  onOpenCouponModal?: (coupon?: CouponItem) => void;
   onCheckoutStore?: (store: string, items: ShoppingItem[]) => void;
 }
 
@@ -134,6 +136,7 @@ export const sortShoppingItemsByPriceDesc = (a: ShoppingItem, b: ShoppingItem): 
 
 export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   data,
+  coupons = [],
   foreignCurrency = 'USD',
   fxRate,
   hideDone,
@@ -142,10 +145,12 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   onToggleIgnoreShopping,
   onOpenModal,
   onOpenLightbox,
+  onOpenCouponModal,
 }) => {
   const members = companionsList && companionsList.length > 0 ? companionsList : ['Jo', 'Will'];
   const [selectedStore, setSelectedStore] = useState(ALL_STORES);
   const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
+  const [couponsExpanded, setCouponsExpanded] = useState(true);
 
   const storeList = Array.from(new Set(data.flatMap((item) => splitTokens(item.store))));
   const personList = Array.from(
@@ -231,6 +236,140 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
             約 ${Math.round(computeTwdAmount(selectedEstimate, foreignCurrency, fxRate, foreignCurrency)).toLocaleString()} TWD
           </span>
         </div>
+      </div>
+
+      {/* 折價券 / 優惠條碼票夾 (Coupons & Passes Wallet) */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div
+            onClick={() => setCouponsExpanded(!couponsExpanded)}
+            className="flex items-center space-x-2 cursor-pointer select-none group py-0.5"
+          >
+            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+              <Ticket className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs font-black text-slate-800 group-hover:text-slate-950 flex items-center space-x-1.5">
+              <span>折價券 / 優惠條碼票夾</span>
+              {coupons && coupons.length > 0 && (
+                <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full">
+                  {coupons.length}
+                </span>
+              )}
+            </span>
+            <span className="text-slate-400 group-hover:text-slate-600">
+              {couponsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onOpenCouponModal?.()}
+            className="px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-full cursor-pointer select-none whitespace-nowrap shadow-2xs transition-all active:scale-95 flex items-center space-x-1"
+          >
+            <Plus className="w-3 h-3" />
+            <span>新增票券</span>
+          </button>
+        </div>
+
+        {couponsExpanded && (
+          <div className="mt-2.5">
+            {coupons && coupons.length > 0 ? (
+              <div className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar py-0.5">
+                {coupons.map((coupon) => (
+                  <div
+                    key={coupon.id}
+                    className="min-w-[190px] max-w-[220px] sm:min-w-[210px] bg-slate-50 hover:bg-amber-50/20 border border-slate-200/80 hover:border-amber-200 rounded-xl p-2.5 flex flex-col justify-between transition-all flex-shrink-0 group shadow-2xs"
+                  >
+                    <div>
+                      {/* Top: Store badge & Edit button */}
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <span className="text-[10px] font-extrabold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md truncate max-w-[130px]">
+                          {coupon.store || '通用優惠券'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenCouponModal?.(coupon)}
+                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-white rounded-md transition-colors cursor-pointer"
+                          title="編輯優惠券"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Image Thumbnail with zoom overlay */}
+                      <div
+                        onClick={() => onOpenLightbox(coupon.imageUrl)}
+                        className="relative w-full h-24 bg-white rounded-lg border border-slate-200/70 overflow-hidden cursor-zoom-in group/img flex items-center justify-center mb-2"
+                      >
+                        {/* eslint-disable-next-next/no-img-element */}
+                        <img
+                          src={coupon.imageUrl}
+                          alt={coupon.title}
+                          className="w-full h-full object-contain p-1 group-hover/img:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold space-x-1">
+                          <Maximize2 className="w-3.5 h-3.5" />
+                          <span>全螢幕出示</span>
+                        </div>
+                      </div>
+
+                      {/* Title & Discount */}
+                      <h4 className="text-xs font-black text-slate-900 line-clamp-1 leading-snug" title={coupon.title}>
+                        {coupon.title}
+                      </h4>
+                      {coupon.discount && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-200 px-1.5 py-0.5 rounded">
+                            <Sparkles className="w-2.5 h-2.5 mr-0.5 text-amber-600" />
+                            {coupon.discount}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom: Expiry & Quick Open */}
+                    <div className="mt-2 pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400 font-medium truncate max-w-[100px]">
+                        {coupon.expiryDate ? `效期: ${coupon.expiryDate}` : '出示可享優惠'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenLightbox(coupon.imageUrl)}
+                        className="font-bold text-amber-700 hover:text-amber-900 flex items-center space-x-0.5 cursor-pointer select-none"
+                      >
+                        <span>出示</span>
+                        <Maximize2 className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Quick Add Card at the end of carousel */}
+                <button
+                  type="button"
+                  onClick={() => onOpenCouponModal?.()}
+                  className="min-w-[110px] bg-slate-50/60 hover:bg-amber-50/40 border-2 border-dashed border-slate-200 hover:border-amber-300 rounded-xl p-3 flex flex-col items-center justify-center space-y-1 cursor-pointer transition-all flex-shrink-0 text-slate-500 hover:text-amber-800 group"
+                >
+                  <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span className="text-[11px] font-bold">新增截圖</span>
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => onOpenCouponModal?.()}
+                className="border border-dashed border-slate-200 hover:border-amber-400 bg-slate-50/60 hover:bg-amber-50/30 rounded-xl p-3 text-center cursor-pointer transition-all flex items-center justify-center space-x-2 text-slate-500 group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-amber-100/70 text-amber-700 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <Ticket className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-slate-800">尚未新增折價券或會員條碼</p>
+                  <p className="text-[10px] text-slate-400">點此上傳或貼上 BicCamera、唐吉訶德、藥妝免稅條碼截圖</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">

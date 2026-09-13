@@ -82,4 +82,16 @@ export interface AllTripData {
   citySchedule?: string;  // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
   historicalPackingCategories?: string[]; // 跨旅程歷史打包類別
   historicalTodoCategories?: string[];    // 跨旅程歷史待辦分類
+  coupons?: CouponItem[]; // 優惠券與票券截圖清單
+}
+
+export interface CouponItem {
+  id: string;
+  title: string;          // 優惠券名稱，例如：BicCamera 免稅 10% + 7% 折價券
+  store?: string;         // 適用店家，例如：BicCamera、唐吉訶德、松本清
+  discount?: string;      // 折扣亮點，例如：免稅 10% + 現折 7%
+  expiryDate?: string;    // 有效期限，例如：2026/12/31
+  imageUrl: string;       // 壓縮後的圖片 Data URL (Base64 WebP) 或外部圖片 URL
+  note?: string;          // 使用說明或備註
+  createdAt?: number;
 }

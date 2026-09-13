@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem } from '@/types/trip';
 import { TripConfig, TRIPS } from '@/config/trips';
 
 // 預設兩趟旅程範例
@@ -301,10 +301,41 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       citySchedule = settingsData?.city_schedule || settingsData?.cities || localCitySchedule || TRIPS[tripId]?.citySchedule || '';
     }
 
+    // 解析跨裝置同步的優惠券 (coupons)
+    let coupons: CouponItem[] = [];
+    const couponsMatch = rawTripNote.match(/<!--COUPONS_START-->([\s\S]*?)<!--COUPONS_END-->/);
+    if (couponsMatch && couponsMatch[1].trim()) {
+      const inner = couponsMatch[1].trim();
+      try {
+        const decoded = decodeURIComponent(atob(inner));
+        coupons = JSON.parse(decoded);
+      } catch {
+        try {
+          coupons = JSON.parse(decodeURIComponent(inner));
+        } catch {
+          try {
+            coupons = JSON.parse(inner);
+          } catch (err) {
+            console.warn('Failed to parse coupons from trip_note:', err);
+          }
+        }
+      }
+    }
+    if (!coupons || coupons.length === 0) {
+      try {
+        const local = typeof window !== 'undefined' ? localStorage.getItem(`coupons_${tripId}`) : null;
+        if (local) coupons = JSON.parse(local);
+      } catch (err) {
+        console.warn('Failed to parse coupons from localStorage:', err);
+      }
+    }
+    if (!Array.isArray(coupons)) coupons = [];
+
     // 清理 tripNote 移除所有隱藏標籤
     tripNote = rawTripNote
       .replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '')
       .replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '')
+      .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
       .trim();
 
     const foreignCurrency = settingsData?.foreign_currency || 'USD';
@@ -348,6 +379,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       citySchedule,
       historicalPackingCategories,
       historicalTodoCategories,
+      coupons,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);
@@ -452,6 +484,12 @@ export async function updateTripSettings(
     }
   }
 
+  // 保留原始 COUPONS 隱藏標籤
+  const existingCouponsMatch = existingRow?.trip_note?.match(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/);
+  if (existingCouponsMatch) {
+    finalTripNote = `${finalTripNote.replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '').trim()}\n${existingCouponsMatch[0]}`;
+  }
+
   const payload: Record<string, any> = {
     start_date: settings.startDate ?? '',
     fx_rate: settings.fxRate ?? 32.5,
@@ -524,6 +562,56 @@ export async function updateTripSettings(
 export async function setTripBadge(tripId: string, badgeText: string): Promise<void> {
   const { error } = await supabase.from('trips').update({ badge_text: badgeText }).eq('id', tripId);
   if (error) throw new Error(`更新狀態失敗: ${error.message}`);
+}
+
+/** 更新旅程優惠券與票券清單 (包含本地離線快取與跨裝置同步) */
+export async function updateTripCoupons(tripId: string, coupons: CouponItem[]): Promise<void> {
+  // 1. 本地立即儲存快取（離線秒開）
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`coupons_${tripId}`, JSON.stringify(coupons));
+    } catch (e) {
+      console.warn('localStorage coupon save warning:', e);
+    }
+  }
+
+  // 2. 查詢現有 trip_settings
+  const { data: list } = await supabase
+    .from('trip_settings')
+    .select('*')
+    .eq('trip_id', tripId)
+    .limit(1);
+
+  const existingRow = list?.[0] || null;
+  let rawTripNote = existingRow?.trip_note || '';
+
+  // 移除既有的 COUPONS 標籤
+  rawTripNote = rawTripNote.replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '').trim();
+
+  // 若有優惠券則編碼存入
+  if (coupons.length > 0) {
+    try {
+      const jsonStr = JSON.stringify(coupons);
+      const encoded = btoa(encodeURIComponent(jsonStr));
+      rawTripNote = `${rawTripNote}\n<!--COUPONS_START-->${encoded}<!--COUPONS_END-->`;
+    } catch (e) {
+      console.error('Failed to encode coupons:', e);
+    }
+  }
+
+  if (existingRow) {
+    await supabase
+      .from('trip_settings')
+      .update({ trip_note: rawTripNote })
+      .eq('id', existingRow.id);
+  } else {
+    await supabase
+      .from('trip_settings')
+      .insert({
+        trip_id: tripId,
+        trip_note: rawTripNote,
+      });
+  }
 }
 
 /** 根據 DB 實際擁有的欄位動態建立 Payload */

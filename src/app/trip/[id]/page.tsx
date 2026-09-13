@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
@@ -22,6 +22,7 @@ import { ShoppingModal } from '@/components/modals/ShoppingModal';
 import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { LightboxModal } from '@/components/modals/LightboxModal';
+import { CouponModal } from '@/components/modals/CouponModal';
 
 import {
   getAllData,
@@ -46,6 +47,7 @@ import {
   toggleShoppingStatus,
   toggleShoppingIgnoredStatus,
   checkoutShoppingStore,
+  updateTripCoupons,
 } from '@/lib/supabase-client';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -202,6 +204,9 @@ export default function TripPage({ params }: PageProps) {
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [activeCoupon, setActiveCoupon] = useState<CouponItem | null>(null);
 
   // 判斷旅程是否有 Will 同行（基本資訊 checkbox 或設定中包含 Will）
   const companionTokens = useMemo(() => {
@@ -755,6 +760,52 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleSaveCoupon = async (couponData: Partial<CouponItem>) => {
+    try {
+      showToast('正在儲存優惠券...');
+      const currentCoupons = tripData.coupons || [];
+      let updatedCoupons: CouponItem[];
+
+      if (couponData.id) {
+        updatedCoupons = currentCoupons.map((c) =>
+          c.id === couponData.id ? ({ ...c, ...couponData } as CouponItem) : c
+        );
+      } else {
+        const newCoupon: CouponItem = {
+          id: `coupon-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+          title: couponData.title || '',
+          store: couponData.store,
+          discount: couponData.discount,
+          expiryDate: couponData.expiryDate,
+          imageUrl: couponData.imageUrl || '',
+          note: couponData.note,
+          createdAt: Date.now(),
+        };
+        updatedCoupons = [newCoupon, ...currentCoupons];
+      }
+
+      setTripData((prev) => ({ ...prev, coupons: updatedCoupons }));
+      await updateTripCoupons(tripId, updatedCoupons);
+      showToast('優惠券儲存成功！');
+    } catch (err: any) {
+      showToast(`儲存優惠券失敗: ${err.message}`);
+    }
+  };
+
+  const handleDeleteCoupon = async (couponId: string) => {
+    try {
+      showToast('正在刪除優惠券...');
+      const currentCoupons = tripData.coupons || [];
+      const updatedCoupons = currentCoupons.filter((c) => c.id !== couponId);
+
+      setTripData((prev) => ({ ...prev, coupons: updatedCoupons }));
+      await updateTripCoupons(tripId, updatedCoupons);
+      showToast('優惠券已刪除！');
+    } catch (err: any) {
+      showToast(`刪除優惠券失敗: ${err.message}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
       {/* Desktop Sidebar Navigation */}
@@ -880,6 +931,7 @@ export default function TripPage({ params }: PageProps) {
               {currentTab === 'shopping' && (
                 <ShoppingTab
                   data={tripData.shopping}
+                  coupons={tripData.coupons || []}
                   foreignCurrency={tripData.foreignCurrency || 'USD'}
                   fxRate={tripData.fxRate}
                   hideDone={hideVisited}
@@ -891,6 +943,10 @@ export default function TripPage({ params }: PageProps) {
                     setDefaultShoppingStore(defaultStore || '');
                     setDefaultShoppingPerson(defaultForWhom || 'Jo');
                     setShoppingModalOpen(true);
+                  }}
+                  onOpenCouponModal={(coupon) => {
+                    setActiveCoupon(coupon || null);
+                    setCouponModalOpen(true);
                   }}
                   onOpenLightbox={(img) => setLightboxUrl(img)}
                 />
@@ -989,6 +1045,15 @@ export default function TripPage({ params }: PageProps) {
         customIcon={tripData.customIcon || tripData.svgIcon}
         citySchedule={tripData.citySchedule}
         badgeText={tripData.badgeText || tripConfig.badgeText || '進行中'}
+      />
+
+      <CouponModal
+        isOpen={couponModalOpen}
+        coupon={activeCoupon}
+        existingStores={currentShoppingStores}
+        onClose={() => setCouponModalOpen(false)}
+        onSave={handleSaveCoupon}
+        onDelete={handleDeleteCoupon}
       />
 
       <LightboxModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
