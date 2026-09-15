@@ -364,13 +364,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">
                   其他分帳人員
-                  <span className="text-slate-400 font-normal ml-1">(選填，逗號區隔，僅記帳分錢，不影響打包)</span>
+                  <span className="text-slate-400 font-normal ml-1">(僅分帳)</span>
                 </label>
                 <input
                   type="text"
                   value={otherCompanions}
                   onChange={(e) => setOtherCompanions(e.target.value)}
-                  placeholder="例：Ting, Amy（Jo 預設永遠加入）"
+                  placeholder="例：Ting, Amy"
                   className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
                 />
               </div>

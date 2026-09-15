@@ -347,8 +347,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
                 onChange={(e) => setIncludeNotes(e.target.checked)}
                 className="w-3.5 h-3.5 rounded text-slate-900 border-slate-300 focus:ring-slate-900 cursor-pointer"
               />
-              <span>包含原旅程備註 (Note)</span>
-              <span className="text-[10px] text-slate-400 font-normal">（預設不勾選，以維持新旅程清爽）</span>
+              <span>保留備註</span>
             </label>
           </div>
         </div>

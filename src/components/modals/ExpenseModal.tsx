@@ -335,7 +335,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="品項名稱 (如: 晚餐)"
+              placeholder="品項名稱"
               required
               className="col-span-3 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
             />
@@ -701,7 +701,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="備註說明 (選填)..."
+              placeholder="備註..."
               className="flex-1 bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500 min-w-0"
             />
           </div>

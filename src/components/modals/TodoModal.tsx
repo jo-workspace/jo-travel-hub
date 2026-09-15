@@ -107,7 +107,6 @@ export const TodoModal: React.FC<TodoModalProps> = ({
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="如 證件保險、機票住宿（留空歸類為其他）"
               className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-2"
             />
             {/* Quick Presets */}
@@ -147,7 +146,6 @@ export const TodoModal: React.FC<TodoModalProps> = ({
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="輸入相關詳細備註..."
               className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
             />
           </div>

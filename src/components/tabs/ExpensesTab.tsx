@@ -1008,7 +1008,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 type="text"
                 value={item}
                 onChange={(e) => setItem(e.target.value)}
-                placeholder="品項名稱 (如: 晚餐)"
+                placeholder="品項名稱"
                 required
                 className="col-span-3 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
               />
@@ -1379,7 +1379,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="備註說明 (選填)..."
+                placeholder="備註..."
                 className="flex-1 bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-1 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500 min-w-0"
               />
             </div>
@@ -1716,7 +1716,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     </table>
                   </div>
                   <p className="text-[10px] text-slate-400 text-right pr-1 select-none">
-                    💡 點擊類別列篩選類別 · 點擊成員標題篩選個人 · 點擊金額儲存格精確篩選
+                    💡 點擊類別或人員可快速篩選
                   </p>
                 </div>
               )}
@@ -1730,7 +1730,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               type="text"
               value={keywordFilter}
               onChange={(e) => setKeywordFilter(e.target.value)}
-              placeholder="搜尋品項名稱或備註關鍵字..."
+              placeholder="搜尋名稱或備註"
               className="w-full bg-white border border-slate-200 text-slate-800 text-xs pl-8 pr-8 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all placeholder:text-slate-400 shadow-2xs"
             />
             {keywordFilter && (
