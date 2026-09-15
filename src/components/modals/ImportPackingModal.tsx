@@ -154,6 +154,14 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
     return map;
   }, [filteredSourceItems, sourcePackingItems]);
 
+  const currentFilteredSelectedCount = useMemo(() => {
+    return filteredSourceItems.filter((it) => {
+      const idx = sourcePackingItems.indexOf(it);
+      const key = `${it.item}__${it.category}__${it.person || ''}__${idx}`;
+      return selectedItemKeys.has(key);
+    }).length;
+  }, [filteredSourceItems, sourcePackingItems, selectedItemKeys]);
+
   if (!isOpen) return null;
 
   const handleToggleItem = (key: string) => {
@@ -222,14 +230,6 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  const currentFilteredSelectedCount = useMemo(() => {
-    return filteredSourceItems.filter((it) => {
-      const idx = sourcePackingItems.indexOf(it);
-      const key = `${it.item}__${it.category}__${it.person || ''}__${idx}`;
-      return selectedItemKeys.has(key);
-    }).length;
-  }, [filteredSourceItems, sourcePackingItems, selectedItemKeys]);
 
   return (
     <div

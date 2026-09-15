@@ -77,7 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setRate(fxRate ? String(fxRate) : '');
       setBudget(budgetTwd ? String(budgetTwd) : '');
       setNote(tripNote || '');
-      setCurrency(foreignCurrency || 'USD');
+      setCurrency(foreignCurrency !== undefined ? foreignCurrency : 'USD');
       const tokens = (companions || '').split(/[\n,，]+/).map((p) => p.trim()).filter(Boolean);
       setHasWill(tokens.includes('Will'));
       setOtherCompanions(tokens.filter((p) => p !== 'Jo' && p !== 'Will').join(', '));
@@ -139,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         fxRate: rate ? parseFloat(rate) : 32.5,
         budgetTwd: budget ? parseInt(budget, 10) : 0,
         tripNote: note,
-        foreignCurrency: currency.trim().toUpperCase() || 'USD',
+        foreignCurrency: currency.trim().toUpperCase(),
         companions: finalCompanions,
         timezone: tz.trim() || 'Asia/Taipei',
         citySchedule: citySched.trim(),
@@ -336,11 +336,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">
                     匯率
-                    <span className="text-amber-600 font-bold ml-1">
-                      {['JPY', 'KRW', 'VND', 'IDR'].includes((currency || 'USD').toUpperCase())
-                        ? `(1 TWD = ? ${currency})`
-                        : `(1 ${currency} = ? TWD)`}
-                    </span>
+                    {currency ? (
+                      <span className="text-amber-600 font-bold ml-1">
+                        {['JPY', 'KRW', 'VND', 'IDR'].includes(currency.toUpperCase())
+                          ? `(1 TWD = ? ${currency})`
+                          : `(1 ${currency} = ? TWD)`}
+                      </span>
+                    ) : null}
                   </label>
                   <div className="relative">
                     <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />

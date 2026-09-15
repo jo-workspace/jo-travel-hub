@@ -338,7 +338,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
       .trim();
 
-    const foreignCurrency = settingsData?.foreign_currency || 'USD';
+    const foreignCurrency = settingsData?.foreign_currency !== undefined ? settingsData.foreign_currency : 'USD';
     const companions = settingsData?.companions || 'Jo, Will';
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
@@ -509,7 +509,7 @@ export async function updateTripSettings(
 
   // 只有當 DB 擁有此欄位才帶入 payload
   if (dbKeys.includes('foreign_currency') || (dbKeys.length === 0)) {
-    payload.foreign_currency = settings.foreignCurrency ?? 'USD';
+    payload.foreign_currency = settings.foreignCurrency !== undefined ? settings.foreignCurrency : 'USD';
   }
   if (dbKeys.includes('companions') || (dbKeys.length === 0)) {
     payload.companions = settings.companions ?? 'Jo, Will';

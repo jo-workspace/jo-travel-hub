@@ -1039,7 +1039,7 @@ export default function TripPage({ params }: PageProps) {
         fxRate={tripData.fxRate}
         budgetTwd={tripData.budgetTwd || 0}
         tripNote={tripData.tripNote}
-        foreignCurrency={tripData.foreignCurrency || 'USD'}
+        foreignCurrency={tripData.foreignCurrency !== undefined ? tripData.foreignCurrency : 'USD'}
         timezone={tripData.timezone}
         companions={tripData.companions}
         customIcon={tripData.customIcon || tripData.svgIcon}
