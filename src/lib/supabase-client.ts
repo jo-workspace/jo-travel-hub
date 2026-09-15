@@ -441,7 +441,17 @@ export async function updateTripSettings(
     .limit(1);
 
   const existingRow = list?.[0] || null;
-  const dbKeys = existingRow ? Object.keys(existingRow) : [];
+
+  // 若該旅程尚未有設定列，從 trip_settings 查詢一列獲取實際 DB 欄位 schema
+  let sampleRow = existingRow;
+  if (!sampleRow) {
+    const { data: anyList } = await supabase
+      .from('trip_settings')
+      .select('*')
+      .limit(1);
+    sampleRow = anyList?.[0] || null;
+  }
+  const dbKeys = sampleRow ? Object.keys(sampleRow) : [];
 
   // 處理 trip_note 中跨裝置同步的自訂上傳圖示 (PNG Data URI)
   let finalTripNote = settings.tripNote ?? '';
@@ -497,20 +507,21 @@ export async function updateTripSettings(
     trip_note: finalTripNote,
   };
 
-  // 只有當 DB 擁有此欄位（或是準備全新建立）才帶入
-  if (dbKeys.length === 0 || dbKeys.includes('foreign_currency')) {
+  // 只有當 DB 擁有此欄位才帶入 payload
+  if (dbKeys.includes('foreign_currency') || (dbKeys.length === 0)) {
     payload.foreign_currency = settings.foreignCurrency ?? 'USD';
   }
-  if (dbKeys.length === 0 || dbKeys.includes('companions')) {
+  if (dbKeys.includes('companions') || (dbKeys.length === 0)) {
     payload.companions = settings.companions ?? 'Jo, Will';
   }
-  if (dbKeys.length === 0 || dbKeys.includes('timezone')) {
+  if (dbKeys.includes('timezone') || (dbKeys.length === 0)) {
     payload.timezone = settings.timezone ?? 'Asia/Taipei';
   }
-  if (dbKeys.length === 0 || dbKeys.includes('city_schedule')) {
+  // city_schedule 與 svg_icon 主要是透過 trip_note 內部隱藏標籤跨裝置儲存；若 DB 明確有此欄位才額外寫入 DB 欄位
+  if (dbKeys.includes('city_schedule')) {
     payload.city_schedule = settings.citySchedule ?? '';
   }
-  if (dbKeys.length === 0 || dbKeys.includes('svg_icon')) {
+  if (dbKeys.includes('svg_icon')) {
     payload.svg_icon = settings.svgIcon ?? '';
   }
 
@@ -522,12 +533,16 @@ export async function updateTripSettings(
       .eq('trip_id', tripId);
     settingsError = error;
 
-    // 容錯重試：若因新欄位出錯，降級只更新基礎 4 欄
+    // 容錯重試：若因新欄位出錯，降級只更新基礎核心欄位
     if (settingsError) {
-      const { start_date, fx_rate, budget_twd, trip_note } = payload;
+      const { start_date, fx_rate, budget_twd, trip_note, foreign_currency, companions, timezone } = payload;
+      const fallbackPayload: Record<string, any> = { start_date, fx_rate, budget_twd, trip_note };
+      if (foreign_currency) fallbackPayload.foreign_currency = foreign_currency;
+      if (companions) fallbackPayload.companions = companions;
+      if (timezone) fallbackPayload.timezone = timezone;
       const { error: retryErr } = await supabase
         .from('trip_settings')
-        .update({ start_date, fx_rate, budget_twd, trip_note })
+        .update(fallbackPayload)
         .eq('trip_id', tripId);
       settingsError = retryErr;
     }
@@ -536,6 +551,19 @@ export async function updateTripSettings(
       .from('trip_settings')
       .insert({ trip_id: tripId, categories: '[]', ...payload });
     settingsError = error;
+
+    // 容錯重試：若因新欄位出錯，降級只新增基礎核心欄位
+    if (settingsError) {
+      const { start_date, fx_rate, budget_twd, trip_note, foreign_currency, companions, timezone } = payload;
+      const fallbackPayload: Record<string, any> = { trip_id: tripId, categories: '[]', start_date, fx_rate, budget_twd, trip_note };
+      if (foreign_currency) fallbackPayload.foreign_currency = foreign_currency;
+      if (companions) fallbackPayload.companions = companions;
+      if (timezone) fallbackPayload.timezone = timezone;
+      const { error: retryErr } = await supabase
+        .from('trip_settings')
+        .insert(fallbackPayload);
+      settingsError = retryErr;
+    }
   }
 
   if (settingsError) throw new Error(`設定儲存失敗: ${settingsError.message}`);
