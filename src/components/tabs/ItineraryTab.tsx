@@ -6,6 +6,7 @@ import { ItineraryItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
 import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon, Bookmark, X, Check } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
+import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
 import {
   getCityForDay,
   getUniqueCities,
@@ -137,6 +138,17 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   onBatchUpdateTimes,
 }) => {
   const [weatherMap, setWeatherMap] = useState<Record<string, CityWeatherData>>({});
+  const [inspectingWeather, setInspectingWeather] = useState<{
+    isOpen: boolean;
+    dayLabel: string;
+    dateText?: string;
+    dayCity?: string;
+    weatherData?: CityWeatherData | null;
+    dayWeather?: DayWeatherInfo | null;
+  }>({
+    isOpen: false,
+    dayLabel: '',
+  });
 
   useEffect(() => {
     const cities = getUniqueCities(citySchedule);
@@ -535,18 +547,29 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
               {/* Day Weather Capsule */}
               {dayWeather && (
-                <div
-                  className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200/80 px-2.5 py-1 rounded-xl shadow-2xs select-none"
-                  title={`${dayCity || ''} ${dayWeather.tempMin}°C ~ ${dayWeather.tempMax}°C`}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInspectingWeather({
+                      isOpen: true,
+                      dayLabel: day,
+                      dateText,
+                      dayCity,
+                      weatherData: cityWeather,
+                      dayWeather,
+                    });
+                  }}
+                  className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 px-2.5 py-1 rounded-xl shadow-2xs transition-all cursor-pointer select-none active:scale-95 group"
+                  title="點擊檢查氣象與地點資訊"
                 >
-                  <WeatherIcon code={dayWeather.weatherCode} className="w-3.5 h-3.5" />
+                  <WeatherIcon code={dayWeather.weatherCode} className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                   <span className="font-mono text-slate-900">{dayWeather.tempMax}° / {dayWeather.tempMin}°</span>
                   {dayWeather.precipitationProbability > 0 && (
                     <span className="text-[10px] text-sky-600 font-mono font-bold">
                       {dayWeather.precipitationProbability}%
                     </span>
                   )}
-                </div>
+                </button>
               )}
             </div>
 
@@ -820,6 +843,17 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* 天氣與地點檢查彈窗 */}
+      <WeatherDetailModal
+        isOpen={inspectingWeather.isOpen}
+        onClose={() => setInspectingWeather((prev) => ({ ...prev, isOpen: false }))}
+        dayLabel={inspectingWeather.dayLabel}
+        dateText={inspectingWeather.dateText}
+        dayCity={inspectingWeather.dayCity}
+        weatherData={inspectingWeather.weatherData}
+        dayWeather={inspectingWeather.dayWeather}
+      />
     </div>
   );
 };

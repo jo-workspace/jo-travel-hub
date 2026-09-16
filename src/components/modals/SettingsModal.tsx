@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut, Upload, Image as ImageIcon, Trash2, Archive } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
 import { computeAutoTripStatus } from '@/lib/tripDate';
+import { getUniqueCities, resolveCityInfo, CityResolutionInfo } from '@/lib/weather';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -57,6 +58,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [otherCompanions, setOtherCompanions] = useState('');
   const [tz, setTz] = useState('Asia/Taipei');
   const [citySched, setCitySched] = useState('');
+  const [resolvedCities, setResolvedCities] = useState<Record<string, CityResolutionInfo | null>>({});
   const [iconDataUrl, setIconDataUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -90,6 +92,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setError('');
     }
   }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule, badgeText]);
+
+  // 即時解析城市日程並快取地點資訊
+  useEffect(() => {
+    if (!isOpen) return;
+    const cities = getUniqueCities(citySched);
+    if (cities.length === 0) {
+      setResolvedCities({});
+      return;
+    }
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      const results: Record<string, CityResolutionInfo | null> = {};
+      for (const c of cities) {
+        const info = await resolveCityInfo(c);
+        if (info) results[c] = info;
+      }
+      if (isMounted) setResolvedCities(results);
+    }, 250);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [citySched, isOpen]);
 
   if (!isOpen) return null;
 
@@ -289,6 +314,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
               </div>
+
+              {/* 城市日程即時地點解析晶片 */}
+              {Object.keys(resolvedCities).length > 0 && (
+                <div className="bg-slate-50/80 border border-slate-200/70 rounded-2xl p-2.5 space-y-1.5 animate-fade-in">
+                  <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-between px-0.5">
+                    <span>天氣地點解析預覽</span>
+                    <span className="text-[10px] text-slate-400 font-normal">自動判斷 CWA / 國際模式</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(resolvedCities).map(([name, info]) => {
+                      if (!info) return null;
+                      return (
+                        <div
+                          key={name}
+                          className="inline-flex items-center space-x-1.5 text-xs bg-white border border-slate-200/80 px-2.5 py-1 rounded-xl shadow-2xs"
+                          title={`座標: ${info.latitude.toFixed(4)}°N, ${info.longitude.toFixed(4)}°E${info.elevation ? ` | 海拔 ${info.elevation}m` : ''}`}
+                        >
+                          <span className="text-xs">{info.source === 'CWA' ? '🇹🇼' : '🌍'}</span>
+                          <span className="font-bold text-slate-900">{name}</span>
+                          <span className="text-slate-300">|</span>
+                          <span className="text-slate-600 text-[11px] truncate max-w-[140px]">{info.resolvedName}</span>
+                          {info.elevation ? (
+                            <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200/50">
+                              {info.elevation}m
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Row 4: 外幣 + 匯率 */}
               <div className="grid grid-cols-2 gap-2.5">
