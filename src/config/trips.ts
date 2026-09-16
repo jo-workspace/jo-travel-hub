@@ -11,6 +11,7 @@ export interface TripConfig {
   appleIconUrl?: string;
   emoji?: string;
   citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
+  isTaiwanTrip?: boolean; // 是否為台灣本地行程
 }
 
 export const TRIPS: Record<string, TripConfig> = {

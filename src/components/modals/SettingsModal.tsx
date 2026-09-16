@@ -25,6 +25,7 @@ interface SettingsModalProps {
   svgIcon?: string;
   citySchedule?: string;
   badgeText?: string;
+  isTaiwanTrip?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -45,6 +46,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   svgIcon,
   citySchedule,
   badgeText,
+  isTaiwanTrip,
 }) => {
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
@@ -58,6 +60,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [otherCompanions, setOtherCompanions] = useState('');
   const [tz, setTz] = useState('Asia/Taipei');
   const [citySched, setCitySched] = useState('');
+  const [isTaiwan, setIsTaiwan] = useState(false);
   const [resolvedCities, setResolvedCities] = useState<Record<string, CityResolutionInfo | null>>({});
   const [iconDataUrl, setIconDataUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -88,10 +91,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setOtherCompanions(tokens.filter((p) => p !== 'Jo' && p !== 'Will').join(', '));
       setTz(timezone || 'Asia/Taipei');
       setCitySched(citySchedule || '');
+      const defaultTaiwan =
+        isTaiwanTrip !== undefined
+          ? isTaiwanTrip
+          : ((timezone || '').includes('Taipei') || (tripTitle || '').includes('台灣') || (tripTitle || '').includes('武嶺') || (tripTitle || '').includes('南投') || (citySchedule || '').includes('武嶺'));
+      setIsTaiwan(Boolean(defaultTaiwan));
       setIconDataUrl(customIcon || svgIcon || '');
       setError('');
     }
-  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule, badgeText]);
+  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule, badgeText, isTaiwanTrip]);
 
   // 即時解析城市日程並快取地點資訊
   useEffect(() => {
@@ -105,16 +113,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const timer = setTimeout(async () => {
       const results: Record<string, CityResolutionInfo | null> = {};
       for (const c of cities) {
-        const info = await resolveCityInfo(c);
+        const info = await resolveCityInfo(c, isTaiwan);
         if (info) results[c] = info;
       }
       if (isMounted) setResolvedCities(results);
-    }, 250);
+    }, 200);
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [citySched, isOpen]);
+  }, [citySched, isOpen, isTaiwan]);
 
   if (!isOpen) return null;
 
@@ -177,6 +185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         timezone: tz.trim() || 'Asia/Taipei',
         citySchedule: citySched.trim(),
         customIcon: iconDataUrl,
+        isTaiwanTrip: isTaiwan,
       });
       onSaved();
       onClose();
@@ -305,13 +314,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">城市日程</label>
-                  <input
-                    type="text"
-                    value={citySched}
-                    onChange={(e) => setCitySched(e.target.value)}
-                    placeholder="例：Day 1-3: LA"
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-sans text-slate-800 h-[38px]"
-                  />
+                  <div className="flex items-center space-x-1.5">
+                    <label className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2.5 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px] shrink-0" title="勾選即啟用中央氣象署 (CWA) 官方預報">
+                      <input
+                        type="checkbox"
+                        checked={isTaiwan}
+                        onChange={(e) => setIsTaiwan(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-slate-900 bg-white border-slate-300 focus:ring-slate-900 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700">台灣</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={citySched}
+                      onChange={(e) => setCitySched(e.target.value)}
+                      placeholder={isTaiwan ? "例：Day 1-2: 武嶺" : "例：Day 1-3: LA"}
+                      className="flex-1 min-w-0 bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-sans text-slate-800 h-[38px]"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -320,7 +340,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="bg-slate-50/80 border border-slate-200/70 rounded-2xl p-2.5 space-y-1.5 animate-fade-in">
                   <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-between px-0.5">
                     <span>天氣地點解析預覽</span>
-                    <span className="text-[10px] text-slate-400 font-normal">自動判斷 CWA / 國際模式</span>
+                    <span className="text-[10px] text-slate-400 font-normal">{isTaiwan ? 'CWA 官方預報' : '國際預報模式'}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(resolvedCities).map(([name, info]) => {

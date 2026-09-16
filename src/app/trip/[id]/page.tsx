@@ -861,6 +861,7 @@ export default function TripPage({ params }: PageProps) {
                   startDate={tripData.startDate}
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
+                  isTaiwanTrip={tripData.isTaiwanTrip}
                   onToggleVisited={handleToggleVisited}
                   onToggleIgnored={handleToggleIgnored}
                   onOpenModal={(item, initialDay) => {
@@ -1045,6 +1046,7 @@ export default function TripPage({ params }: PageProps) {
         customIcon={tripData.customIcon || tripData.svgIcon}
         citySchedule={tripData.citySchedule}
         badgeText={tripData.badgeText || tripConfig.badgeText || '進行中'}
+        isTaiwanTrip={tripData.isTaiwanTrip}
       />
 
       <CouponModal

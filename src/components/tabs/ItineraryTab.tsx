@@ -27,6 +27,7 @@ interface ItineraryTabProps {
   startDate?: string; // YYYY-MM-DD，旅程起始日
   timezone?: string; // 旅程目的地時區（IANA），用來判斷「今天」是第幾天
   citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
+  isTaiwanTrip?: boolean; // 是否為台灣本地行程
   onToggleVisited: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onToggleIgnored?: (rowIndex: number, currentIgnored: boolean, id?: string) => void;
   onOpenModal: (item?: ItineraryItem, initialDay?: string) => void;
@@ -131,6 +132,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   startDate,
   timezone,
   citySchedule,
+  isTaiwanTrip,
   onToggleVisited,
   onToggleIgnored,
   onOpenModal,
@@ -157,14 +159,14 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
     const loadWeather = async () => {
       const results: Record<string, CityWeatherData> = {};
       for (const city of cities) {
-        const wData = await fetchWeatherForCity(city);
+        const wData = await fetchWeatherForCity(city, isTaiwanTrip);
         if (wData) results[city.toLowerCase()] = wData;
       }
       setWeatherMap(results);
     };
 
     loadWeather();
-  }, [citySchedule]);
+  }, [citySchedule, isTaiwanTrip]);
 
   // Sort items by Day and Time
   const sortedItems = [...data].sort(sortItineraryItems);

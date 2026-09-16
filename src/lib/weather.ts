@@ -56,16 +56,95 @@ interface TaiwanLocationMeta {
   elevation?: number;
 }
 
-// 台灣熱門旅遊景點與主要縣市高精度對照表
+// 全台 22 縣市專屬 CWA 鄉鎮逐日預報 Dataset ID 映射表
+export const CWA_COUNTY_DATASETS: Record<string, string> = {
+  '宜蘭縣': 'F-D0047-003', '宜蘭': 'F-D0047-003',
+  '桃園市': 'F-D0047-007', '桃園': 'F-D0047-007',
+  '新竹縣': 'F-D0047-011',
+  '苗栗縣': 'F-D0047-015', '苗栗': 'F-D0047-015',
+  '彰化縣': 'F-D0047-019', '彰化': 'F-D0047-019',
+  '南投縣': 'F-D0047-023', '南投': 'F-D0047-023',
+  '雲林縣': 'F-D0047-027', '雲林': 'F-D0047-027',
+  '嘉義縣': 'F-D0047-031',
+  '屏東縣': 'F-D0047-035', '屏東': 'F-D0047-035',
+  '臺東縣': 'F-D0047-039', '台東縣': 'F-D0047-039', '臺東': 'F-D0047-039', '台東': 'F-D0047-039',
+  '花蓮縣': 'F-D0047-043', '花蓮': 'F-D0047-043',
+  '澎湖縣': 'F-D0047-047', '澎湖': 'F-D0047-047',
+  '基隆市': 'F-D0047-051', '基隆': 'F-D0047-051',
+  '新竹市': 'F-D0047-055', '新竹': 'F-D0047-055',
+  '嘉義市': 'F-D0047-059', '嘉義': 'F-D0047-059',
+  '臺北市': 'F-D0047-063', '台北市': 'F-D0047-063', '臺北': 'F-D0047-063', '台北': 'F-D0047-063',
+  '高雄市': 'F-D0047-067', '高雄': 'F-D0047-067',
+  '新北市': 'F-D0047-071', '新北': 'F-D0047-071',
+  '臺中市': 'F-D0047-075', '台中市': 'F-D0047-075', '臺中': 'F-D0047-075', '台中': 'F-D0047-075',
+  '臺南市': 'F-D0047-079', '台南市': 'F-D0047-079', '臺南': 'F-D0047-079', '台南': 'F-D0047-079',
+  '連江縣': 'F-D0047-083', '連江': 'F-D0047-083', '馬祖': 'F-D0047-083',
+  '金門縣': 'F-D0047-087', '金門': 'F-D0047-087',
+};
+
+export function getCountyDatasetId(countyName?: string): string {
+  if (!countyName) return 'F-D0047-091';
+  const clean = countyName.replace(/臺/g, '台');
+  for (const [key, id] of Object.entries(CWA_COUNTY_DATASETS)) {
+    const kClean = key.replace(/臺/g, '台');
+    if (clean.includes(kClean) || kClean.includes(clean)) {
+      return id;
+    }
+  }
+  return 'F-D0047-091';
+}
+
+// 台灣熱門旅遊景點、百岳、離島與主要縣市高精度對照表
 const TAIWAN_LOCATIONS: Record<string, TaiwanLocationMeta> = {
+  // 百岳與知名高山森林風景區
   '武嶺': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 24.1400, lon: 121.2747, elevation: 3250 },
   '合歡山': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 24.1415, lon: 121.2828, elevation: 3417 },
   '清境': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 24.0435, lon: 121.1625, elevation: 1750 },
   '清境農場': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 24.0435, lon: 121.1625, elevation: 1750 },
   '日月潭': { datasetId: 'F-D0047-023', county: '南投縣', township: '魚池鄉', lat: 23.8687, lon: 120.9160, elevation: 760 },
-  '南投': { datasetId: 'F-D0047-023', county: '南投縣', township: '南投市', lat: 23.9133, lon: 120.6792, elevation: 110 },
-  '南投縣': { datasetId: 'F-D0047-023', county: '南投縣', township: '南投市', lat: 23.9133, lon: 120.6792, elevation: 110 },
-  '仁愛鄉': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 24.0232, lon: 121.1241, elevation: 1148 },
+  '阿里山': { datasetId: 'F-D0047-031', county: '嘉義縣', township: '阿里山鄉', lat: 23.5100, lon: 120.8000, elevation: 2200 },
+  '司馬庫斯': { datasetId: 'F-D0047-011', county: '新竹縣', township: '尖石鄉', lat: 24.5800, lon: 121.3328, elevation: 1500 },
+  '鎮西堡': { datasetId: 'F-D0047-011', county: '新竹縣', township: '尖石鄉', lat: 24.5500, lon: 121.3200, elevation: 1700 },
+  '太平山': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '大同鄉', lat: 24.4925, lon: 121.5381, elevation: 1950 },
+  '拉拉山': { datasetId: 'F-D0047-007', county: '桃園市', township: '復興區', lat: 24.7119, lon: 121.4286, elevation: 1600 },
+  '武陵農場': { datasetId: 'F-D0047-075', county: '臺中市', township: '和平區', lat: 24.3564, lon: 121.3125, elevation: 1800 },
+  '武陵': { datasetId: 'F-D0047-075', county: '臺中市', township: '和平區', lat: 24.3564, lon: 121.3125, elevation: 1800 },
+  '福壽山': { datasetId: 'F-D0047-075', county: '臺中市', township: '和平區', lat: 24.2464, lon: 121.2464, elevation: 2200 },
+  '奧萬大': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 23.9536, lon: 121.1814, elevation: 1200 },
+  '溪頭': { datasetId: 'F-D0047-023', county: '南投縣', township: '鹿谷鄉', lat: 23.6736, lon: 120.7964, elevation: 1150 },
+  '杉林溪': { datasetId: 'F-D0047-023', county: '南投縣', township: '竹山鎮', lat: 23.6364, lon: 120.7925, elevation: 1600 },
+  '陽明山': { datasetId: 'F-D0047-063', county: '臺北市', township: '北投區', lat: 25.1558, lon: 121.5475, elevation: 800 },
+  // 離島特色觀光區
+  '小琉球': { datasetId: 'F-D0047-035', county: '屏東縣', township: '琉球鄉', lat: 22.3424, lon: 120.3703, elevation: 20 },
+  '綠島': { datasetId: 'F-D0047-039', county: '臺東縣', township: '綠島鄉', lat: 22.6625, lon: 121.4936, elevation: 30 },
+  '蘭嶼': { datasetId: 'F-D0047-039', county: '臺東縣', township: '蘭嶼鄉', lat: 22.0564, lon: 121.5369, elevation: 50 },
+  '澎湖': { datasetId: 'F-D0047-047', county: '澎湖縣', township: '馬公市', lat: 23.5711, lon: 119.5793, elevation: 15 },
+  '金門': { datasetId: 'F-D0047-087', county: '金門縣', township: '金城鎮', lat: 24.4363, lon: 118.3186, elevation: 20 },
+  '馬祖': { datasetId: 'F-D0047-083', county: '連江縣', township: '南竿鄉', lat: 26.1558, lon: 119.9397, elevation: 30 },
+  '連江': { datasetId: 'F-D0047-083', county: '連江縣', township: '南竿鄉', lat: 26.1558, lon: 119.9397, elevation: 30 },
+  // 特色旅遊與溫泉風景區
+  '墾丁': { datasetId: 'F-D0047-035', county: '屏東縣', township: '恆春鎮', lat: 21.9463, lon: 120.7981, elevation: 20 },
+  '恆春': { datasetId: 'F-D0047-035', county: '屏東縣', township: '恆春鎮', lat: 22.0042, lon: 120.7447, elevation: 20 },
+  '鵝鑾鼻': { datasetId: 'F-D0047-035', county: '屏東縣', township: '恆春鎮', lat: 21.9022, lon: 120.8525, elevation: 20 },
+  '太魯閣': { datasetId: 'F-D0047-043', county: '花蓮縣', township: '秀林鄉', lat: 24.1583, lon: 121.6222, elevation: 60 },
+  '礁溪': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '礁溪鄉', lat: 24.8272, lon: 121.7712, elevation: 15 },
+  '知本': { datasetId: 'F-D0047-039', county: '臺東縣', township: '卑南鄉', lat: 22.6936, lon: 121.0183, elevation: 80 },
+  '烏來': { datasetId: 'F-D0047-071', county: '新北市', township: '烏來區', lat: 24.8653, lon: 121.5508, elevation: 250 },
+  '谷關': { datasetId: 'F-D0047-075', county: '臺中市', township: '和平區', lat: 24.2042, lon: 121.0069, elevation: 750 },
+  '淡水': { datasetId: 'F-D0047-071', county: '新北市', township: '淡水區', lat: 25.1728, lon: 121.4442, elevation: 20 },
+  '九份': { datasetId: 'F-D0047-071', county: '新北市', township: '瑞芳區', lat: 25.1094, lon: 121.8447, elevation: 300 },
+  '大溪': { datasetId: 'F-D0047-007', county: '桃園市', township: '大溪區', lat: 24.8839, lon: 121.2878, elevation: 125 },
+  '中壢': { datasetId: 'F-D0047-007', county: '桃園市', township: '中壢區', lat: 24.9653, lon: 121.2250, elevation: 130 },
+  '鹿港': { datasetId: 'F-D0047-019', county: '彰化縣', township: '鹿港鎮', lat: 24.0572, lon: 120.4350, elevation: 10 },
+  '頭城': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '頭城鎮', lat: 24.8597, lon: 121.8236, elevation: 10 },
+  '羅東': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '羅東鎮', lat: 24.6756, lon: 121.7672, elevation: 10 },
+  '蘇澳': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '蘇澳鎮', lat: 24.5969, lon: 121.8439, elevation: 10 },
+  '池上': { datasetId: 'F-D0047-039', county: '臺東縣', township: '池上鄉', lat: 23.1239, lon: 121.2169, elevation: 260 },
+  '玉里': { datasetId: 'F-D0047-043', county: '花蓮縣', township: '玉里鎮', lat: 23.3331, lon: 121.3128, elevation: 140 },
+  '美濃': { datasetId: 'F-D0047-067', county: '高雄市', township: '美濃區', lat: 22.8983, lon: 120.5408, elevation: 50 },
+  '埔里': { datasetId: 'F-D0047-023', county: '南投縣', township: '埔里鎮', lat: 23.9664, lon: 120.9694, elevation: 450 },
+  '集集': { datasetId: 'F-D0047-023', county: '南投縣', township: '集集鎮', lat: 23.8292, lon: 120.7836, elevation: 240 },
+  // 主要縣市
   '台北': { datasetId: 'F-D0047-063', county: '臺北市', township: '中正區', lat: 25.0330, lon: 121.5654, elevation: 20 },
   '臺北': { datasetId: 'F-D0047-063', county: '臺北市', township: '中正區', lat: 25.0330, lon: 121.5654, elevation: 20 },
   '台北市': { datasetId: 'F-D0047-063', county: '臺北市', township: '中正區', lat: 25.0330, lon: 121.5654, elevation: 20 },
@@ -90,7 +169,6 @@ const TAIWAN_LOCATIONS: Record<string, TaiwanLocationMeta> = {
   '嘉義': { datasetId: 'F-D0047-059', county: '嘉義市', township: '東區', lat: 23.4800, lon: 120.4491, elevation: 35 },
   '嘉義市': { datasetId: 'F-D0047-059', county: '嘉義市', township: '東區', lat: 23.4800, lon: 120.4491, elevation: 35 },
   '嘉義縣': { datasetId: 'F-D0047-031', county: '嘉義縣', township: '太保市', lat: 23.4589, lon: 120.3323, elevation: 20 },
-  '阿里山': { datasetId: 'F-D0047-031', county: '嘉義縣', township: '阿里山鄉', lat: 23.5100, lon: 120.8000, elevation: 2200 },
   '台南': { datasetId: 'F-D0047-079', county: '臺南市', township: '安平區', lat: 22.9997, lon: 120.2270, elevation: 15 },
   '臺南': { datasetId: 'F-D0047-079', county: '臺南市', township: '安平區', lat: 22.9997, lon: 120.2270, elevation: 15 },
   '台南市': { datasetId: 'F-D0047-079', county: '臺南市', township: '安平區', lat: 22.9997, lon: 120.2270, elevation: 15 },
@@ -99,23 +177,19 @@ const TAIWAN_LOCATIONS: Record<string, TaiwanLocationMeta> = {
   '高雄市': { datasetId: 'F-D0047-067', county: '高雄市', township: '苓雅區', lat: 22.6273, lon: 120.3014, elevation: 10 },
   '屏東': { datasetId: 'F-D0047-035', county: '屏東縣', township: '屏東市', lat: 22.6761, lon: 120.4885, elevation: 25 },
   '屏東縣': { datasetId: 'F-D0047-035', county: '屏東縣', township: '屏東市', lat: 22.6761, lon: 120.4885, elevation: 25 },
-  '墾丁': { datasetId: 'F-D0047-035', county: '屏東縣', township: '恆春鎮', lat: 21.9463, lon: 120.7981, elevation: 20 },
-  '恆春': { datasetId: 'F-D0047-035', county: '屏東縣', township: '恆春鎮', lat: 22.0042, lon: 120.7447, elevation: 20 },
   '宜蘭': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '宜蘭市', lat: 24.7570, lon: 121.7530, elevation: 10 },
   '宜蘭縣': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '宜蘭市', lat: 24.7570, lon: 121.7530, elevation: 10 },
-  '礁溪': { datasetId: 'F-D0047-003', county: '宜蘭縣', township: '礁溪鄉', lat: 24.8272, lon: 121.7712, elevation: 15 },
   '花蓮': { datasetId: 'F-D0047-043', county: '花蓮縣', township: '花蓮市', lat: 23.9872, lon: 121.6016, elevation: 25 },
   '花蓮縣': { datasetId: 'F-D0047-043', county: '花蓮縣', township: '花蓮市', lat: 23.9872, lon: 121.6016, elevation: 25 },
-  '太魯閣': { datasetId: 'F-D0047-043', county: '花蓮縣', township: '秀林鄉', lat: 24.1583, lon: 121.6222, elevation: 60 },
   '台東': { datasetId: 'F-D0047-039', county: '臺東縣', township: '臺東市', lat: 22.7583, lon: 121.1444, elevation: 15 },
   '臺東': { datasetId: 'F-D0047-039', county: '臺東縣', township: '臺東市', lat: 22.7583, lon: 121.1444, elevation: 15 },
   '台東縣': { datasetId: 'F-D0047-039', county: '臺東縣', township: '臺東市', lat: 22.7583, lon: 121.1444, elevation: 15 },
   '臺東縣': { datasetId: 'F-D0047-039', county: '臺東縣', township: '臺東市', lat: 22.7583, lon: 121.1444, elevation: 15 },
-  '澎湖': { datasetId: 'F-D0047-047', county: '澎湖縣', township: '馬公市', lat: 23.5711, lon: 119.5793, elevation: 15 },
-  '金門': { datasetId: 'F-D0047-087', county: '金門縣', township: '金城鎮', lat: 24.4363, lon: 118.3186, elevation: 20 },
-  '馬祖': { datasetId: 'F-D0047-083', county: '連江縣', township: '南竿鄉', lat: 26.1558, lon: 119.9397, elevation: 30 },
-  '連江': { datasetId: 'F-D0047-083', county: '連江縣', township: '南竿鄉', lat: 26.1558, lon: 119.9397, elevation: 30 },
+  '南投': { datasetId: 'F-D0047-023', county: '南投縣', township: '南投市', lat: 23.9133, lon: 120.6792, elevation: 110 },
+  '南投縣': { datasetId: 'F-D0047-023', county: '南投縣', township: '南投市', lat: 23.9133, lon: 120.6792, elevation: 110 },
+  '仁愛鄉': { datasetId: 'F-D0047-023', county: '南投縣', township: '仁愛鄉', lat: 24.0232, lon: 121.1241, elevation: 1148 },
 };
+
 
 // 內建海外熱門旅遊城市離線字典
 const KNOWN_COORDINATES: Record<string, { lat: number; lon: number }> = {
@@ -262,11 +336,14 @@ export function cwaWeatherDescToCode(desc: string): number {
 /**
  * 快速解析城市所在地點、行政區、海拔與來源（用於 UI 地點即時預覽與透明度核對）
  */
-export async function resolveCityInfo(cityName: string): Promise<CityResolutionInfo | null> {
+export async function resolveCityInfo(
+  cityName: string,
+  isTaiwanTrip = false
+): Promise<CityResolutionInfo | null> {
   const clean = cityName.trim();
   if (!clean) return null;
 
-  // 1. 優先檢查台灣高精度字典
+  // 1. 優先檢查台灣高精度字典（不論是否勾選，只要命中台灣字典皆直接鎖定 CWA）
   const twMeta = TAIWAN_LOCATIONS[clean];
   if (twMeta) {
     const parts = ['台灣', twMeta.county, twMeta.township, clean !== twMeta.township && clean !== twMeta.county ? clean : '']
@@ -284,17 +361,53 @@ export async function resolveCityInfo(cityName: string): Promise<CityResolutionI
     };
   }
 
-  // 2. 檢查知名海外城市
-  const lower = clean.toLowerCase();
-  if (KNOWN_COORDINATES[lower]) {
-    const coords = KNOWN_COORDINATES[lower];
-    return {
-      cityName: clean,
-      resolvedName: clean,
-      source: 'Open-Meteo',
-      latitude: coords.lat,
-      longitude: coords.lon,
-    };
+  // 若標記為台灣行程，優先進行本地鄉鎮與景點模糊比對（零外部網路請求）
+  if (isTaiwanTrip) {
+    for (const [spotName, meta] of Object.entries(TAIWAN_LOCATIONS)) {
+      if (clean.includes(spotName) || spotName.includes(clean)) {
+        const parts = ['台灣', meta.county, meta.township, clean !== meta.township ? clean : ''].filter(Boolean);
+        return {
+          cityName: clean,
+          resolvedName: Array.from(new Set(parts)).join(' · '),
+          source: 'CWA',
+          latitude: meta.lat,
+          longitude: meta.lon,
+          elevation: meta.elevation,
+          countyName: meta.county,
+          townshipName: meta.township,
+          countryCode: 'TW',
+        };
+      }
+    }
+    for (const [countyKey, datasetId] of Object.entries(CWA_COUNTY_DATASETS)) {
+      if (clean.includes(countyKey) || countyKey.includes(clean)) {
+        return {
+          cityName: clean,
+          resolvedName: `台灣 · ${countyKey}`,
+          source: 'CWA',
+          latitude: 23.8,
+          longitude: 120.9,
+          countyName: countyKey,
+          townshipName: clean,
+          countryCode: 'TW',
+        };
+      }
+    }
+  }
+
+  // 2. 檢查知名海外城市（僅在非台灣行程時檢查）
+  if (!isTaiwanTrip) {
+    const lower = clean.toLowerCase();
+    if (KNOWN_COORDINATES[lower]) {
+      const coords = KNOWN_COORDINATES[lower];
+      return {
+        cityName: clean,
+        resolvedName: clean,
+        source: 'Open-Meteo',
+        latitude: coords.lat,
+        longitude: coords.lon,
+      };
+    }
   }
 
   // 3. 透過 Open-Meteo Geocoding 搜尋
@@ -306,7 +419,7 @@ export async function resolveCityInfo(cityName: string): Promise<CityResolutionI
       const data = await res.json();
       if (data.results && data.results.length > 0) {
         const item = data.results[0];
-        const isTW = item.country_code === 'TW';
+        const isTW = isTaiwanTrip || item.country_code === 'TW';
         const parts = [
           isTW ? '台灣' : item.country,
           item.admin2,
@@ -322,13 +435,27 @@ export async function resolveCityInfo(cityName: string): Promise<CityResolutionI
           longitude: item.longitude,
           elevation: item.elevation,
           countyName: item.admin2,
-          townshipName: item.admin3,
-          countryCode: item.country_code,
+          townshipName: item.admin3 || item.name,
+          countryCode: item.country_code || (isTW ? 'TW' : undefined),
         };
       }
     }
   } catch (err) {
     console.warn(`Geocoding resolution failed for ${clean}:`, err);
+  }
+
+  // 若勾選台灣行程但國外查無資料，直接組裝成台灣通用 CWA
+  if (isTaiwanTrip) {
+    return {
+      cityName: clean,
+      resolvedName: `台灣 · ${clean}`,
+      source: 'CWA',
+      latitude: 23.97,
+      longitude: 120.98,
+      countyName: clean,
+      townshipName: clean,
+      countryCode: 'TW',
+    };
   }
 
   return null;
@@ -342,7 +469,11 @@ async function fetchWeatherFromCwa(
   resInfo: CityResolutionInfo
 ): Promise<CityWeatherData | null> {
   try {
-    const datasetId = TAIWAN_LOCATIONS[cleanName]?.datasetId || 'F-D0047-091';
+    const datasetId =
+      TAIWAN_LOCATIONS[cleanName]?.datasetId ||
+      getCountyDatasetId(resInfo.countyName) ||
+      getCountyDatasetId(cleanName);
+
     const url = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/${datasetId}?Authorization=${CWA_API_KEY}`;
     const res = await fetch(url);
     if (!res.ok) return null;
@@ -353,14 +484,21 @@ async function fetchWeatherFromCwa(
     if (locations.length === 0) return null;
 
     // 優先匹配鄉鎮，其次匹配縣市，否則取第一筆
-    const targetTownship = resInfo.townshipName || cleanName;
-    const targetCounty = resInfo.countyName || cleanName;
+    const cleanTownship = (resInfo.townshipName || cleanName).replace(/[區鄉鎮市]/g, '');
+    const cleanCounty = (resInfo.countyName || cleanName).replace(/[縣市]/g, '');
 
     const matchedLoc =
-      locations.find((l: any) => l.LocationName === targetTownship) ||
-      locations.find((l: any) => l.LocationName === targetCounty) ||
-      locations.find((l: any) => cleanName.includes(l.LocationName) || l.LocationName.includes(cleanName)) ||
+      locations.find((l: any) => {
+        const lName = (l.LocationName || '').replace(/[區鄉鎮市]/g, '');
+        return lName === cleanTownship;
+      }) ||
+      locations.find((l: any) => {
+        const lName = (l.LocationName || '').replace(/[縣市]/g, '');
+        return lName === cleanCounty;
+      }) ||
+      locations.find((l: any) => cleanName.includes(l.LocationName) || (l.LocationName && cleanName.includes(l.LocationName.replace(/[區鄉鎮市]/g, '')))) ||
       locations[0];
+
 
     const wxTimes = matchedLoc.WeatherElement.find((w: any) => w.ElementName === '天氣現象')?.Time || [];
     const popTimes = matchedLoc.WeatherElement.find((w: any) => w.ElementName === '12小時降雨機率')?.Time || [];
@@ -498,12 +636,13 @@ async function fetchWeatherFromOpenMeteo(
  * 取得特定城市的完整天氣預報（附 60 分鐘 LocalStorage 快取與雙引擎支援）
  */
 export async function fetchWeatherForCity(
-  cityName: string
+  cityName: string,
+  isTaiwanTrip = false
 ): Promise<CityWeatherData | null> {
   const cleanName = cityName.trim();
   if (!cleanName) return null;
 
-  const cacheKey = `weather_cache_v2_${cleanName.toLowerCase()}`;
+  const cacheKey = `weather_cache_v3_${cleanName.toLowerCase()}_${isTaiwanTrip ? 'tw' : 'intl'}`;
   const now = Date.now();
   const CACHE_TTL = 60 * 60 * 1000; // 60 分鐘快取
 
@@ -519,7 +658,7 @@ export async function fetchWeatherForCity(
     }
   }
 
-  const resInfo = await resolveCityInfo(cleanName);
+  const resInfo = await resolveCityInfo(cleanName, isTaiwanTrip);
   if (!resInfo) return null;
 
   let result: CityWeatherData | null = null;

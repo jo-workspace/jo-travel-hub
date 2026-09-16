@@ -331,10 +331,25 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     }
     if (!Array.isArray(coupons)) coupons = [];
 
+    // 解析跨裝置同步的台灣行程註記 (isTaiwanTrip)
+    let isTaiwanTrip: boolean | undefined = undefined;
+    const isTaiwanMatch = rawTripNote.match(/<!--IS_TAIWAN_START-->([\s\S]*?)<!--IS_TAIWAN_END-->/);
+    if (isTaiwanMatch) {
+      isTaiwanTrip = isTaiwanMatch[1].trim() === '1';
+    } else {
+      const local = typeof window !== 'undefined' ? localStorage.getItem(`isTaiwanTrip_${tripId}`) : null;
+      if (local !== null) {
+        isTaiwanTrip = local === 'true';
+      } else {
+        isTaiwanTrip = TRIPS[tripId]?.isTaiwanTrip;
+      }
+    }
+
     // 清理 tripNote 移除所有隱藏標籤
     tripNote = rawTripNote
       .replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '')
       .replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '')
+      .replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '')
       .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
       .trim();
 
@@ -377,6 +392,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       customIcon,
       svgIcon: customIcon,
       citySchedule,
+      isTaiwanTrip,
       historicalPackingCategories,
       historicalTodoCategories,
       coupons,
@@ -422,6 +438,7 @@ export async function updateTripSettings(
     customIcon?: string;
     svgIcon?: string;
     citySchedule?: string;
+    isTaiwanTrip?: boolean;
   }
 ): Promise<void> {
   const iconToSave = settings.customIcon !== undefined ? settings.customIcon : settings.svgIcon;
@@ -431,6 +448,9 @@ export async function updateTripSettings(
   }
   if (typeof window !== 'undefined' && settings.citySchedule !== undefined) {
     localStorage.setItem(`citySchedule_${tripId}`, settings.citySchedule);
+  }
+  if (typeof window !== 'undefined' && settings.isTaiwanTrip !== undefined) {
+    localStorage.setItem(`isTaiwanTrip_${tripId}`, settings.isTaiwanTrip ? 'true' : 'false');
   }
 
   // 1. 查詢現有資料與欄位名稱
@@ -481,6 +501,17 @@ export async function updateTripSettings(
     const existingSchedMatch = existingRow?.trip_note?.match(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/);
     if (existingSchedMatch) {
       finalTripNote = `${finalTripNote.replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '').trim()}\n${existingSchedMatch[0]}`;
+    }
+  }
+
+  // 處理 trip_note 中跨裝置同步的台灣行程註記 (isTaiwanTrip)
+  if (settings.isTaiwanTrip !== undefined) {
+    finalTripNote = finalTripNote.replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '').trim();
+    finalTripNote = `${finalTripNote}\n<!--IS_TAIWAN_START-->${settings.isTaiwanTrip ? '1' : '0'}<!--IS_TAIWAN_END-->`;
+  } else {
+    const existingTwMatch = existingRow?.trip_note?.match(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/);
+    if (existingTwMatch) {
+      finalTripNote = `${finalTripNote.replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '').trim()}\n${existingTwMatch[0]}`;
     }
   }
 

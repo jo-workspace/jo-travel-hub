@@ -80,6 +80,7 @@ export interface AllTripData {
   customIcon?: string;    // 前台上傳與壓縮之 180x180 PNG Data URI 圖示
   svgIcon?: string;       // 相容舊版欄位
   citySchedule?: string;  // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
+  isTaiwanTrip?: boolean; // 是否為台灣本地行程（啟用 CWA 官方氣象）
   historicalPackingCategories?: string[]; // 跨旅程歷史打包類別
   historicalTodoCategories?: string[];    // 跨旅程歷史待辦分類
   coupons?: CouponItem[]; // 優惠券與票券截圖清單
