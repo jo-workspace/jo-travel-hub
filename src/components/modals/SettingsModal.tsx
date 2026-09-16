@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Settings2, Calendar, DollarSign, FileText, Globe, LogOut, Upload, Image as ImageIcon, Trash2, Archive } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
+import { computeAutoTripStatus } from '@/lib/tripDate';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -46,12 +47,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
-  const [status, setStatus] = useState('進行中');
+  const [isArchived, setIsArchived] = useState(false);
   const [start, setStart] = useState('');
   const [rate, setRate] = useState('');
   const [budget, setBudget] = useState('');
   const [note, setNote] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('');
   const [hasWill, setHasWill] = useState(true);
   const [otherCompanions, setOtherCompanions] = useState('');
   const [tz, setTz] = useState('Asia/Taipei');
@@ -72,12 +73,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setTitle(tripTitle || '');
       setDates(tripDates || '');
-      setStatus(badgeText || '進行中');
+      setIsArchived(badgeText === '已封存');
       setStart(startDate || '');
-      setRate(fxRate ? String(fxRate) : '');
+      const initCurr = foreignCurrency || '';
+      setCurrency(initCurr);
+      // 若無外幣，則匯率不填入 32.5 預設值
+      setRate(initCurr && fxRate ? String(fxRate) : (fxRate && fxRate !== 1 && fxRate !== 32.5 ? String(fxRate) : ''));
       setBudget(budgetTwd ? String(budgetTwd) : '');
       setNote(tripNote || '');
-      setCurrency(foreignCurrency !== undefined ? foreignCurrency : 'USD');
       const tokens = (companions || '').split(/[\n,，]+/).map((p) => p.trim()).filter(Boolean);
       setHasWill(tokens.includes('Will'));
       setOtherCompanions(tokens.filter((p) => p !== 'Jo' && p !== 'Will').join(', '));
@@ -130,16 +133,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const combined = ['Jo', ...(hasWill ? ['Will'] : []), ...otherTokens];
     const finalCompanions = Array.from(new Set(combined)).join(', ');
 
+    const trimmedCurrency = currency.trim().toUpperCase();
+    const autoStatus = computeAutoTripStatus(start.trim(), dates.trim(), tz.trim());
+    const finalBadgeText = isArchived ? '已封存' : autoStatus;
+    const finalFxRate = rate ? parseFloat(rate) : (trimmedCurrency ? (['JPY', 'KRW', 'VND', 'IDR'].includes(trimmedCurrency) ? 5.05 : 32.5) : 1);
+
     try {
       await updateTripSettings(tripId, {
         title: title.trim(),
         dates: dates.trim(),
-        badgeText: status,
+        badgeText: finalBadgeText,
         startDate: start.trim(),
-        fxRate: rate ? parseFloat(rate) : 32.5,
+        fxRate: finalFxRate,
         budgetTwd: budget ? parseInt(budget, 10) : 0,
         tripNote: note,
-        foreignCurrency: currency.trim().toUpperCase(),
+        foreignCurrency: trimmedCurrency,
         companions: finalCompanions,
         timezone: tz.trim() || 'Asia/Taipei',
         citySchedule: citySched.trim(),
@@ -180,52 +188,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <form onSubmit={handleSave} className="overflow-y-auto overflow-x-hidden max-h-[75vh]">
           <div className="px-6 py-4 space-y-5">
 
-            {/* 基本資訊 (2 x 2 網格 + 狀態) */}
-            <div className="space-y-2.5">
+            {/* 基本與日程資訊 */}
+            <div className="space-y-3">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <Globe className="w-3.5 h-3.5" />
                 <span>基本資訊</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
+              {/* Row 1: 名稱 + 圖示 */}
+              <div className="flex items-end gap-2.5">
+                <div className="flex-1 min-w-0">
                   <label className="block text-xs font-bold text-slate-600 mb-1">名稱</label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="2026 LA Trip"
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium h-[38px]"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">日期</label>
-                  <input
-                    type="text"
-                    value={dates}
-                    onChange={(e) => setDates(e.target.value)}
-                    placeholder="2026/08"
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
-                  />
-                </div>
-
-                <div className="flex flex-col justify-end">
-                  <label className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px]">
-                    <input
-                      type="checkbox"
-                      checked={hasWill}
-                      onChange={(e) => setHasWill(e.target.checked)}
-                      className="w-4 h-4 rounded text-slate-900 bg-white border-slate-300 focus:ring-slate-900 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-700">Will 同行</span>
-                  </label>
-                </div>
-
-                <div>
+                <div className="w-28 shrink-0">
                   <label className="block text-xs font-bold text-slate-600 mb-1">圖示</label>
                   {iconDataUrl ? (
-                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl h-[38px]">
+                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl h-[38px]">
                       <img
                         src={iconDataUrl}
                         alt="圖示"
@@ -255,48 +241,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* 旅程狀態切換 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">旅程狀態</label>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
-                  {(['進行中', '籌備中', '已封存'] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setStatus(s)}
-                      className={`py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                        status === s
-                          ? 'bg-white text-slate-900 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                    >
-                      {s === '已封存' ? '📦 已封存' : s === '進行中' ? '⚡ 進行中' : '📋 籌備中'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100" />
-
-            {/* 日期與財務 */}
-            <div className="space-y-2.5">
-              <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>日期與財務</span>
-              </div>
-
+              {/* Row 2: 預計月份/日期 + 起始日 */}
               <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">預計月份/日期</label>
+                  <input
+                    type="text"
+                    value={dates}
+                    onChange={(e) => setDates(e.target.value)}
+                    placeholder="2026/08"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium h-[38px]"
+                  />
+                </div>
+
                 <div className="min-w-0">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">起始日</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">起始日 (出發日)</label>
                   <input
                     type="date"
                     value={start}
                     onChange={(e) => setStart(e.target.value)}
-                    className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800"
+                    className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800 h-[38px]"
                   />
                 </div>
+              </div>
 
+              {/* Row 3: 時區 + 城市日程 */}
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">時區</label>
                   <input
@@ -304,32 +274,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     value={tz}
                     onChange={(e) => setTz(e.target.value)}
                     placeholder="例：America/Los_Angeles"
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono h-[38px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">城市日程</label>
+                  <input
+                    type="text"
+                    value={citySched}
+                    onChange={(e) => setCitySched(e.target.value)}
+                    placeholder="例：Day 1-3: LA"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-sans text-slate-800 h-[38px]"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">城市日程</label>
-                <input
-                  type="text"
-                  value={citySched}
-                  onChange={(e) => setCitySched(e.target.value)}
-                  placeholder="例：Day 1-3: Los Angeles, Day 4-5: Las Vegas"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-sans text-slate-800"
-                />
-              </div>
-
+              {/* Row 4: 外幣 + 匯率 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣 (留空純台幣)</label>
                   <input
                     type="text"
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                    placeholder="USD"
+                    placeholder="留空即純台幣"
                     maxLength={5}
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono tracking-widest"
+                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono tracking-widest h-[38px]"
                   />
                 </div>
 
@@ -353,28 +324,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={rate}
                       onChange={(e) => setRate(e.target.value)}
                       placeholder={
-                        ['JPY', 'KRW', 'VND', 'IDR'].includes((currency || 'USD').toUpperCase())
-                          ? '5.05'
-                          : '32.5'
+                        currency
+                          ? (['JPY', 'KRW', 'VND', 'IDR'].includes(currency.toUpperCase()) ? '5.05' : '32.5')
+                          : '留空'
                       }
-                      className="w-full bg-slate-50 border border-slate-200 text-sm pl-7 pr-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono font-bold"
+                      className="w-full bg-slate-50 border border-slate-200 text-sm pl-7 pr-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono font-bold h-[38px]"
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Row 5: 其他分帳人員 (含 Will 同行 checkbox) */}
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  其他分帳人員
-                  <span className="text-slate-400 font-normal ml-1">(僅分帳)</span>
-                </label>
-                <input
-                  type="text"
-                  value={otherCompanions}
-                  onChange={(e) => setOtherCompanions(e.target.value)}
-                  placeholder="例：Ting, Amy"
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-                />
+                <label className="block text-xs font-bold text-slate-600 mb-1">其他分帳人員</label>
+                <div className="flex items-center space-x-2">
+                  <label className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px] shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={hasWill}
+                      onChange={(e) => setHasWill(e.target.checked)}
+                      className="w-4 h-4 rounded text-slate-900 bg-white border-slate-300 focus:ring-slate-900 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Will</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={otherCompanions}
+                    onChange={(e) => setOtherCompanions(e.target.value)}
+                    placeholder="例：Ting, Amy"
+                    className="flex-1 min-w-0 bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold h-[38px]"
+                  />
+                </div>
               </div>
             </div>
 
@@ -414,20 +394,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span>登出</span>
             </button>
             <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isSaving ? '儲存中…' : '儲存設定'}
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsArchived(!isArchived)}
+                className={`flex items-center space-x-1 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer border ${
+                  isArchived
+                    ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-2xs'
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                }`}
+                title={isArchived ? "目前為已封存（點擊解除，將依出發日自動判定）" : "點擊將旅程封存"}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                <span>{isArchived ? '已封存' : '封存'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3.5 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-4 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSaving ? '儲存中…' : '儲存設定'}
+              </button>
             </div>
           </div>
         </form>

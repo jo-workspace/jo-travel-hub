@@ -217,7 +217,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         // DB 欄位：title（CSV 上傳後直接對應）
         item: row.title || row.Title || row.item || row.Item || row.item_name || '',
         amount: Number(row.amount || row.Amount || 0),
-        currency: row.currency || row.Currency || 'USD',
+        currency: row.currency || row.Currency || 'TWD',
         // DB 欄位：paid_by（CSV 上傳後直接對應）
         paidBy: row.paid_by || row['Paid By'] || row.Paid_By || row.payer || 'Jo',
         split: row.split || row.Split || 'Both',
@@ -254,7 +254,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     const settingsData = settingsRes.data?.[0] ?? null;
     const tripData = tripRes.data?.[0] ?? null;
 
-    const fxRate = settingsData?.fx_rate ? Number(settingsData.fx_rate) : 32.5;
+    const fxRate = settingsData?.fx_rate ? Number(settingsData.fx_rate) : 1;
     const startDate = settingsData?.start_date || '';
     const budgetTwd = settingsData?.budget_twd ? Number(settingsData.budget_twd) : 0;
     const rawTripNote = settingsData?.trip_note || '';
@@ -338,7 +338,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
       .trim();
 
-    const foreignCurrency = settingsData?.foreign_currency !== undefined ? settingsData.foreign_currency : 'USD';
+    const foreignCurrency = settingsData?.foreign_currency !== undefined && settingsData?.foreign_currency !== null ? settingsData.foreign_currency : '';
     const companions = settingsData?.companions || 'Jo, Will';
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
@@ -390,11 +390,11 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       packing: [],
       expenses: [],
       shopping: [],
-      fxRate: 32.5,
+      fxRate: 1,
       tripNote: '',
       startDate: '',
       budgetTwd: 0,
-      foreignCurrency: 'USD',
+      foreignCurrency: '',
       companions: 'Jo, Will',
       tripTitle: '',
       tripDates: '',
@@ -502,14 +502,14 @@ export async function updateTripSettings(
 
   const payload: Record<string, any> = {
     start_date: settings.startDate ?? '',
-    fx_rate: settings.fxRate ?? 32.5,
+    fx_rate: settings.fxRate ?? 1,
     budget_twd: settings.budgetTwd ?? 0,
     trip_note: finalTripNote,
   };
 
   // 只有當 DB 擁有此欄位才帶入 payload
   if (dbKeys.includes('foreign_currency') || (dbKeys.length === 0)) {
-    payload.foreign_currency = settings.foreignCurrency !== undefined ? settings.foreignCurrency : 'USD';
+    payload.foreign_currency = settings.foreignCurrency !== undefined ? settings.foreignCurrency : '';
   }
   if (dbKeys.includes('companions') || (dbKeys.length === 0)) {
     payload.companions = settings.companions ?? 'Jo, Will';
@@ -537,7 +537,7 @@ export async function updateTripSettings(
     if (settingsError) {
       const { start_date, fx_rate, budget_twd, trip_note, foreign_currency, companions, timezone } = payload;
       const fallbackPayload: Record<string, any> = { start_date, fx_rate, budget_twd, trip_note };
-      if (foreign_currency) fallbackPayload.foreign_currency = foreign_currency;
+      if (foreign_currency !== undefined) fallbackPayload.foreign_currency = foreign_currency;
       if (companions) fallbackPayload.companions = companions;
       if (timezone) fallbackPayload.timezone = timezone;
       const { error: retryErr } = await supabase
@@ -1174,7 +1174,7 @@ export async function addExpenseData(formData: any, tripId = 'la-2026'): Promise
     category: [category || '餐飲', 'category', 'Category'],
     title: [item || '消費', 'title', 'Title', 'item', 'Item', 'item_name'],
     amount: [Number(amount || 0), 'amount', 'Amount'],
-    currency: [currency || 'USD', 'currency', 'Currency'],
+    currency: [currency || 'TWD', 'currency', 'Currency'],
     paidBy: [paidBy || 'Jo', 'paid_by', 'Paid By', 'Paid_By', 'payer'],
     split: [split || 'Both', 'split', 'Split'],
     date: [date || '', 'date', 'Date'],

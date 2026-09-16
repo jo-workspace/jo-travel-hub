@@ -110,11 +110,11 @@ export default function TripPage({ params }: PageProps) {
     packing: [],
     expenses: [],
     shopping: [],
-    fxRate: 32.5,
+    fxRate: 1,
     tripNote: '',
     startDate: '',
     budgetTwd: 0,
-    foreignCurrency: 'USD',
+    foreignCurrency: '',
     tripTitle: '',
     tripDates: '',
     timezone: tripConfig?.timezone || 'Asia/Taipei',
@@ -914,7 +914,7 @@ export default function TripPage({ params }: PageProps) {
                   data={tripData.expenses}
                   shopping={tripData.shopping}
                   fxRate={tripData.fxRate}
-                  foreignCurrency={tripData.foreignCurrency || 'USD'}
+                  foreignCurrency={tripData.foreignCurrency || ''}
                   companions={tripData.companions}
                   timezone={tripData.timezone}
                   onAddExpense={handleAddExpense}
@@ -932,7 +932,7 @@ export default function TripPage({ params }: PageProps) {
                 <ShoppingTab
                   data={tripData.shopping}
                   coupons={tripData.coupons || []}
-                  foreignCurrency={tripData.foreignCurrency || 'USD'}
+                  foreignCurrency={tripData.foreignCurrency || ''}
                   fxRate={tripData.fxRate}
                   hideDone={hideVisited}
                   companionsList={currentCompanions}
@@ -1018,7 +1018,7 @@ export default function TripPage({ params }: PageProps) {
         isOpen={expenseModalOpen}
         item={activeExpenseItem}
         companionsList={currentCompanions}
-        foreignCurrency={tripData.foreignCurrency || 'USD'}
+        foreignCurrency={tripData.foreignCurrency || ''}
         fxRate={tripData.fxRate}
         shopping={tripData.shopping}
         timezone={tripData.timezone}
@@ -1039,7 +1039,7 @@ export default function TripPage({ params }: PageProps) {
         fxRate={tripData.fxRate}
         budgetTwd={tripData.budgetTwd || 0}
         tripNote={tripData.tripNote}
-        foreignCurrency={tripData.foreignCurrency !== undefined ? tripData.foreignCurrency : 'USD'}
+        foreignCurrency={tripData.foreignCurrency || ''}
         timezone={tripData.timezone}
         companions={tripData.companions}
         customIcon={tripData.customIcon || tripData.svgIcon}

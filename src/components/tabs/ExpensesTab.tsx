@@ -147,8 +147,9 @@ export function buildExpenseNote(
 /** 計算任一單位的換算台幣金額（自動支援正反向匯率，如 1 TWD = 5 JPY 或 1 JPY = 0.2 TWD） */
 export function computeTwdAmount(amt: number, curr: string, fxRate: number, foreignCurrencyCode: string): number {
   if (!curr || curr === 'TWD') return amt;
+  const targetCode = (foreignCurrencyCode || '').toUpperCase();
+  if (!targetCode || targetCode === 'TWD') return amt;
   const numRate = Number(fxRate) || 1;
-  const targetCode = (foreignCurrencyCode || 'USD').toUpperCase();
   const isReverseCurrency = ['JPY', 'KRW', 'VND', 'IDR'].includes(targetCode);
 
   if (isReverseCurrency) {
@@ -170,7 +171,8 @@ export function computeTwdAmount(amt: number, curr: string, fxRate: number, fore
 
 /** 格式化外幣匯率提示標籤 */
 export function formatFxRateLabel(fxRate: number, foreignCurrencyCode: string): string {
-  const code = (foreignCurrencyCode || 'USD').toUpperCase();
+  const code = (foreignCurrencyCode || '').toUpperCase();
+  if (!code || code === 'TWD') return '';
   const numRate = Number(fxRate) || 1;
   const isReverseCurrency = ['JPY', 'KRW', 'VND', 'IDR'].includes(code);
 
@@ -285,8 +287,8 @@ export function getExpenseSortAmount(
 export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   data,
   shopping,
-  fxRate = 32.5,
-  foreignCurrency = 'USD',
+  fxRate = 1,
+  foreignCurrency = '',
   companions = 'Jo, Will',
   timezone,
   onAddExpense,
@@ -295,8 +297,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   onUpdateShoppingPrice,
   onToggleShopping,
 }) => {
-  const activeForeignCode = (foreignCurrency || 'USD').toUpperCase();
-  const fxLabel = formatFxRateLabel(fxRate, activeForeignCode);
+  const hasForeignCurrency = Boolean(foreignCurrency && foreignCurrency.toUpperCase() !== 'TWD');
+  const activeForeignCode = hasForeignCurrency ? foreignCurrency.toUpperCase() : 'TWD';
+  const fxLabel = hasForeignCurrency ? formatFxRateLabel(fxRate, activeForeignCode) : '';
   const shoppingPlannedTwd = shopping.reduce(
     (total, item) => total + computeTwdAmount(getShoppingItemTotal(item), activeForeignCode, fxRate, activeForeignCode),
     0,
@@ -766,10 +769,14 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       `【代購請款明細 - ${personName}】`,
       ...targetItems.map(
         (i, idx) =>
-          `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD${i.hasLinkedFx ? ' / 刷卡實質匯率' : ''})${i.isDone ? ' [已買✓]' : ' [待購]'}`
+          hasForeignCurrency
+            ? `${idx + 1}. ${i.itemName} ×${i.quantity} = ${i.totalForeign.toLocaleString()} ${activeForeignCode} (約 $${i.totalTwd.toLocaleString()} TWD${i.hasLinkedFx ? ' / 刷卡實質匯率' : ''})${i.isDone ? ' [已買✓]' : ' [待購]'}`
+            : `${idx + 1}. ${i.itemName} ×${i.quantity} = $${i.totalTwd.toLocaleString()} TWD${i.isDone ? ' [已買✓]' : ' [待購]'}`
       ),
       `───────────────`,
-      `合計應付：$${personTwdTotal.toLocaleString()} TWD (${personForeignTotal.toLocaleString()} ${activeForeignCode})${hasAnyLinked ? ' (含刷卡實質匯率結算)' : ''}`,
+      hasForeignCurrency
+        ? `合計應付：$${personTwdTotal.toLocaleString()} TWD (${personForeignTotal.toLocaleString()} ${activeForeignCode})${hasAnyLinked ? ' (含刷卡實質匯率結算)' : ''}`
+        : `合計應付：$${personTwdTotal.toLocaleString()} TWD`,
       `收款人：${owner}（請匯款給 ${owner}，謝謝！）`,
     ];
 
@@ -999,7 +1006,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 <DollarSign className="w-4 h-4" />
                 <span>新增記帳項目</span>
               </h3>
-              <span className="text-[10px] text-slate-400 font-mono">{fxLabel}</span>
+              {fxLabel ? <span className="text-[10px] text-slate-400 font-mono">{fxLabel}</span> : null}
             </div>
 
             {/* Item Title & Amount */}
@@ -1022,20 +1029,26 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                   required
                   className="w-full bg-slate-800 text-white text-sm font-bold pl-3 pr-12 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500 font-mono"
                 />
-                <button
-                  type="button"
-                  onClick={() => setCurrency(currency === activeForeignCode ? 'TWD' : activeForeignCode)}
-                  className="absolute right-1 text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-1 rounded-lg cursor-pointer select-none active:scale-95 transition-all"
-                >
-                  {currency}
-                </button>
+                {hasForeignCurrency ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrency(currency === activeForeignCode ? 'TWD' : activeForeignCode)}
+                    className="absolute right-1 text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-1 rounded-lg cursor-pointer select-none active:scale-95 transition-all"
+                  >
+                    {currency}
+                  </button>
+                ) : (
+                  <span className="absolute right-3 text-xs font-black text-slate-400 font-mono select-none">
+                    TWD
+                  </span>
+                )}
               </div>
             </div>
 
             {/* 折合台幣與含代購合併單列 */}
             <div className="flex items-center gap-2">
               {/* 折合台幣 (外幣時顯示輸入框) */}
-              {currency !== 'TWD' ? (
+              {hasForeignCurrency && currency !== 'TWD' ? (
                 <div className="flex-1 relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 transition-all min-w-0">
                   <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap mr-1.5 select-none flex-shrink-0">
                     折合台幣
@@ -1087,7 +1100,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               <div className="bg-slate-800/90 p-3 rounded-xl border border-amber-400/30 space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-b border-slate-700 pb-1.5">
                   <span>選擇本次刷卡的代購品項</span>
-                  <span>自用旅費: <span className="font-mono text-emerald-400 font-black">${realAmount.toLocaleString()} {currency} (NT${realTwd.toLocaleString()})</span></span>
+                  <span>自用旅費: <span className="font-mono text-emerald-400 font-black">${realAmount.toLocaleString()} {currency} {hasForeignCurrency && currency !== 'TWD' ? `(NT$${realTwd.toLocaleString()})` : ''}</span></span>
                 </div>
                   {availableProxyItems.length === 0 ? (
                     <p className="text-xs text-slate-500 py-2 text-center">購物清單中目前無標記 (代購) 的品項 🛍️</p>

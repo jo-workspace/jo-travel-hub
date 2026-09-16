@@ -40,8 +40,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   isOpen,
   item,
   companionsList = [],
-  foreignCurrency = 'USD',
-  fxRate = 32.5,
+  foreignCurrency = '',
+  fxRate = 1,
   shopping = [],
   timezone,
   onToggleShopping,
@@ -49,8 +49,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
   onSave,
   onDelete,
 }) => {
-  const activeForeignCode = (foreignCurrency || 'USD').toUpperCase();
-  const fxLabel = formatFxRateLabel(fxRate, activeForeignCode);
+  const hasForeignCurrency = Boolean(foreignCurrency && foreignCurrency.toUpperCase() !== 'TWD');
+  const activeForeignCode = hasForeignCurrency ? foreignCurrency.toUpperCase() : 'TWD';
+  const fxLabel = hasForeignCurrency ? formatFxRateLabel(fxRate, activeForeignCode) : '';
 
   const companionSet = new Set<string>();
   const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
@@ -102,7 +103,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState<string>(activeForeignCode);
+  const [currency, setCurrency] = useState<string>(hasForeignCurrency ? activeForeignCode : 'TWD');
   const [category, setCategory] = useState('🍔');
   const [paidBy, setPaidBy] = useState<string>(members[0] || 'Jo');
   const [splitMode, setSplitMode] = useState<'equal' | 'weighted' | 'exact' | 'single'>('equal');
@@ -124,8 +125,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
     if (item) {
       setTitle(item.item || '');
       setAmount(item.amount !== undefined && item.amount !== null ? String(item.amount) : '');
-      const itemCurr = (item.currency || activeForeignCode).toUpperCase();
-      setCurrency(itemCurr);
+      const itemCurr = (item.currency || (hasForeignCurrency ? activeForeignCode : 'TWD')).toUpperCase();
+      setCurrency(hasForeignCurrency ? itemCurr : 'TWD');
       setCategory(item.category || '🍔');
       setPaidBy(item.paidBy || members[0] || 'Jo');
 
@@ -318,7 +319,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               <DollarSign className="w-4 h-4" />
               <span>{item ? '編輯記帳項目' : '新增記帳項目'}</span>
             </h3>
-            <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">{fxLabel}</span>
+            {fxLabel ? <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">{fxLabel}</span> : null}
           </div>
           <button
             type="button"
@@ -349,20 +350,26 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
                 required
                 className="w-full bg-slate-800 text-white text-sm font-bold pl-3 pr-12 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500 font-mono"
               />
-              <button
-                type="button"
-                onClick={() => setCurrency(currency === activeForeignCode ? 'TWD' : activeForeignCode)}
-                className="absolute right-1 text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-1 rounded-lg cursor-pointer select-none active:scale-95 transition-all"
-              >
-                {currency}
-              </button>
+              {hasForeignCurrency ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrency(currency === activeForeignCode ? 'TWD' : activeForeignCode)}
+                  className="absolute right-1 text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-1 rounded-lg cursor-pointer select-none active:scale-95 transition-all"
+                >
+                  {currency}
+                </button>
+              ) : (
+                <span className="absolute right-3 text-xs font-black text-slate-400 font-mono select-none">
+                  TWD
+                </span>
+              )}
             </div>
           </div>
 
           {/* 折合台幣與含代購合併單列 */}
           <div className="flex items-center gap-2">
             {/* 折合台幣 (外幣時顯示輸入框) */}
-            {currency !== 'TWD' ? (
+            {hasForeignCurrency && currency !== 'TWD' ? (
               <div className="flex-1 relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 transition-all min-w-0">
                 <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap mr-1.5 select-none flex-shrink-0">
                   折合台幣
@@ -414,7 +421,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             <div className="bg-slate-800/90 p-3 rounded-xl border border-amber-400/30 space-y-2">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-b border-slate-700 pb-1.5">
                 <span>選擇本次刷卡的代購品項</span>
-                <span>自用旅費: <span className="font-mono text-emerald-400 font-black">${realAmount.toLocaleString()} {currency} (NT${realTwd.toLocaleString()})</span></span>
+                <span>自用旅費: <span className="font-mono text-emerald-400 font-black">${realAmount.toLocaleString()} {currency} {hasForeignCurrency && currency !== 'TWD' ? `(NT$${realTwd.toLocaleString()})` : ''}</span></span>
               </div>
                 {availableProxyItems.length === 0 ? (
                   <p className="text-xs text-slate-500 py-2 text-center">購物清單中目前無標記 (代購) 的品項 🛍️</p>

@@ -137,7 +137,7 @@ export const sortShoppingItemsByPriceDesc = (a: ShoppingItem, b: ShoppingItem): 
 export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   data,
   coupons = [],
-  foreignCurrency = 'USD',
+  foreignCurrency = '',
   fxRate,
   hideDone,
   companionsList,
@@ -147,6 +147,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   onOpenLightbox,
   onOpenCouponModal,
 }) => {
+  const hasForeignCurrency = Boolean(foreignCurrency && foreignCurrency.toUpperCase() !== 'TWD');
+  const activeCurrencyCode = hasForeignCurrency ? foreignCurrency.toUpperCase() : 'TWD';
   const members = companionsList && companionsList.length > 0 ? companionsList : ['Jo', 'Will'];
   const [selectedStore, setSelectedStore] = useState(ALL_STORES);
   const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
@@ -217,24 +219,30 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         <div className="bg-white border border-slate-200/70 rounded-2xl p-3 shadow-2xs">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">伴手禮 / 自用</p>
-          <p className="mt-1 text-base font-black font-mono text-slate-900">{personalPlannedTotal.toLocaleString()} {foreignCurrency}</p>
-          <p className="mt-0.5 text-[10px] font-bold font-mono text-slate-400">約 ${personalPlannedTwd.toLocaleString()} TWD</p>
+          <p className="mt-1 text-base font-black font-mono text-slate-900">{personalPlannedTotal.toLocaleString()} {activeCurrencyCode}</p>
+          {hasForeignCurrency && (
+            <p className="mt-0.5 text-[10px] font-bold font-mono text-slate-400">約 ${personalPlannedTwd.toLocaleString()} TWD</p>
+          )}
         </div>
 
         <div className="bg-amber-50/70 border border-amber-200/70 rounded-2xl p-3 shadow-2xs">
           <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">代購待請款</p>
-          <p className="mt-1 text-base font-black font-mono text-amber-900">{proxyPlannedTotal.toLocaleString()} {foreignCurrency}</p>
-          <p className="mt-0.5 text-[10px] font-bold font-mono text-amber-600/90">約 ${proxyPlannedTwd.toLocaleString()} TWD</p>
+          <p className="mt-1 text-base font-black font-mono text-amber-900">{proxyPlannedTotal.toLocaleString()} {activeCurrencyCode}</p>
+          {hasForeignCurrency && (
+            <p className="mt-0.5 text-[10px] font-bold font-mono text-amber-600/90">約 ${proxyPlannedTwd.toLocaleString()} TWD</p>
+          )}
         </div>
 
         <div className="col-span-2 sm:col-span-1 bg-emerald-50 border border-emerald-100 rounded-2xl p-3 shadow-2xs flex sm:block items-center justify-between">
           <div>
             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">已購買勾選</p>
-            <p className="mt-0.5 sm:mt-1 text-base font-black font-mono text-emerald-700">{selectedEstimate.toLocaleString()} {foreignCurrency}</p>
+            <p className="mt-0.5 sm:mt-1 text-base font-black font-mono text-emerald-700">{selectedEstimate.toLocaleString()} {activeCurrencyCode}</p>
           </div>
-          <span className="text-[10px] font-bold text-emerald-600 sm:hidden bg-emerald-100/60 px-2 py-0.5 rounded-full">
-            約 ${Math.round(computeTwdAmount(selectedEstimate, foreignCurrency, fxRate, foreignCurrency)).toLocaleString()} TWD
-          </span>
+          {hasForeignCurrency && (
+            <span className="text-[10px] font-bold text-emerald-600 sm:hidden bg-emerald-100/60 px-2 py-0.5 rounded-full">
+              約 ${Math.round(computeTwdAmount(selectedEstimate, foreignCurrency, fxRate, foreignCurrency)).toLocaleString()} TWD
+            </span>
+          )}
         </div>
       </div>
 
@@ -495,7 +503,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                       )}
                       {item.price !== undefined && item.price > 0 && (
                         <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-mono">
-                          {item.price.toLocaleString()} {foreignCurrency}
+                          {item.price.toLocaleString()} {activeCurrencyCode}
                           {totalQty > 1 && (
                             <span className="text-[10px] text-emerald-600/80 font-bold ml-1">
                               (共 {itemTotal.toLocaleString()})

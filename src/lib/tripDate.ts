@@ -42,3 +42,33 @@ function parseYMD(value: string): number | null {
   const [, y, m, d] = match;
   return Date.UTC(Number(y), Number(m) - 1, Number(d));
 }
+
+/** 依據出發日或月份自動推算旅程狀態（出發日前為籌備中，抵達或當前為進行中） */
+export function computeAutoTripStatus(
+  startDate?: string,
+  dates?: string,
+  timezone?: string
+): '進行中' | '籌備中' {
+  const today = getTodayInTimezone(timezone);
+
+  // 1. 若有精確起始日 (YYYY-MM-DD)
+  if (startDate) {
+    const match = startDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return today < startDate ? '籌備中' : '進行中';
+    }
+  }
+
+  // 2. 若有月份格式 (如 2026/08, 2026/10, 2026-08)
+  if (dates) {
+    const match = dates.match(/(\d{4})[./-](\d{1,2})/);
+    if (match) {
+      const tripYearMonth = `${match[1]}-${match[2].padStart(2, '0')}`;
+      const currentYearMonth = today.slice(0, 7);
+      return currentYearMonth < tripYearMonth ? '籌備中' : '進行中';
+    }
+  }
+
+  return '進行中';
+}
+
