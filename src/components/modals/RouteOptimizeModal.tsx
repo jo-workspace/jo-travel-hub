@@ -166,7 +166,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-extrabold text-slate-900 leading-tight">
-                  {dayLabel} 智慧順路排程
+                  {dayLabel} 順路排程
                 </h3>
                 <span className="px-2 py-0.5 text-[10px] font-black bg-slate-100 text-slate-600 rounded-full">
                   步驟 {step} / 2
@@ -174,8 +174,8 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
               </div>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
                 {step === 1
-                  ? '請勾選要自動排順的行程（取消勾選即固定原時間）'
-                  : '預覽計算後的最佳順路動線'}
+                  ? '勾選參與排程，未勾選固定原時間'
+                  : '預覽最佳動線'}
               </p>
             </div>
           </div>
@@ -191,7 +191,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
         {step === 1 && (
           <>
             <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-500 flex-shrink-0">
-              <span>勾選欲自動排順的景點：</span>
+              <span>參與排程的景點：</span>
               <div className="space-x-2 text-[11px]">
                 <button
                   type="button"
@@ -276,7 +276,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
                       ) : (
                         <span className="text-[10px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-md flex items-center space-x-1">
                           <Lock className="w-3 h-3 text-slate-500 inline" />
-                          <span>固定時間</span>
+                          <span>固定</span>
                         </span>
                       )}
                     </div>
@@ -289,7 +289,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 text-[11px] text-slate-500 font-medium flex items-start space-x-2 flex-shrink-0">
               <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
               <span>
-                取消勾選的行程（如已訂位餐廳、球賽）將固定在原時間，系統會為其餘有勾選的景點計算最順路徑。
+                未勾選的行程固定原時間，其餘景點重新規劃最順路徑。
               </span>
             </div>
 
@@ -309,7 +309,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
                 className="flex-1 py-2.5 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
               >
                 <Wand2 className="w-4 h-4 text-amber-300" />
-                <span>計算最順動線 ➔</span>
+                <span>計算動線 ➔</span>
               </button>
             </div>
           </>
@@ -323,7 +323,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-emerald-100 flex items-center gap-1">
                   <Navigation className="w-3.5 h-3.5" />
-                  預估節省車程
+                  節省車程
                 </span>
                 <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-md">
                   原 {optimizationResult.origDist} km ➔ 新 {optimizationResult.optDist} km
@@ -331,9 +331,9 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
               </div>
               <div className="text-lg font-black tracking-tight">
                 {optimizationResult.savedDist > 0 ? (
-                  <span>🎉 預計可為您省下約 {optimizationResult.savedDist} 公里折返跑車程！</span>
+                  <span>省下約 {optimizationResult.savedDist} 公里車程</span>
                 ) : (
-                  <span>當前排程已接近最佳順路動線！</span>
+                  <span>目前已是最順動線</span>
                 )}
               </div>
             </div>
@@ -341,7 +341,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
             {/* Route Comparison List */}
             <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-64 no-scrollbar">
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                建議造訪順序：
+                建議順序：
               </div>
 
               <div className="space-y-1.5">
@@ -386,7 +386,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
                         {isLocked ? (
                           <span className="text-[10px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-md flex items-center space-x-1">
                             <Lock className="w-3 h-3 text-slate-500" />
-                            <span>固定原時間</span>
+                            <span>固定</span>
                           </span>
                         ) : isChanged ? (
                           <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md flex items-center space-x-1">
@@ -415,7 +415,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
                 className="py-2.5 px-4 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>返回修改</span>
+                <span>返回</span>
               </button>
               <button
                 type="button"
@@ -424,7 +424,7 @@ export const RouteOptimizeModal: React.FC<RouteOptimizeModalProps> = ({
                 className="flex-1 py-2.5 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
               >
                 <Check className="w-4 h-4" />
-                <span>{isApplying ? '正在套用新動線...' : '確認套用最順動線'}</span>
+                <span>{isApplying ? '套用中...' : '套用新動線'}</span>
               </button>
             </div>
           </>

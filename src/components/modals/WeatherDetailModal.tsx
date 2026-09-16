@@ -62,7 +62,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
               <span className="bg-slate-900 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
                 {dayLabel}
               </span>
-              <span>天氣與地點檢查</span>
+              <span>天氣詳情</span>
             </h3>
             {dateText && (
               <p className="text-xs text-slate-500 font-medium mt-0.5">{dateText}</p>
@@ -81,17 +81,17 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
           {/* 資料來源 Badge */}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              氣象資料來源
+              資料來源
             </span>
             {isCwa ? (
               <span className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>交通部中央氣象署 (CWA) 官方在地預報</span>
+                <span>CWA 官方預報</span>
               </span>
             ) : (
               <span className="inline-flex items-center space-x-1 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-full">
                 <Globe className="w-3.5 h-3.5" />
-                <span>Open-Meteo 全球數值氣象模式</span>
+                <span>Open-Meteo 全球預報</span>
               </span>
             )}
           </div>
@@ -133,7 +133,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                     rel="noopener noreferrer"
                     className="inline-flex items-center space-x-1 text-indigo-600 hover:text-indigo-800 font-sans font-bold hover:underline"
                   >
-                    <span>在 Google 地圖開啟</span>
+                    <span>Google 地圖</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
@@ -179,19 +179,8 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
               {/* 高山環境備註 / 貼心提醒 */}
               {dayWeather.highAltitudeNote && (
                 <div className="bg-amber-50/80 border border-amber-200/70 rounded-xl p-3 text-xs text-amber-900 leading-relaxed">
-                  <p className="font-bold mb-0.5">💡 高山微氣候與溫差提醒</p>
+                  <p className="font-bold mb-0.5">💡 高山提醒</p>
                   <p className="text-amber-800">{dayWeather.highAltitudeNote}</p>
-                </div>
-              )}
-
-              {/* 非高山普通說明 */}
-              {!dayWeather.highAltitudeNote && (
-                <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed">
-                  <p>
-                    {isCwa
-                      ? '本預報為中央氣象署 (CWA) 官方逐日預報，呈現最符合台灣本地習慣的降雨機率與氣候型態。'
-                      : '本預報來自全球數值氣象模式，跨國旅行時提供 14 天完整預測參考。'}
-                  </p>
                 </div>
               )}
             </div>
@@ -210,7 +199,7 @@ export const WeatherDetailModal: React.FC<WeatherDetailModalProps> = ({
                 rel="noopener noreferrer"
                 className="inline-flex items-center space-x-1.5 text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50/60 hover:bg-emerald-100/60 border border-emerald-200/70 px-4 py-2 rounded-xl transition-all"
               >
-                <span>前往中央氣象署 (CWA) 查看即時影像與預報</span>
+                <span>氣象署官網</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>

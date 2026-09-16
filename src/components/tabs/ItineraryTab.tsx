@@ -399,7 +399,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
             }`}
           >
-            全部天數
+            全部
           </button>
 
           {visibleDays.map((day) => {
@@ -430,7 +430,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
-            title="清單列表"
+            title="清單"
           >
             <List className="w-3.5 h-3.5" />
           </button>
@@ -442,7 +442,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
-            title="跨天地圖"
+            title="地圖"
           >
             <MapIcon className="w-3.5 h-3.5" />
           </button>
@@ -562,7 +562,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                     });
                   }}
                   className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 px-2.5 py-1 rounded-xl shadow-2xs transition-all cursor-pointer select-none active:scale-95 group"
-                  title="點擊檢查氣象與地點資訊"
+                  title="天氣詳情"
                 >
                   <WeatherIcon code={dayWeather.weatherCode} className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                   <span className="font-mono text-slate-900">{dayWeather.tempMax}° / {dayWeather.tempMin}°</span>
@@ -638,7 +638,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               </div>
                             </div>
 
-                            {/* Right Actions (Toggle Done & Edit) */}
+                              {/* Right Actions (Toggle Done & Edit) */}
                             <div className="flex items-center space-x-1.5 flex-shrink-0">
                               <button
                                 onClick={() => onOpenModal(item)}
@@ -650,7 +650,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               <button
                                 onClick={() => onToggleVisited(item.rowIndex, item.isVisited, item.id)}
                                 className="text-slate-400 hover:text-slate-800 transition-transform active:scale-90 cursor-pointer"
-                                title={item.isVisited ? '標示為未去過' : '標示為已完成'}
+                                title={item.isVisited ? '未去過' : '已完成'}
                               >
                                 {item.isVisited ? (
                                   <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50" />
@@ -665,7 +665,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                     </div>
                   ) : (
                     <div className="text-xs text-slate-400 font-medium py-3 px-4 bg-white/60 rounded-xl border border-dashed border-slate-200">
-                      今日尚無指定時間的主行程，可從下方口袋名單彈性挑選 📍
+                      尚無指定時間行程，可從口袋名單挑選 📍
                     </div>
                   )}
 
@@ -675,9 +675,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center space-x-1.5 text-xs font-black text-slate-700">
                           <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                          <span>當日口袋清單 ({candidateItems.length})</span>
+                          <span>口袋名單 ({candidateItems.length})</span>
                           <span className="text-[11px] font-normal text-slate-400 hidden sm:inline">
-                            · 點擊卡片可快速排入時間
+                            · 點擊排入時間
                           </span>
                         </div>
                       </div>
@@ -723,7 +723,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
                                         className="text-sky-600 hover:text-sky-700 flex-shrink-0"
-                                        title="開啟 Google 地圖"
+                                        title="Google 地圖"
                                       >
                                         <MapPin className="w-3.5 h-3.5" />
                                       </a>
@@ -747,7 +747,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                       ? 'text-emerald-600 bg-emerald-50'
                                       : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
                                   }`}
-                                  title={cItem.isVisited && !cItem.isIgnored ? '標記為未去過' : '標記為去過 (Done)'}
+                                  title={cItem.isVisited && !cItem.isIgnored ? '未去過' : '已去過'}
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
@@ -761,7 +761,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                       ? 'text-amber-600 bg-amber-50'
                                       : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                                   }`}
-                                  title={cItem.isIgnored ? '取消略過' : '標記為略過 (Ignore)'}
+                                  title={cItem.isIgnored ? '取消略過' : '略過'}
                                 >
                                   <X className="w-3.5 h-3.5" />
                                 </button>
@@ -771,7 +771,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                   type="button"
                                   onClick={() => onOpenModal(cItem)}
                                   className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs transition-all cursor-pointer"
-                                  title="完整編輯"
+                                  title="編輯"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>

@@ -23,11 +23,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   customIcon,
 }) => {
   const tabs = [
-    { id: 'itinerary', label: '行程表', icon: Calendar },
-    { id: 'todo', label: '待辦事項', icon: CheckSquare },
-    { id: 'packing', label: '打包清單', icon: Package },
-    { id: 'expenses', label: '記帳分帳', icon: DollarSign },
-    { id: 'shopping', label: '購物清單', icon: ShoppingBag },
+    { id: 'itinerary', label: '行程', icon: Calendar },
+    { id: 'todo', label: '待辦', icon: CheckSquare },
+    { id: 'packing', label: '打包', icon: Package },
+    { id: 'expenses', label: '記帳', icon: DollarSign },
+    { id: 'shopping', label: '購物', icon: ShoppingBag },
   ] as const;
 
   // 算乾淨的 Badge 符號：若包含英文則取前兩個英文字母（如 LA），中文則用 Plane 圖示
@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <div className="flex items-center space-x-2">
             {hideVisited ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4 text-slate-400" />}
-            <span>{hideVisited ? '隱藏去過/已完成' : '顯示全項目'}</span>
+            <span>{hideVisited ? '隱藏已完成' : '顯示全部'}</span>
           </div>
           <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 font-mono">
             {hideVisited ? 'ON' : 'OFF'}

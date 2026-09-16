@@ -95,8 +95,8 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
       <div className="bg-white w-full sm:max-w-lg max-h-[90vh] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
-            <h3 className="text-lg font-extrabold text-slate-900">{store} 結帳確認</h3>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">將自動更新購買狀態並建立一筆記帳項目</p>
+            <h3 className="text-lg font-extrabold text-slate-900">{store} 結帳</h3>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">更新購買狀態並建立記帳</p>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer" aria-label="關閉">
             <X className="w-5 h-5" />
@@ -105,7 +105,7 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
 
         <form onSubmit={handleSubmit} className="pt-4 space-y-4 overflow-y-auto">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">實際結帳金額</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">結帳金額</label>
             <div className="relative">
               <input
                 type="number"
@@ -181,8 +181,7 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-slate-500">本次購買品項</label>
-              <span className="text-[10px] font-bold text-slate-400">預設全選，可取消或標記缺貨</span>
+              <label className="text-xs font-bold text-slate-500">購買品項</label>
             </div>
             <div className="space-y-2">
               {items.map((item) => {
@@ -206,7 +205,7 @@ export const ShoppingCheckoutModal: React.FC<ShoppingCheckoutModalProps> = ({
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer">取消</button>
             <button type="submit" disabled={isSubmitting} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-50">
-              {isSubmitting ? '儲存中…' : '確認結帳並記帳'}
+              {isSubmitting ? '處理中…' : '確認結帳'}
             </button>
           </div>
         </form>

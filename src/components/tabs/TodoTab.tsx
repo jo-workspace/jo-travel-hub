@@ -46,21 +46,21 @@ export const TodoTab: React.FC<TodoTabProps> = ({
       {/* Top Add Button */}
       <div className="flex justify-between items-center">
         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-          待辦事項 (共 {filteredItems.length} 項)
+          待辦 ({filteredItems.length})
         </h2>
         <button
           onClick={() => onOpenModal()}
           className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>新增待辦</span>
+          <span>新增</span>
         </button>
       </div>
 
       {/* Empty State or Category Groups */}
       {filteredItems.length === 0 ? (
         <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
-          目前沒有待辦事項 ✨
+          尚無待辦事項 ✨
         </div>
       ) : (
         Object.entries(groupedByCategory).map(([category, items]) => (

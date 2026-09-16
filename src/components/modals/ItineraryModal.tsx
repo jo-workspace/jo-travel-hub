@@ -97,7 +97,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-extrabold text-slate-900">
-            {item ? '編輯行程項目' : '新增行程項目'}
+            {item ? '編輯行程' : '新增行程'}
           </h3>
           <button
             onClick={onClose}
@@ -110,22 +110,23 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">天數 (如 Day 1)</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1">天數</label>
               <input
                 type="text"
                 value={day}
                 onChange={(e) => setDay(e.target.value)}
+                placeholder="如 Day 1"
                 required
                 className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">時間 (如 09:00)</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1">時間</label>
               <input
                 type="text"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                placeholder="留空即為口袋清單"
+                placeholder="09:00 (留空為口袋名單)"
                 className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
             </div>
@@ -163,18 +164,18 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">相關備註</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">備註</label>
             <textarea
               rows={3}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="相關備註事項..."
+              placeholder="相關備註..."
               className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">Google 地圖連結</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">地圖連結</label>
             <input
               type="url"
               value={links}

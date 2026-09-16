@@ -220,9 +220,9 @@ export const CouponModal: React.FC<CouponModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-extrabold text-slate-900">
-                {coupon ? '編輯優惠券 / 條碼' : '新增優惠券 / 票券條碼'}
+                {coupon ? '編輯優惠券' : '新增優惠券'}
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium">支援截圖、條碼與 QR Code，結帳時可全螢幕出示</p>
+              <p className="text-[11px] text-slate-400 font-medium">支援截圖與條碼，結帳可全螢幕出示</p>
             </div>
           </div>
           <button
@@ -238,7 +238,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
-                <span>票券截圖 / 條碼圖片</span>
+                <span>圖片 / 條碼</span>
                 <span className="text-rose-500">*</span>
               </label>
               <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold">
@@ -249,7 +249,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
                     imageMode === 'upload' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  檔案 / 貼上
+                  上傳 / 貼上
                 </button>
                 <button
                   type="button"
@@ -284,16 +284,16 @@ export const CouponModal: React.FC<CouponModalProps> = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-emerald-800 flex items-center space-x-1">
                         <Check className="w-3.5 h-3.5" />
-                        <span>圖片已就緒（自動壓縮最適化）</span>
+                        <span>圖片已就緒</span>
                       </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">離線時亦可秒開掃描</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">支援離線出示</p>
                       <div className="mt-2 flex items-center space-x-2">
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
                           className="px-2.5 py-1 text-[11px] font-bold bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer shadow-2xs"
                         >
-                          更換圖片
+                          更換
                         </button>
                         <button
                           type="button"
@@ -319,10 +319,10 @@ export const CouponModal: React.FC<CouponModalProps> = ({
                     </div>
                     <div>
                       <p className="text-xs font-extrabold text-slate-800">
-                        {isCompressing ? '壓縮圖片中...' : '點擊選擇相簿或截圖檔案'}
+                        {isCompressing ? '壓縮圖片中...' : '選擇圖片或截圖'}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        支援手機相簿拍照、截圖，或直接在此頁按下 <kbd className="px-1 py-0.5 text-[10px] bg-slate-200 rounded font-mono">Cmd/Ctrl+V</kbd> 貼上
+                        支援相簿截圖或直接貼上 (Ctrl+V)
                       </p>
                     </div>
                   </div>
@@ -369,7 +369,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
           {/* Title */}
           <div>
             <label className="text-xs font-bold text-slate-700 flex items-center space-x-1 mb-1">
-              <span>優惠券名稱</span>
+              <span>名稱</span>
               <span className="text-rose-500">*</span>
             </label>
             <input
@@ -384,7 +384,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
 
           {/* Store Selector & Presets */}
           <div>
-            <label className="text-xs font-bold text-slate-700 mb-1 block">適用店家</label>
+            <label className="text-xs font-bold text-slate-700 mb-1 block">店家</label>
             <input
               type="text"
               placeholder="例：BicCamera 或 唐吉訶德"
@@ -417,7 +417,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
             <div>
               <label className="text-xs font-bold text-slate-700 mb-1 flex items-center space-x-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>折扣亮點 (標籤)</span>
+                <span>折扣</span>
               </label>
               <input
                 type="text"
@@ -443,7 +443,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
             <div>
               <label className="text-xs font-bold text-slate-700 mb-1 flex items-center space-x-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>有效期限</span>
+                <span>效期</span>
               </label>
               <input
                 type="text"

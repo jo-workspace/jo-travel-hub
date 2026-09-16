@@ -275,10 +275,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Row 2: 預計月份/日期 + 起始日 */}
+              {/* Row 2: 日期 + 出發日 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">預計月份/日期</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">日期</label>
                   <input
                     type="text"
                     value={dates}
@@ -289,7 +289,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 <div className="min-w-0">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">起始日 (出發日)</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">出發日</label>
                   <input
                     type="date"
                     value={start}
@@ -315,7 +315,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">城市日程</label>
                   <div className="flex items-center space-x-1.5">
-                    <label className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2.5 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px] shrink-0" title="勾選即啟用中央氣象署 (CWA) 官方預報">
+                    <label className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2.5 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px] shrink-0" title="台灣氣象署 (CWA) 預報">
                       <input
                         type="checkbox"
                         checked={isTaiwan}
@@ -339,7 +339,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {Object.keys(resolvedCities).length > 0 && (
                 <div className="bg-slate-50/80 border border-slate-200/70 rounded-2xl p-2.5 space-y-1.5 animate-fade-in">
                   <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-between px-0.5">
-                    <span>天氣地點解析預覽</span>
+                    <span>地點解析</span>
                     <span className="text-[10px] text-slate-400 font-normal">{isTaiwan ? 'CWA 官方預報' : '國際預報模式'}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -370,7 +370,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Row 4: 外幣 + 匯率 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣 (留空純台幣)</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">外幣</label>
                   <input
                     type="text"
                     value={currency}
@@ -411,9 +411,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Row 5: 其他分帳人員 (含 Will 同行 checkbox) */}
+              {/* Row 5: 分帳成員 (含 Will 同行 checkbox) */}
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">其他分帳人員</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">分帳成員</label>
                 <div className="flex items-center space-x-2">
                   <label className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-100 transition-all cursor-pointer select-none h-[38px] shrink-0">
                     <input
@@ -437,11 +437,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="border-t border-slate-100" />
 
-            {/* 重要備註 */}
+            {/* 備註 */}
             <div className="space-y-2.5">
               <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
                 <FileText className="w-3.5 h-3.5" />
-                <span>重要備註</span>
+                <span>備註</span>
               </div>
               <div>
                 <textarea
@@ -479,7 +479,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-2xs'
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
                 }`}
-                title={isArchived ? "目前為已封存（點擊解除，將依出發日自動判定）" : "點擊將旅程封存"}
+                title={isArchived ? "解除封存" : "封存旅程"}
               >
                 <Archive className="w-3.5 h-3.5" />
                 <span>{isArchived ? '已封存' : '封存'}</span>
@@ -496,7 +496,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 disabled={isSaving}
                 className="px-4 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all cursor-pointer disabled:opacity-50"
               >
-                {isSaving ? '儲存中…' : '儲存設定'}
+                {isSaving ? '儲存中…' : '儲存'}
               </button>
             </div>
           </div>

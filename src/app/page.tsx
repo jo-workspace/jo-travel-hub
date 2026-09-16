@@ -251,7 +251,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
               <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>開啟全新旅程</span>
+                <span>新增旅程</span>
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -264,7 +264,7 @@ export default function HomePage() {
             <form onSubmit={handleCreateTrip} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  旅程名稱 *
+                  名稱 *
                 </label>
                 <input
                   type="text"
@@ -278,7 +278,7 @@ export default function HomePage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  預計月份 / 日期
+                  日期
                 </label>
                 <input
                   type="text"
@@ -291,7 +291,7 @@ export default function HomePage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  旅程簡述
+                  簡述
                 </label>
                 <textarea
                   rows={2}
@@ -315,7 +315,7 @@ export default function HomePage() {
                   disabled={isSubmitting}
                   className="px-5 py-2 text-xs font-extrabold bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? '建立中...' : '確認建立'}
+                  {isSubmitting ? '建立中...' : '建立'}
                 </button>
               </div>
             </form>

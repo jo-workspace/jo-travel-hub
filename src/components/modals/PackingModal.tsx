@@ -144,7 +144,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-extrabold text-slate-900">
-            {isEditMode ? '編輯打包項目' : '新增打包項目'}
+            {isEditMode ? '編輯打包' : '新增打包'}
           </h3>
           <button
             onClick={onClose}
@@ -159,8 +159,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
           {!item ? (
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">
-                物品名稱
-                <span className="text-slate-400 font-medium ml-1.5">每行一項，可批次新增</span>
+                物品 (每行一項)
               </label>
               <textarea
                 value={itemName}
@@ -173,7 +172,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">物品名稱</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1">物品</label>
               <input
                 type="text"
                 value={itemName}
@@ -188,7 +187,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
           {/* 2. 攜帶人員 (僅在 Will 同行時顯示，單人同行自動隱藏) */}
           {isWillAccompanying && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">攜帶人員 (選填)</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1">人員</label>
               <input
                 type="text"
                 value={person}
@@ -249,7 +248,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
           {/* 4. 擺放位置 */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold text-slate-500">擺放位置</label>
+              <label className="block text-xs font-bold text-slate-500">位置</label>
             </div>
             <input
               type="text"

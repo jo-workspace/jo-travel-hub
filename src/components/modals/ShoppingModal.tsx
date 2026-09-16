@@ -192,7 +192,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-extrabold text-slate-900">
-            {item ? '編輯購物項目' : '新增購物項目'}
+            {item ? '編輯購物' : '新增購物'}
           </h3>
           <button
             onClick={onClose}
@@ -205,7 +205,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* Store Input */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">地點/店家</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">店家</label>
             <input
               type="text"
               value={store}
@@ -237,7 +237,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
           {/* Multi-Recipient Tag Manager (Clean structure matching store) */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-slate-500">對象 (重複點擊累加)</label>
+              <label className="text-xs font-bold text-slate-500">對象</label>
               <div className="flex items-center space-x-2.5">
                 <label className="flex items-center space-x-1.5 text-xs font-bold cursor-pointer select-none">
                   <input
@@ -353,12 +353,12 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
           {/* Item Name & Single Price */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-slate-500 mb-1">商品名稱</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1">商品</label>
               <input
                 type="text"
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
-                placeholder="想要購買的商品..."
+                placeholder="商品名稱..."
                 required
                 className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
@@ -380,7 +380,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
           {/* URLs: 雙欄合併 + 底線風格 */}
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-0.5">圖片 URL</label>
+              <label className="block text-[11px] font-bold text-slate-500 mb-0.5">圖片網址</label>
               <input
                 type="url"
                 value={image}
@@ -390,7 +390,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-0.5">參考連結 URL</label>
+              <label className="block text-[11px] font-bold text-slate-500 mb-0.5">連結網址</label>
               <input
                 type="url"
                 value={url}

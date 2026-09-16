@@ -275,7 +275,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
             className="px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-full cursor-pointer select-none whitespace-nowrap shadow-2xs transition-all active:scale-95 flex items-center space-x-1"
           >
             <Plus className="w-3 h-3" />
-            <span>新增票券</span>
+            <span>新增</span>
           </button>
         </div>
 
@@ -298,7 +298,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                           type="button"
                           onClick={() => onOpenCouponModal?.(coupon)}
                           className="p-1 text-slate-400 hover:text-slate-700 hover:bg-white rounded-md transition-colors cursor-pointer"
-                          title="編輯優惠券"
+                          title="編輯"
                         >
                           <Edit3 className="w-3 h-3" />
                         </button>
@@ -317,7 +317,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold space-x-1">
                           <Maximize2 className="w-3.5 h-3.5" />
-                          <span>全螢幕出示</span>
+                          <span>全螢幕</span>
                         </div>
                       </div>
 
@@ -359,7 +359,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                   className="min-w-[110px] bg-slate-50/60 hover:bg-amber-50/40 border-2 border-dashed border-slate-200 hover:border-amber-300 rounded-xl p-3 flex flex-col items-center justify-center space-y-1 cursor-pointer transition-all flex-shrink-0 text-slate-500 hover:text-amber-800 group"
                 >
                   <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span className="text-[11px] font-bold">新增截圖</span>
+                  <span className="text-[11px] font-bold">新增</span>
                 </button>
               </div>
             ) : (
@@ -371,8 +371,8 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                   <Ticket className="w-3.5 h-3.5" />
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-bold text-slate-800">尚未新增折價券或會員條碼</p>
-                  <p className="text-[10px] text-slate-400">點此上傳或貼上 BicCamera、唐吉訶德、藥妝免稅條碼截圖</p>
+                  <p className="text-xs font-bold text-slate-800">尚未新增優惠券或條碼</p>
+                  <p className="text-[10px] text-slate-400">點此上傳或貼上條碼截圖</p>
                 </div>
               </div>
             )}
@@ -390,7 +390,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                 onClick={() => setSelectedStore(store)}
                 className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${selectedStore === store ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
               >
-                {store === ALL_STORES ? '全部店家' : store}
+                {store === ALL_STORES ? '全部' : store}
               </button>
             ))}
           </div>

@@ -317,7 +317,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           <div>
             <h3 className="text-sm font-extrabold text-amber-400 flex items-center space-x-1.5">
               <DollarSign className="w-4 h-4" />
-              <span>{item ? '編輯記帳項目' : '新增記帳項目'}</span>
+              <span>{item ? '編輯記帳' : '新增記帳'}</span>
             </h3>
             {fxLabel ? <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">{fxLabel}</span> : null}
           </div>
@@ -336,7 +336,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="品項名稱"
+              placeholder="品項"
               required
               className="col-span-3 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
             />
@@ -372,7 +372,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
             {hasForeignCurrency && currency !== 'TWD' ? (
               <div className="flex-1 relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 transition-all min-w-0">
                 <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap mr-1.5 select-none flex-shrink-0">
-                  折合台幣
+                  折合 TWD
                 </span>
                 <input
                   type="number"

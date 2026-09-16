@@ -248,10 +248,10 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-extrabold text-slate-900 leading-tight">
-                跨旅程匯入打包清單
+                匯入打包清單
               </h3>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
-                {!hasWill ? '本旅程為 Jo 個人打包，匯入項目將統一歸入 Jo' : '從其他旅程快速複製必備行李項目'}
+                {!hasWill ? '項目統一歸入 Jo' : '從其他旅程複製行李項目'}
               </p>
             </div>
           </div>
@@ -268,7 +268,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
           {/* Trip Selector */}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5">
-              選擇來源旅程
+              來源旅程
             </label>
             {isLoadingTrips ? (
               <div className="h-10 bg-slate-100 rounded-xl animate-pulse flex items-center px-3 text-xs text-slate-400">
@@ -297,7 +297,7 @@ export const ImportPackingModal: React.FC<ImportPackingModalProps> = ({
           {availablePersons.length > 2 && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold text-slate-400">人員篩選</span>
+                <span className="text-[11px] font-bold text-slate-400">人員</span>
                 <div className="space-x-2 text-[11px] font-bold">
                   <button
                     type="button"

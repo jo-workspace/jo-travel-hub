@@ -54,10 +54,10 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-extrabold text-slate-900 leading-tight">
-                行程天氣與穿著參考
+                天氣與穿著
               </h3>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
-                {tripTitle ? `${tripTitle} · ` : ''}逐日氣候預測與行李打包建議
+                {tripTitle ? `${tripTitle} · ` : ''}逐日氣候與打包建議
               </p>
             </div>
           </div>
@@ -75,7 +75,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center space-x-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>全旅程氣溫範圍</span>
+                <span>旅程氣溫</span>
               </span>
               <span className="text-sm font-mono font-black text-white">
                 {overallMin}°C ~ {overallMax}°C
@@ -91,7 +91,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
         <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
           {items.length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-xs font-medium">
-              尚未設定旅程起始日或城市日程安排。
+              尚未設定起始日或城市。
             </div>
           ) : (
             items.map((item, idx) => (

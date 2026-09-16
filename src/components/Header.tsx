@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
             }`}
-            title={hideVisited ? '顯示已完成項目' : '隱藏已完成項目'}
+            title={hideVisited ? '顯示已完成' : '隱藏已完成'}
           >
             {hideVisited ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onShare}
               className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-all duration-200 active:scale-95 flex items-center justify-center cursor-pointer"
-              title="複製此頁面連結分享給旅伴"
+              title="分享旅程"
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onRefresh}
             disabled={isLoading}
             className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-all duration-200 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-50"
-            title="重新讀取資料"
+            title="重新整理"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-slate-800' : ''}`} />
           </button>
@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenSettings}
             className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-all duration-200 active:scale-95 flex items-center justify-center cursor-pointer"
-            title="旅程設定"
+            title="設定"
           >
             <Settings className="w-4 h-4" />
           </button>

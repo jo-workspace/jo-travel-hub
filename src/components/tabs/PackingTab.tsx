@@ -632,9 +632,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
               placeholder={
                 selectedCategory !== ALL_CATEGORIES
                   ? (hasMultiplePersons
-                      ? `新增至「${selectedCategory}」(${effectiveQuickPerson})... (按 Enter 新增)`
-                      : `新增至「${selectedCategory}」... (按 Enter 新增)`)
-                  : '請先在上方點選類別以快速新增...'
+                      ? `加入「${selectedCategory}」(${effectiveQuickPerson})...`
+                      : `加入「${selectedCategory}」...`)
+                  : '點選類別開始新增...'
               }
               className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
             />
@@ -652,7 +652,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                   )
                 }
                 className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
-                title="開啟完整彈窗設定備註"
+                title="詳細設定"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>詳細</span>
@@ -676,8 +676,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
           {showCategoryError && (
             <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pl-2">
-              請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
-          </p>
+              請先在上方點選類別即可開始新增
+            </p>
           )}
         </div>
       </div>
@@ -964,9 +964,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
             placeholder={
               selectedCategory !== ALL_CATEGORIES
                 ? (hasMultiplePersons
-                    ? `新增至「${selectedCategory}」(${effectiveQuickPerson})...`
-                    : `新增至「${selectedCategory}」... (按 Enter 新增)`)
-                : '請先在上方點選類別以快速新增...'
+                    ? `加入「${selectedCategory}」(${effectiveQuickPerson})...`
+                    : `加入「${selectedCategory}」...`)
+                : '點選類別開始新增...'
             }
             className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 placeholder:font-normal"
           />
@@ -983,6 +983,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 )
               }
               className="px-2 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+              title="詳細設定"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>詳細</span>
@@ -1006,7 +1007,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
         {showCategoryError && (
           <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pt-1 pl-2">
-            請先在上方點選一個「類別」（如：衣物、3C）即可開始快速新增
+            請先在上方點選類別即可開始新增
           </p>
         )}
       </div>

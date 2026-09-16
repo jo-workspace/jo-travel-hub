@@ -1004,7 +1004,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <h3 className="text-sm font-extrabold text-amber-400 flex items-center space-x-1.5">
                 <DollarSign className="w-4 h-4" />
-                <span>新增記帳項目</span>
+                <span>記帳</span>
               </h3>
               {fxLabel ? <span className="text-[10px] text-slate-400 font-mono">{fxLabel}</span> : null}
             </div>
@@ -1015,7 +1015,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 type="text"
                 value={item}
                 onChange={(e) => setItem(e.target.value)}
-                placeholder="品項名稱"
+                placeholder="品項"
                 required
                 className="col-span-3 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 transition-all border border-slate-700 placeholder:text-slate-500"
               />
@@ -1404,7 +1404,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm py-2.5 rounded-xl transition-all shadow-md active:scale-98 cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>{isSubmitting ? '新增中...' : '送出記帳'}</span>
+              <span>{isSubmitting ? '處理中...' : '記帳'}</span>
             </button>
           </form>
 

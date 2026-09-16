@@ -90,7 +90,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-lg font-extrabold text-slate-900">
-            {item ? '編輯待辦事項' : '新增待辦事項'}
+            {item ? '編輯待辦' : '新增待辦'}
           </h3>
           <button
             onClick={onClose}
@@ -102,7 +102,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">分類 (選填)</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">分類</label>
             <input
               type="text"
               value={category}
@@ -129,7 +129,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">任務名稱</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">任務</label>
             <input
               type="text"
               value={task}
@@ -141,7 +141,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">詳細備註</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">備註</label>
             <textarea
               rows={3}
               value={note}
