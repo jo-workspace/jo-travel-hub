@@ -441,17 +441,7 @@ export async function updateTripSettings(
     .limit(1);
 
   const existingRow = list?.[0] || null;
-
-  // 若該旅程尚未有設定列，從 trip_settings 查詢一列獲取實際 DB 欄位 schema
-  let sampleRow = existingRow;
-  if (!sampleRow) {
-    const { data: anyList } = await supabase
-      .from('trip_settings')
-      .select('*')
-      .limit(1);
-    sampleRow = anyList?.[0] || null;
-  }
-  const dbKeys = sampleRow ? Object.keys(sampleRow) : [];
+  const dbKeys = await getTableColumns('trip_settings', existingRow);
 
   // 處理 trip_note 中跨裝置同步的自訂上傳圖示 (PNG Data URI)
   let finalTripNote = settings.tripNote ?? '';
@@ -576,10 +566,25 @@ export async function updateTripSettings(
       if (settings.dates !== undefined) updateData.dates = settings.dates;
       if (settings.badgeText !== undefined) updateData.badge_text = settings.badgeText;
 
-      await supabase
-        .from('trips')
-        .update(updateData)
-        .eq('id', tripId);
+      const { data: tripRow } = await supabase.from('trips').select('id').eq('id', tripId).limit(1);
+      if (tripRow && tripRow.length > 0) {
+        await supabase
+          .from('trips')
+          .update(updateData)
+          .eq('id', tripId);
+      } else {
+        await supabase
+          .from('trips')
+          .insert({
+            id: tripId,
+            title: settings.title || tripId,
+            dates: settings.dates || '',
+            badge_text: settings.badgeText || '進行中',
+            cover_gradient: 'from-slate-800 to-slate-900',
+            description: '',
+            ...updateData,
+          });
+      }
     } catch (e) {
       console.warn('trips update skipped:', e);
     }
@@ -631,7 +636,7 @@ export async function updateTripCoupons(tripId: string, coupons: CouponItem[]): 
     await supabase
       .from('trip_settings')
       .update({ trip_note: rawTripNote })
-      .eq('id', existingRow.id);
+      .eq('trip_id', tripId);
   } else {
     await supabase
       .from('trip_settings')
@@ -642,22 +647,50 @@ export async function updateTripCoupons(tripId: string, coupons: CouponItem[]): 
   }
 }
 
-/** 根據 DB 實際擁有的欄位動態建立 Payload */
-function matchDbPayload(sampleRow: any, map: Record<string, [any, ...string[]]>, tripId: string): Record<string, any> {
+/** Supabase 各資料表之真實結構快取（避免單一新旅程資料為空時探測失敗） */
+const TABLE_COLUMNS_CACHE: Record<string, string[]> = {
+  expense_items: ['id', 'trip_id', 'title', 'category', 'paid_by', 'note', 'created_at', 'currency', 'amount', 'split'],
+  shopping_items: ['id', 'trip_id', 'item_name', 'estimated_price', 'bought', 'store', 'note', 'created_at', 'for_whom', 'quantity', 'image'],
+  itinerary_items: ['id', 'trip_id', 'day_number', 'title', 'time', 'category', 'note', 'created_at', 'is_visited', 'url'],
+  todo_items: ['id', 'trip_id', 'task', 'completed', 'note', 'assignee', 'created_at', 'category'],
+  packing_items: ['id', 'trip_id', 'item_name', 'category', 'packed', 'owner', 'created_at', 'note', 'location'],
+  trip_settings: ['trip_id', 'budget_twd', 'fx_rate', 'categories', 'updated_at', 'start_date', 'trip_note', 'foreign_currency', 'companions', 'timezone'],
+  trips: ['id', 'title', 'dates', 'cover_gradient', 'badge_text', 'description', 'created_at'],
+};
+
+/** 獲取資料表實際具備之欄位名稱（包含全域快取與跨旅程動態探索） */
+export async function getTableColumns(tableName: string, sampleRow?: any): Promise<string[]> {
+  if (sampleRow && Object.keys(sampleRow).length > 0) {
+    const keys = Object.keys(sampleRow);
+    TABLE_COLUMNS_CACHE[tableName] = keys;
+    return keys;
+  }
+  if (TABLE_COLUMNS_CACHE[tableName] && TABLE_COLUMNS_CACHE[tableName].length > 0) {
+    return TABLE_COLUMNS_CACHE[tableName];
+  }
+  try {
+    const { data } = await supabase.from(tableName).select('*').limit(1);
+    if (data && data.length > 0) {
+      const keys = Object.keys(data[0]);
+      TABLE_COLUMNS_CACHE[tableName] = keys;
+      return keys;
+    }
+  } catch (e) {
+    console.warn(`Failed to inspect columns for ${tableName}:`, e);
+  }
+  return TABLE_COLUMNS_CACHE[tableName] || [];
+}
+
+/** 根據 DB 實際擁有的欄位動態建立 Payload（若資料庫無此欄位則絕對不填入，防止 schema cache 錯誤） */
+function matchDbPayload(dbKeys: string[], map: Record<string, [any, ...string[]]>, tripId: string): Record<string, any> {
   const payload: Record<string, any> = { trip_id: tripId };
-  const dbKeys = sampleRow ? Object.keys(sampleRow) : [];
 
   Object.values(map).forEach(([val, ...possibleCols]) => {
-    if (dbKeys.length > 0) {
-      for (const col of possibleCols) {
-        if (dbKeys.includes(col)) {
-          payload[col] = val;
-          break;
-        }
+    for (const col of possibleCols) {
+      if (dbKeys.includes(col)) {
+        payload[col] = val;
+        break;
       }
-    } else {
-      // 若 Table 目前完全為空，帶第一個優先的欄位名
-      payload[possibleCols[0]] = val;
     }
   });
 
@@ -693,6 +726,8 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
     targetRow = list[rowIndex - 2] || null;
   }
 
+  const dbKeys = await getTableColumns('itinerary_items', targetRow || sampleRow);
+
   let finalNote = (content || '').trim();
   if (isIgnored) {
     if (!finalNote.includes('<!--IGNORED-->')) {
@@ -712,7 +747,7 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
     url: [links || '', 'url', 'URL', 'links', 'Links', 'location'],
   };
 
-  const payload = matchDbPayload(targetRow || sampleRow, map, tripId);
+  const payload = matchDbPayload(dbKeys, map, tripId);
 
   if (targetRow) {
     const { error } = await supabase.from('itinerary_items').update(payload).eq('id', targetRow.id);
@@ -723,11 +758,12 @@ export async function saveItineraryData(formData: any, tripId = 'la-2026'): Prom
     return '更新成功';
   }
 
-  const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['is_visited', 'Is_Visited', 'visited'].includes(k)) || 'is_visited';
-  const { error } = await supabase.from('itinerary_items').insert({
-    ...payload,
-    [statusKey]: !!formData.isVisited || !!isIgnored,
-  });
+  const statusKey = dbKeys.find((k) => ['is_visited', 'Is_Visited', 'visited'].includes(k));
+  const insertPayload = { ...payload };
+  if (statusKey && dbKeys.includes(statusKey)) {
+    insertPayload[statusKey] = !!formData.isVisited || !!isIgnored;
+  }
+  const { error } = await supabase.from('itinerary_items').insert(insertPayload);
   if (error) {
     console.error('儲存行程失敗 Supabase Error:', error);
     throw new Error(`儲存行程失敗: ${error.message}`);
@@ -920,13 +956,15 @@ export async function saveTodoData(formData: any, tripId = 'la-2026'): Promise<s
     ? list?.find((r) => r.id === formId)
     : (rowIndex && rowIndex >= 2 && list) ? list[rowIndex - 2] : null;
 
+  const dbKeys = await getTableColumns('todo_items', targetRow || sampleRow);
+
   const map: Record<string, [any, ...string[]]> = {
     category: [category || '待辦', 'category', 'Category'],
     task: [task || '新待辦事項', 'task', 'Task', 'task_name'],
     note: [note || '', 'note', 'Note', 'due_date'],
   };
 
-  const payload = matchDbPayload(targetRow || sampleRow, map, tripId);
+  const payload = matchDbPayload(dbKeys, map, tripId);
 
   if (targetRow) {
     const { error } = await supabase.from('todo_items').update(payload).eq('id', targetRow.id);
@@ -934,8 +972,12 @@ export async function saveTodoData(formData: any, tripId = 'la-2026'): Promise<s
     return '更新成功';
   }
 
-  const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['completed', 'is_done', 'Is_Done'].includes(k)) || 'completed';
-  const { error } = await supabase.from('todo_items').insert({ ...payload, [statusKey]: false });
+  const statusKey = dbKeys.find((k) => ['completed', 'is_done', 'Is_Done'].includes(k));
+  const insertPayload = { ...payload };
+  if (statusKey && dbKeys.includes(statusKey)) {
+    insertPayload[statusKey] = false;
+  }
+  const { error } = await supabase.from('todo_items').insert(insertPayload);
   if (error) throw new Error(`儲存待辦失敗: ${error.message}`);
   return '儲存成功';
 }
@@ -1020,6 +1062,8 @@ export async function savePackingData(formData: any, tripId = 'la-2026'): Promis
     ? list?.find((r) => r.id === formId)
     : (rowIndex && rowIndex >= 2 && list) ? list[rowIndex - 2] : null;
 
+  const dbKeys = await getTableColumns('packing_items', targetRow || sampleRow);
+
   const map: Record<string, [any, ...string[]]> = {
     category: [category || '個人物品', 'category', 'Category'],
     person: [(person || 'Jo').replace('全員', 'Jo'), 'owner', 'person', 'Person'],
@@ -1028,7 +1072,7 @@ export async function savePackingData(formData: any, tripId = 'la-2026'): Promis
     location: [location || '', 'location', 'Location', 'place', 'storage'],
   };
 
-  const payload = matchDbPayload(targetRow || sampleRow, map, tripId);
+  const payload = matchDbPayload(dbKeys, map, tripId);
 
   if (targetRow) {
     const { error } = await supabase.from('packing_items').update(payload).eq('id', targetRow.id);
@@ -1036,8 +1080,12 @@ export async function savePackingData(formData: any, tripId = 'la-2026'): Promis
     return '更新成功';
   }
 
-  const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['packed', 'is_packed', 'Is_Packed', 'is_done'].includes(k)) || 'packed';
-  const { error } = await supabase.from('packing_items').insert({ ...payload, [statusKey]: false });
+  const statusKey = dbKeys.find((k) => ['packed', 'is_packed', 'Is_Packed', 'is_done'].includes(k));
+  const insertPayload = { ...payload };
+  if (statusKey && dbKeys.includes(statusKey)) {
+    insertPayload[statusKey] = false;
+  }
+  const { error } = await supabase.from('packing_items').insert(insertPayload);
   if (error) throw new Error(`儲存行李失敗: ${error.message}`);
   return '儲存成功';
 }
@@ -1056,7 +1104,8 @@ export async function batchSavePackingData(
     .limit(1);
 
   const sampleRow = sampleList?.[0] || null;
-  const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['packed', 'is_packed', 'Is_Packed', 'is_done'].includes(k)) || 'packed';
+  const dbKeys = await getTableColumns('packing_items', sampleRow);
+  const statusKey = dbKeys.find((k) => ['packed', 'is_packed', 'Is_Packed', 'is_done'].includes(k));
 
   const payloads = items.map((it) => {
     const map: Record<string, [any, ...string[]]> = {
@@ -1066,8 +1115,11 @@ export async function batchSavePackingData(
       note: [it.note || '', 'note', 'Note'],
       location: [it.location || '', 'location', 'Location', 'place', 'storage'],
     };
-    const payload = matchDbPayload(sampleRow, map, tripId);
-    return { ...payload, [statusKey]: false };
+    const payload = matchDbPayload(dbKeys, map, tripId);
+    if (statusKey && dbKeys.includes(statusKey)) {
+      payload[statusKey] = false;
+    }
+    return payload;
   });
 
   const { error } = await supabase.from('packing_items').insert(payloads);
@@ -1170,6 +1222,18 @@ export async function addExpenseData(formData: any, tripId = 'la-2026'): Promise
     ? list?.find((r) => r.id === formId)
     : (rowIndex && rowIndex >= 2 && list ? list[rowIndex - 2] : null);
 
+  const dbKeys = await getTableColumns('expense_items', targetRow || sampleRow);
+
+  // 處理 date: 若 DB 欄位沒有 date，將 date 寫入 note 以免丟失；若 DB 有 date 欄位則寫入 date
+  let finalNote = (note || '').trim();
+  if (date) {
+    if (!finalNote.includes('DATE=')) {
+      finalNote = finalNote ? `${finalNote}\n<!--DATE=${date}-->` : `<!--DATE=${date}-->`;
+    } else {
+      finalNote = finalNote.replace(/<!--DATE=[^>]*-->/g, `<!--DATE=${date}-->`);
+    }
+  }
+
   const map: Record<string, [any, ...string[]]> = {
     category: [category || '餐飲', 'category', 'Category'],
     title: [item || '消費', 'title', 'Title', 'item', 'Item', 'item_name'],
@@ -1177,11 +1241,14 @@ export async function addExpenseData(formData: any, tripId = 'la-2026'): Promise
     currency: [currency || 'TWD', 'currency', 'Currency'],
     paidBy: [paidBy || 'Jo', 'paid_by', 'Paid By', 'Paid_By', 'payer'],
     split: [split || 'Both', 'split', 'Split'],
-    date: [date || '', 'date', 'Date'],
-    note: [note || '', 'note', 'Note', 'notes'],
+    note: [finalNote, 'note', 'Note', 'notes'],
   };
 
-  const payload = matchDbPayload(targetRow || sampleRow, map, tripId);
+  if (date && dbKeys.includes('date')) {
+    map.date = [date, 'date', 'Date'];
+  }
+
+  const payload = matchDbPayload(dbKeys, map, tripId);
 
   if (targetRow) {
     const { error } = await supabase.from('expense_items').update(payload).eq('id', targetRow.id);
@@ -1234,18 +1301,33 @@ export async function saveShoppingData(formData: any, tripId = 'la-2026'): Promi
     ? list?.find((r) => r.id === formId)
     : (rowIndex && rowIndex >= 2 && list ? list[rowIndex - 2] : null);
 
+  const dbKeys = await getTableColumns('shopping_items', targetRow || sampleRow);
+
+  // 處理 purchaseStatus === 'ignored'：若 DB 無 purchase_status 欄位，將 <!--IGNORED--> 存入 note
+  let finalNote = (note || '').trim();
+  if (purchaseStatus === 'ignored') {
+    if (!finalNote.includes('<!--IGNORED-->')) {
+      finalNote = finalNote ? `${finalNote}\n<!--IGNORED-->` : '<!--IGNORED-->';
+    }
+  } else {
+    finalNote = finalNote.replace(/<!--IGNORED-->/g, '').trim();
+  }
+
   const map: Record<string, [any, ...string[]]> = {
     store: [store || '一般店家', 'store', 'Store'],
     forWhom: [forWhom || '自己', 'for_whom', 'For Whom', 'For_Whom', 'forWhom'],
     item: [item || '購物品', 'item_name', 'item', 'Item'],
     quantity: [quantity || '1', 'quantity', 'Quantity'],
     price: [Number(price) || 0, 'estimated_price', 'Estimated_Price', 'Estimated Price'],
-    purchaseStatus: [purchaseStatus || 'pending', 'purchase_status', 'Purchase_Status'],
     image: [image || '', 'image', 'Image'],
-    note: [note || '', 'note', 'Note'],
+    note: [finalNote, 'note', 'Note'],
   };
 
-  const payload = matchDbPayload(targetRow || sampleRow, map, tripId);
+  if (purchaseStatus && dbKeys.includes('purchase_status')) {
+    map.purchaseStatus = [purchaseStatus, 'purchase_status', 'Purchase_Status'];
+  }
+
+  const payload = matchDbPayload(dbKeys, map, tripId);
 
   if (targetRow) {
     const { error } = await supabase.from('shopping_items').update(payload).eq('id', targetRow.id);
@@ -1253,8 +1335,12 @@ export async function saveShoppingData(formData: any, tripId = 'la-2026'): Promi
     return '更新成功';
   }
 
-  const statusKey = sampleRow && Object.keys(sampleRow).find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k)) || 'bought';
-  const { error } = await supabase.from('shopping_items').insert({ ...payload, [statusKey]: false });
+  const statusKey = dbKeys.find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k));
+  const insertPayload = { ...payload };
+  if (statusKey && dbKeys.includes(statusKey)) {
+    insertPayload[statusKey] = purchaseStatus === 'purchased';
+  }
+  const { error } = await supabase.from('shopping_items').insert(insertPayload);
   if (error) throw new Error(`儲存購物清單失敗: ${error.message}`);
   return '儲存成功';
 }
@@ -1311,19 +1397,23 @@ export async function toggleShoppingStatus(
   }
 
   if (targetRow) {
-    const key = Object.keys(targetRow).find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k)) || 'bought';
-    const payload: Record<string, any> = { [key]: isChecked };
+    const dbKeys = await getTableColumns('shopping_items', targetRow);
+    const key = dbKeys.find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k)) || 'bought';
+    const payload: Record<string, any> = {};
+    if (dbKeys.includes(key)) {
+      payload[key] = isChecked;
+    }
 
     // 若被勾選為已購買，確保移除 <!--IGNORED--> 標記
     const currentNote = targetRow.note || targetRow.Note || '';
     if (isChecked && currentNote.includes('<!--IGNORED-->')) {
       const updatedNote = currentNote.replace(/<!--IGNORED-->/g, '').trim();
-      if ('note' in targetRow) payload.note = updatedNote;
-      else if ('Note' in targetRow) payload.Note = updatedNote;
+      if (dbKeys.includes('note')) payload.note = updatedNote;
+      else if (dbKeys.includes('Note')) payload.Note = updatedNote;
     }
 
     // 僅在資料庫有 purchase_status 欄位時一併更新，避免報錯
-    if ('purchase_status' in targetRow) {
+    if (dbKeys.includes('purchase_status')) {
       payload.purchase_status = isChecked ? 'purchased' : 'pending';
     }
     const { error } = await supabase.from('shopping_items').update(payload).eq('id', targetRow.id);
@@ -1364,6 +1454,7 @@ export async function toggleShoppingIgnoredStatus(
   }
 
   if (targetRow) {
+    const dbKeys = await getTableColumns('shopping_items', targetRow);
     const nextIgnored = !currentIgnored;
     const currentNote = targetRow.note || targetRow.Note || '';
     let updatedNote = currentNote;
@@ -1376,15 +1467,15 @@ export async function toggleShoppingIgnoredStatus(
     }
 
     const payload: Record<string, any> = {};
-    if ('note' in targetRow) payload.note = updatedNote;
-    else if ('Note' in targetRow) payload.Note = updatedNote;
+    if (dbKeys.includes('note')) payload.note = updatedNote;
+    else if (dbKeys.includes('Note')) payload.Note = updatedNote;
 
-    if ('purchase_status' in targetRow) {
+    if (dbKeys.includes('purchase_status')) {
       payload.purchase_status = nextIgnored ? 'ignored' : 'pending';
     }
 
-    const statusKey = Object.keys(targetRow).find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k)) || 'bought';
-    if (nextIgnored) {
+    const statusKey = dbKeys.find((k) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(k));
+    if (nextIgnored && statusKey && dbKeys.includes(statusKey)) {
       // 略過時取消勾選購買
       payload[statusKey] = false;
     }
@@ -1433,23 +1524,27 @@ export async function checkoutShoppingStore(
     .order('id', { ascending: true });
   if (error) throw new Error(`讀取購物清單失敗: ${error.message}`);
 
-  const boughtKey = items?.[0] && Object.keys(items[0]).find((key) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(key)) || 'bought';
-  const hasPurchaseStatus = items?.[0] && 'purchase_status' in items[0];
+  const dbKeys = await getTableColumns('shopping_items', items?.[0]);
+  const boughtKey = dbKeys.find((key) => ['bought', 'is_done', 'Is_Done', 'Done'].includes(key));
+  const hasPurchaseStatus = dbKeys.includes('purchase_status');
 
   const updateItem = async (rowIndex: number, purchaseStatus: 'purchased' | 'out_of_stock') => {
     const item = items?.[rowIndex - 2];
     if (!item) return;
-    const payload: Record<string, any> = {
-      [boughtKey]: purchaseStatus === 'purchased',
-    };
+    const payload: Record<string, any> = {};
+    if (boughtKey) {
+      payload[boughtKey] = purchaseStatus === 'purchased';
+    }
     if (hasPurchaseStatus) {
       payload.purchase_status = purchaseStatus;
     }
-    const { error: updateError } = await supabase
-      .from('shopping_items')
-      .update(payload)
-      .eq('id', item.id);
-    if (updateError) throw new Error(`更新購物品項失敗: ${updateError.message}`);
+    if (Object.keys(payload).length > 0) {
+      const { error: updateError } = await supabase
+        .from('shopping_items')
+        .update(payload)
+        .eq('id', item.id);
+      if (updateError) throw new Error(`更新購物品項失敗: ${updateError.message}`);
+    }
   };
 
   await Promise.all([
