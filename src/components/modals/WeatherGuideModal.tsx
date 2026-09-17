@@ -14,6 +14,7 @@ export interface DayWeatherGuideItem {
   weatherCode: number;
   precipitationProbability: number;
   advice: string;
+  hasWeather?: boolean;
 }
 
 interface WeatherGuideModalProps {
@@ -122,22 +123,30 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
 
                 {/* Weather details */}
                 <div className="flex items-center space-x-2 flex-shrink-0 text-right">
-                  <div>
-                    <div className="text-sm font-mono font-extrabold text-slate-900">
-                      {item.tempMax}° / {item.tempMin}°
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-400 flex items-center justify-end space-x-1">
-                      <span>{getWeatherDescription(item.weatherCode)}</span>
-                      {item.precipitationProbability > 0 && (
-                        <span className="text-sky-600 font-mono">
-                          · 🌧️ {item.precipitationProbability}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-2 bg-white rounded-xl shadow-2xs border border-slate-100 flex items-center justify-center">
-                    <WeatherIcon code={item.weatherCode} className="w-5 h-5" />
-                  </div>
+                  {item.hasWeather !== false ? (
+                    <>
+                      <div>
+                        <div className="text-sm font-mono font-extrabold text-slate-900">
+                          {item.tempMax}° / {item.tempMin}°
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-400 flex items-center justify-end space-x-1">
+                          <span>{getWeatherDescription(item.weatherCode)}</span>
+                          {item.precipitationProbability > 0 && (
+                            <span className="text-sky-600 font-mono">
+                              · 🌧️ {item.precipitationProbability}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-white rounded-xl shadow-2xs border border-slate-100 flex items-center justify-center">
+                        <WeatherIcon code={item.weatherCode} className="w-5 h-5" />
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                      尚無預報
+                    </span>
+                  )}
                 </div>
               </div>
             ))

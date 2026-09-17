@@ -64,6 +64,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [overallMin, setOverallMin] = useState(999);
   const [overallMax, setOverallMax] = useState(-999);
   const [overallAdvice, setOverallAdvice] = useState('');
+  const [hasAnyWeather, setHasAnyWeather] = useState(false);
 
   useEffect(() => {
     if (!itinerary || itinerary.length === 0) return;
@@ -91,6 +92,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       const guides: DayWeatherGuideItem[] = [];
       let minVal = 999;
       let maxVal = -999;
+      let validWeatherCount = 0;
 
       days.forEach((dayLabel) => {
         const cityName = getCityForDay(dayLabel, citySchedule, '主要城市');
@@ -118,55 +120,74 @@ export const PackingTab: React.FC<PackingTabProps> = ({
           }
         }
 
-        let dayW = cWeather?.daily.find((d) => d.dateStr === targetIso);
-        if (!dayW && cWeather && cWeather.daily.length > 0) {
-          dayW = cWeather.daily[0];
-        }
-
-        const tMax = dayW ? dayW.tempMax : 24;
-        const tMin = dayW ? dayW.tempMin : 16;
-        const code = dayW ? dayW.weatherCode : 0;
-        const precip = dayW ? dayW.precipitationProbability : 0;
+        const dayW = cWeather?.daily.find((d) => d.dateStr === targetIso);
 
         if (dayW) {
+          validWeatherCount++;
+          const tMax = dayW.tempMax;
+          const tMin = dayW.tempMin;
+          const code = dayW.weatherCode;
+          const precip = dayW.precipitationProbability;
+
           if (tMin < minVal) minVal = tMin;
           if (tMax > maxVal) maxVal = tMax;
-        }
 
-        let dayAdvice = '早晚舒適';
-        if (tMax - tMin >= 14) {
-          dayAdvice = `日夜溫差達 ${tMax - tMin}°C，務必備薄外套`;
-        } else if (tMax >= 30) {
-          dayAdvice = '炎熱高溫，建議防曬短袖';
-        } else if (tMin <= 14) {
-          dayAdvice = '氣溫偏涼，建議穿著長袖外套';
-        }
+          let dayAdvice = '早晚舒適';
+          if (tMax - tMin >= 14) {
+            dayAdvice = `日夜溫差達 ${tMax - tMin}°C，務必備薄外套`;
+          } else if (tMax >= 30) {
+            dayAdvice = '炎熱高溫，建議防曬短袖';
+          } else if (tMin <= 14) {
+            dayAdvice = '氣溫偏涼，建議穿著長袖外套';
+          }
 
-        guides.push({
-          dayLabel,
-          dateStr: dateDisplay,
-          cityName,
-          tempMax: tMax,
-          tempMin: tMin,
-          weatherCode: code,
-          precipitationProbability: precip,
-          advice: dayAdvice,
-        });
+          guides.push({
+            dayLabel,
+            dateStr: dateDisplay,
+            cityName,
+            tempMax: tMax,
+            tempMin: tMin,
+            weatherCode: code,
+            precipitationProbability: precip,
+            advice: dayAdvice,
+            hasWeather: true,
+          });
+        } else {
+          guides.push({
+            dayLabel,
+            dateStr: dateDisplay,
+            cityName,
+            tempMax: 0,
+            tempMin: 0,
+            weatherCode: 0,
+            precipitationProbability: 0,
+            advice: '尚無預報',
+            hasWeather: false,
+          });
+        }
       });
 
       setDailyGuideItems(guides);
-      setOverallMin(minVal);
-      setOverallMax(maxVal);
+      setHasAnyWeather(validWeatherCount > 0);
 
-      let advice = '早晚溫差適中，建議洋蔥式穿搭';
-      if (maxVal - minVal >= 15) {
-        advice = `跨城市溫差達 ${maxVal - minVal}°C（最低 ${minVal}°C / 最高 ${maxVal}°C），建議同時備齊保暖外套與透氣防曬衣物`;
-      } else if (maxVal >= 30) {
-        advice = '全旅程多為高溫炎熱天候，建議透氣短袖與防曬裝備';
-      } else if (minVal <= 14) {
-        advice = '全旅程氣溫偏涼冷，建議保暖外套與長袖衣物';
+      if (validWeatherCount > 0) {
+        setOverallMin(minVal);
+        setOverallMax(maxVal);
+
+        let advice = '早晚溫差適中，建議洋蔥式穿搭';
+        if (maxVal - minVal >= 15) {
+          advice = `跨城市溫差達 ${maxVal - minVal}°C（最低 ${minVal}°C / 最高 ${maxVal}°C），建議同時備齊保暖外套與透氣防曬衣物`;
+        } else if (maxVal >= 30) {
+          advice = '全旅程多為高溫炎熱天候，建議透氣短袖與防曬裝備';
+        } else if (minVal <= 14) {
+          advice = '全旅程氣溫偏涼冷，建議保暖外套與長袖衣物';
+        }
+        setOverallAdvice(advice);
+      } else {
+        setOverallMin(999);
+        setOverallMax(-999);
+        setOverallAdvice('預報尚未發布');
       }
-      setOverallAdvice(advice);
     };
 
     loadGuides();
@@ -452,11 +473,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setWeatherGuideOpen(true)}
-                  className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center"
-                  title="行程天氣穿搭指南"
+                  disabled={!hasAnyWeather}
+                  onClick={() => {
+                    if (hasAnyWeather) setWeatherGuideOpen(true);
+                  }}
+                  className={`p-1 rounded-lg transition-all flex items-center justify-center ${
+                    hasAnyWeather
+                      ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 cursor-pointer'
+                      : 'opacity-40 cursor-not-allowed text-slate-300'
+                  }`}
+                  title={hasAnyWeather ? '行程天氣穿搭指南' : '出發前 14 天開放預報'}
                 >
-                  <CloudSun className="w-3.5 h-3.5 text-amber-500" />
+                  <CloudSun className={`w-3.5 h-3.5 ${hasAnyWeather ? 'text-amber-500' : 'text-slate-400'}`} />
                 </button>
                 {onOpenImportModal && (
                   <button
@@ -517,11 +545,18 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setWeatherGuideOpen(true)}
-                    className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs"
-                    title="行程天氣穿搭指南"
+                    disabled={!hasAnyWeather}
+                    onClick={() => {
+                      if (hasAnyWeather) setWeatherGuideOpen(true);
+                    }}
+                    className={`p-1.5 rounded-xl transition-all flex items-center justify-center shadow-2xs ${
+                      hasAnyWeather
+                        ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 cursor-pointer'
+                        : 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-50 border border-slate-200/40'
+                    }`}
+                    title={hasAnyWeather ? '行程天氣穿搭指南' : '出發前 14 天開放預報'}
                   >
-                    <CloudSun className="w-4 h-4 text-amber-500" />
+                    <CloudSun className={`w-4 h-4 ${hasAnyWeather ? 'text-amber-500' : 'text-slate-400'}`} />
                   </button>
 
                   {onOpenImportModal && (
