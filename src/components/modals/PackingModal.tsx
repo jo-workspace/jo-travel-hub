@@ -11,6 +11,7 @@ interface PackingModalProps {
   defaultCategory?: string;
   defaultLocation?: string;
   existingCategories?: string[];
+  existingLocations?: string[];
   companionsList?: string[];
   hasWill?: boolean;
   onClose: () => void;
@@ -19,7 +20,7 @@ interface PackingModalProps {
 }
 
 const INVALID_PACKING_CATEGORIES = ['公用', '公用物品', '隨身', '行李', '託運', '托運', '手提', '穿著', '其他', '全部'];
-const LOCATION_PRESETS = ['隨身', '托運', '手提', '穿著'];
+const DEFAULT_LOCATION_PRESETS = ['隨身', '托運', '手提', '穿著'];
 
 export const PackingModal: React.FC<PackingModalProps> = ({
   isOpen,
@@ -28,6 +29,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({
   defaultCategory = '',
   defaultLocation = '',
   existingCategories = [],
+  existingLocations = [],
   companionsList = [],
   hasWill,
   onClose,
@@ -44,6 +46,29 @@ export const PackingModal: React.FC<PackingModalProps> = ({
       )
     );
   }, [existingCategories]);
+
+  // 當前旅程物品已有的擺放位置清單（依慣用順序排序；若全無項目則 fallback 至常用預設）
+  const locationPresets = useMemo(() => {
+    const PREFERRED_LOCATION_ORDER = ['託運', '托運', '手提', '隨身', '穿著'];
+    const set = new Set<string>();
+    (existingLocations || []).forEach((loc) => {
+      const trimmed = loc.trim();
+      if (trimmed) set.add(trimmed);
+    });
+
+    if (set.size === 0) {
+      return DEFAULT_LOCATION_PRESETS;
+    }
+
+    return Array.from(set).sort((a, b) => {
+      const idxA = PREFERRED_LOCATION_ORDER.indexOf(a);
+      const idxB = PREFERRED_LOCATION_ORDER.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b, 'zh-Hant');
+    });
+  }, [existingLocations]);
 
   // 當前旅程攜帶人員清單（由 page.tsx 精確傳入，不再強制加入公用）
   const personPresets = useMemo(() => {
@@ -258,22 +283,24 @@ export const PackingModal: React.FC<PackingModalProps> = ({
               className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-2"
             />
             {/* Quick Presets */}
-            <div className="flex items-center flex-wrap gap-1.5">
-              {LOCATION_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setLocation(preset)}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
-                    location === preset
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
+            {locationPresets.length > 0 && (
+              <div className="flex items-center flex-wrap gap-1.5">
+                {locationPresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setLocation(location === preset ? '' : preset)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
+                      location === preset
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 5. 備註 */}

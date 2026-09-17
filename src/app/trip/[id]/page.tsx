@@ -318,6 +318,18 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set);
   }, [tripData.packing, tripData.historicalPackingCategories]);
 
+  // 當前旅程物品已有的擺放位置
+  const currentPackingLocations = useMemo(() => {
+    const set = new Set<string>();
+    tripData.packing.forEach((p) => {
+      const loc = (p.location || '').trim();
+      if (loc) {
+        set.add(loc);
+      }
+    });
+    return Array.from(set);
+  }, [tripData.packing]);
+
   // 跨旅程歷史待辦分類（純歷史資料）
   const currentTodoCategories = useMemo(() => {
     const set = new Set<string>();
@@ -999,6 +1011,7 @@ export default function TripPage({ params }: PageProps) {
         defaultCategory={defaultPackingCategory}
         defaultLocation={defaultPackingLocation}
         existingCategories={currentPackingCategories}
+        existingLocations={currentPackingLocations}
         companionsList={currentPackingPersons}
         hasWill={hasWillCompanion}
         onClose={() => setPackingModalOpen(false)}
