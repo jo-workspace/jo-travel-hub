@@ -23,6 +23,7 @@ import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { LightboxModal } from '@/components/modals/LightboxModal';
 import { CouponModal } from '@/components/modals/CouponModal';
+import { cleanCategoryName } from '@/lib/itineraryCategories';
 
 import {
   getAllData,
@@ -347,13 +348,13 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set);
   }, [tripData.todo, tripData.historicalTodoCategories]);
 
-  // 當前旅程中已使用之行程分類
+  // 當前旅程中已使用之行程分類（經清洗與去重）
   const currentItineraryCategories = useMemo(() => {
     const set = new Set<string>();
     tripData.itinerary.forEach((item) => {
-      const cat = (item.type || '').trim();
-      if (cat) {
-        set.add(cat);
+      const clean = cleanCategoryName(item.type);
+      if (clean) {
+        set.add(clean);
       }
     });
     return Array.from(set);

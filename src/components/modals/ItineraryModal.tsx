@@ -4,11 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { ItineraryItem } from '@/types/trip';
 import { X, Trash2, ChevronDown } from 'lucide-react';
 import {
-  ITINERARY_CATEGORY_PRESETS,
-  POPULAR_ITINERARY_EMOJIS,
-  matchKeywordIcon,
-  parseItineraryCategory,
-  formatItineraryCategory,
+  ITINERARY_CORE_PRESETS,
+  TRAVEL_ICON_PICKER_LIST,
+  cleanCategoryName,
+  matchCategoryIconKey,
+  ItineraryCategoryIcon,
 } from '@/lib/itineraryCategories';
 
 interface ItineraryModalProps {
@@ -20,6 +20,9 @@ interface ItineraryModalProps {
   onSave: (formData: any) => Promise<void>;
   onDelete: (target: any) => Promise<void>;
 }
+
+// 排除無效或歷史誤留的雜訊詞彙
+const NOISE_CATEGORY_WORDS = ['行船', '行程', '觀光', '球場', '機票'];
 
 export const ItineraryModal: React.FC<ItineraryModalProps> = ({
   isOpen,
@@ -33,27 +36,26 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
   const [categoryName, setCategoryName] = useState('景點');
-  const [categoryIcon, setCategoryIcon] = useState('📍');
+  const [selectedIconKey, setSelectedIconKey] = useState('map-pin');
   const [isManualIcon, setIsManualIcon] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [links, setLinks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 當前旅程中出現過的自訂分類標籤（排除預設 7 項以及舊球場/機票）
+  // 當前旅程中出現過的合法自訂分類（經名稱清洗與唯一去重，排除預設 7 項與歷史雜訊）
   const customPresets = Array.from(
     new Set(
       existingCategories
-        .map((c) => c.trim())
-        .filter((c) => {
-          if (!c) return false;
-          const parsed = parseItineraryCategory(c);
-          return (
-            !ITINERARY_CATEGORY_PRESETS.some((p) => p.name === parsed.name) &&
-            parsed.name !== '球場' &&
-            parsed.name !== '機票'
-          );
+        .map((c) => cleanCategoryName(c))
+        .filter((cleanName) => {
+          if (!cleanName) return false;
+          // 排除預設 7 大核心標籤
+          if (ITINERARY_CORE_PRESETS.some((p) => p.name === cleanName)) return false;
+          // 排除歷史雜訊詞彙
+          if (NOISE_CATEGORY_WORDS.includes(cleanName)) return false;
+          return true;
         })
     )
   );
@@ -62,9 +64,9 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
     if (item) {
       setDay(item.day || '');
       setTime(item.time || '');
-      const parsed = parseItineraryCategory(item.type || '景點');
-      setCategoryName(parsed.name);
-      setCategoryIcon(parsed.icon);
+      const clean = cleanCategoryName(item.type || '景點');
+      setCategoryName(clean);
+      setSelectedIconKey(matchCategoryIconKey(clean));
       setIsManualIcon(false);
       setTitle(item.title || '');
       setContent(item.content || '');
@@ -73,13 +75,13 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
       setDay(defaultDay && defaultDay !== 'ALL' ? defaultDay : 'Day 1');
       setTime('');
       setCategoryName('景點');
-      setCategoryIcon('📍');
+      setSelectedIconKey('map-pin');
       setIsManualIcon(false);
       setTitle('');
       setContent('');
       setLinks('');
     }
-    setShowEmojiPicker(false);
+    setShowIconPicker(false);
   }, [item, isOpen, defaultDay]);
 
   if (!isOpen) return null;
@@ -88,7 +90,8 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
     e.preventDefault();
     if (!title.trim() || !day.trim()) return;
 
-    const finalType = formatItineraryCategory(categoryName, categoryIcon);
+    // 存儲純淨文字名稱，不再包含 Emoji 前綴以維持資料庫一致
+    const finalType = cleanCategoryName(categoryName);
 
     setIsSubmitting(true);
     try {
@@ -172,43 +175,59 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">類別</label>
             <div className="flex items-center space-x-2 mb-2">
-              {/* Emoji 選擇按鈕 */}
+              {/* SVG 向量圖示切換按鈕 */}
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setShowEmojiPicker((prev) => !prev)}
-                  className="h-10 px-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl flex items-center space-x-1 transition-all cursor-pointer select-none"
-                  title="更換圖示"
+                  onClick={() => setShowIconPicker((prev) => !prev)}
+                  className="h-10 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer select-none"
+                  title="更換向量圖示"
                 >
-                  <span className="text-lg leading-none">{categoryIcon}</span>
+                  <ItineraryCategoryIcon
+                    iconKey={selectedIconKey}
+                    className="w-4 h-4 text-slate-700"
+                  />
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
 
-                {/* Emoji 快捷面板 */}
-                {showEmojiPicker && (
+                {/* SVG 向量圖示快捷選擇盤 */}
+                {showIconPicker && (
                   <>
                     <div
                       className="fixed inset-0 z-20"
-                      onClick={() => setShowEmojiPicker(false)}
+                      onClick={() => setShowIconPicker(false)}
                     />
                     <div className="absolute left-0 top-full mt-1.5 z-30 w-64 bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xl animate-scale-up">
-                      <div className="grid grid-cols-6 gap-1 max-h-48 overflow-y-auto p-0.5">
-                        {POPULAR_ITINERARY_EMOJIS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => {
-                              setCategoryIcon(emoji);
-                              setIsManualIcon(true);
-                              setShowEmojiPicker(false);
-                            }}
-                            className={`w-9 h-9 flex items-center justify-center text-lg rounded-xl transition-all hover:bg-slate-100 cursor-pointer ${
-                              categoryIcon === emoji ? 'bg-slate-100 ring-2 ring-slate-900' : ''
-                            }`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
+                      <div className="text-[11px] font-bold text-slate-400 px-1 mb-1.5">
+                        選擇旅遊圖示
+                      </div>
+                      <div className="grid grid-cols-5 gap-1 max-h-48 overflow-y-auto p-0.5">
+                        {TRAVEL_ICON_PICKER_LIST.map((tIcon) => {
+                          const isCurrent = selectedIconKey === tIcon.key;
+                          const IconComp = tIcon.Icon;
+                          return (
+                            <button
+                              key={tIcon.key}
+                              type="button"
+                              onClick={() => {
+                                setSelectedIconKey(tIcon.key);
+                                setIsManualIcon(true);
+                                setShowIconPicker(false);
+                              }}
+                              className={`w-10 h-10 flex flex-col items-center justify-center rounded-xl transition-all hover:bg-slate-100 cursor-pointer ${
+                                isCurrent
+                                  ? 'bg-slate-100 ring-2 ring-slate-900 text-slate-900'
+                                  : 'text-slate-600'
+                              }`}
+                              title={tIcon.label}
+                            >
+                              <IconComp className="w-4 h-4" />
+                              <span className="text-[9px] mt-0.5 font-medium leading-none">
+                                {tIcon.label}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </>
@@ -223,7 +242,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                   const val = e.target.value;
                   setCategoryName(val);
                   if (!isManualIcon) {
-                    setCategoryIcon(matchKeywordIcon(val));
+                    setSelectedIconKey(matchCategoryIconKey(val));
                   }
                 }}
                 placeholder="自訂或點選下方分類"
@@ -233,7 +252,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
 
             {/* 預設分類標籤與自訂分類 */}
             <div className="flex items-center flex-wrap gap-1.5">
-              {ITINERARY_CATEGORY_PRESETS.map((preset) => {
+              {ITINERARY_CORE_PRESETS.map((preset) => {
                 const isSelected = categoryName === preset.name;
                 return (
                   <button
@@ -241,44 +260,50 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                     type="button"
                     onClick={() => {
                       setCategoryName(preset.name);
-                      setCategoryIcon(preset.icon);
+                      setSelectedIconKey(preset.iconKey);
                       setIsManualIcon(false);
-                      setShowEmojiPicker(false);
+                      setShowIconPicker(false);
                     }}
-                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold flex items-center space-x-1 ${
+                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer select-none font-bold flex items-center space-x-1.5 ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
-                    <span>{preset.icon}</span>
+                    <ItineraryCategoryIcon
+                      iconKey={preset.iconKey}
+                      className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-500'}`}
+                    />
                     <span>{preset.name}</span>
                   </button>
                 );
               })}
 
-              {/* 當前旅程曾用過的自訂分類 */}
-              {customPresets.map((catStr) => {
-                const parsed = parseItineraryCategory(catStr);
-                const isSelected = categoryName === parsed.name;
+              {/* 當前旅程曾用過的乾淨自訂分類（如：郵輪） */}
+              {customPresets.map((customName) => {
+                const isSelected = categoryName === customName;
+                const iconKey = matchCategoryIconKey(customName);
                 return (
                   <button
-                    key={catStr}
+                    key={customName}
                     type="button"
                     onClick={() => {
-                      setCategoryName(parsed.name);
-                      setCategoryIcon(parsed.icon);
-                      setIsManualIcon(true);
-                      setShowEmojiPicker(false);
+                      setCategoryName(customName);
+                      setSelectedIconKey(iconKey);
+                      setIsManualIcon(false);
+                      setShowIconPicker(false);
                     }}
-                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold flex items-center space-x-1 ${
+                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer select-none font-bold flex items-center space-x-1.5 ${
                       isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
-                    <span>{parsed.icon}</span>
-                    <span>{parsed.name}</span>
+                    <ItineraryCategoryIcon
+                      iconKey={iconKey}
+                      className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-500'}`}
+                    />
+                    <span>{customName}</span>
                   </button>
                 );
               })}
