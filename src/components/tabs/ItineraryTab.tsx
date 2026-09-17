@@ -592,12 +592,12 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                           >
                             <div className="flex-1 pr-3 min-w-0">
                               <div className="flex items-start space-x-2.5">
-                                <div
-                                  className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 flex-shrink-0 mt-0.5 select-none"
+                                <span
+                                  className="text-slate-600 flex-shrink-0 mt-0.5 select-none inline-flex items-center justify-center"
                                   title={categoryName}
                                 >
-                                  <ItineraryCategoryIcon category={item.type} className="w-4.5 h-4.5 text-slate-700" />
-                                </div>
+                                  <ItineraryCategoryIcon category={item.type} className="w-5.5 h-5.5 text-slate-600" />
+                                </span>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
                                     {item.time && (
@@ -696,12 +696,12 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               }`}
                             >
                               <div className="flex items-center space-x-2 min-w-0 pr-2">
-                                <div
-                                  className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 flex-shrink-0 select-none"
+                                <span
+                                  className="text-slate-600 flex-shrink-0 select-none inline-flex items-center justify-center"
                                   title={cCategoryName}
                                 >
-                                  <ItineraryCategoryIcon category={cItem.type} className="w-3.5 h-3.5 text-slate-700" />
-                                </div>
+                                  <ItineraryCategoryIcon category={cItem.type} className="w-4 h-4 text-slate-600" />
+                                </span>
                                 <div className="min-w-0">
                                   <div className="flex items-center space-x-1">
                                     <h4 className={`text-xs font-bold truncate group-hover:text-blue-600 transition-colors ${
