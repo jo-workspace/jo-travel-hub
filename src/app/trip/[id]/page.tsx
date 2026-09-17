@@ -335,6 +335,18 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set);
   }, [tripData.todo, tripData.historicalTodoCategories]);
 
+  // 當前旅程中已使用之行程分類
+  const currentItineraryCategories = useMemo(() => {
+    const set = new Set<string>();
+    tripData.itinerary.forEach((item) => {
+      const cat = (item.type || '').trim();
+      if (cat) {
+        set.add(cat);
+      }
+    });
+    return Array.from(set);
+  }, [tripData.itinerary]);
+
   // 嚴格限定於「當前旅程」的購物店家
   const currentShoppingStores = useMemo(() => {
     const set = new Set<string>();
@@ -965,6 +977,7 @@ export default function TripPage({ params }: PageProps) {
         isOpen={itineraryModalOpen}
         item={activeItineraryItem}
         defaultDay={defaultItineraryDay}
+        existingCategories={currentItineraryCategories}
         onClose={() => setItineraryModalOpen(false)}
         onSave={handleSaveItinerary}
         onDelete={handleDeleteItinerary}

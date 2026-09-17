@@ -36,17 +36,7 @@ interface ItineraryTabProps {
   onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
 }
 
-const ICON_MAPPING: Record<string, string> = {
-  '景點': '📍',
-  '美食': '🍔',
-  '購物': '🛒',
-  '交通': '🚗',
-  '住宿': '🏨',
-  '球場': '⚾',
-  '娛樂': '🎡',
-  '機票': '✈️',
-  '其他': '📌',
-};
+import { parseItineraryCategory } from '@/lib/itineraryCategories';
 
 // 由 startDate (YYYY-MM-DD) + Day N 計算出日期字串，例如 "8/28 Thu"
 function calcDateFromStartDate(startDateStr: string, dayLabel: string): string {
@@ -590,7 +580,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                   {mainItems.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {mainItems.map((item) => {
-                        const emoji = ICON_MAPPING[item.type] || '📍';
+                        const { icon: emoji, name: categoryName } = parseItineraryCategory(item.type);
                         return (
                           <div
                             key={item.rowIndex}
@@ -602,7 +592,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                           >
                             <div className="flex-1 pr-3 min-w-0">
                               <div className="flex items-start space-x-2.5">
-                                <span className="text-xl leading-none mt-0.5 select-none">{emoji}</span>
+                                <span className="text-xl leading-none mt-0.5 select-none" title={categoryName}>
+                                  {emoji}
+                                </span>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
                                     {item.time && (
@@ -684,7 +676,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {candidateItems.map((cItem) => {
-                          const cEmoji = ICON_MAPPING[cItem.type] || '📍';
+                          const { icon: cEmoji, name: cCategoryName } = parseItineraryCategory(cItem.type);
                           return (
                             <div
                               key={cItem.id || cItem.rowIndex}
@@ -701,7 +693,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               }`}
                             >
                               <div className="flex items-center space-x-2 min-w-0 pr-2">
-                                <span className="text-base flex-shrink-0 select-none leading-none">
+                                <span className="text-base flex-shrink-0 select-none leading-none" title={cCategoryName}>
                                   {cEmoji}
                                 </span>
                                 <div className="min-w-0">
