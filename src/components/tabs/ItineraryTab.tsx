@@ -511,10 +511,6 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           if (targetDateStr) {
             dayWeather = cityWeather.daily.find((d) => d.dateStr === targetDateStr);
           }
-
-          if (!dayWeather && cityWeather.daily.length > 0) {
-            dayWeather = cityWeather.daily[0];
-          }
         }
 
         return (
