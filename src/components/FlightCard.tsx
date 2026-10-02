@@ -65,31 +65,9 @@ export const FlightCard: React.FC<FlightCardProps> = ({
     }
   };
 
-  // 若尚未設定任何航班，呈現緊湊引導橫幅
+  // 若尚未設定任何航班，直接隱藏不佔據行程表版面
   if (flights.length === 0) {
-    return (
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/80 rounded-2xl p-3 sm:p-4 text-white shadow-sm flex items-center justify-between gap-3">
-        <div className="flex items-center space-x-2.5">
-          <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center flex-shrink-0">
-            <Plane className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="font-bold text-xs sm:text-sm text-slate-100">尚未填寫班機資訊</div>
-            <div className="text-[10px] sm:text-xs text-slate-400">
-              記錄去程與回程航班，隨時追蹤報到、選位與行李額度
-            </div>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => onOpenModal(null, 'outbound')}
-          className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-1 cursor-pointer transition-colors shadow-sm flex-shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>設定班機</span>
-        </button>
-      </div>
-    );
+    return null;
   }
 
   // 依去程、回程等分組，並套用自動隱藏邏輯
