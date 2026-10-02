@@ -10,6 +10,7 @@ import {
   matchCategoryIconKey,
   ItineraryCategoryIcon,
 } from '@/lib/itineraryCategories';
+import { formatTimeOnBlur } from '@/lib/timeUtils';
 
 interface ItineraryModalProps {
   isOpen: boolean;
@@ -149,7 +150,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className="block text-xs font-bold text-slate-500 mb-1">天數</label>
               <input
                 type="text"
@@ -157,17 +158,20 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                 onChange={(e) => setDay(e.target.value)}
                 placeholder="如 Day 1"
                 required
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+                className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-xs font-bold text-slate-500 mb-1">時間</label>
               <input
                 type="text"
+                inputMode="numeric"
+                maxLength={5}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
+                onBlur={(e) => setTime(formatTimeOnBlur(e.target.value))}
                 placeholder="09:00 (留空為口袋名單)"
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+                className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
             </div>
           </div>

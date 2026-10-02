@@ -1147,6 +1147,7 @@ export default function TripPage({ params }: PageProps) {
         isOpen={todoModalOpen}
         item={activeTodoItem}
         existingCategories={currentTodoCategories}
+        tripStartDate={tripData.startDate || ''}
         onClose={() => setTodoModalOpen(false)}
         onSave={handleSaveTodo}
         onDelete={handleDeleteTodo}

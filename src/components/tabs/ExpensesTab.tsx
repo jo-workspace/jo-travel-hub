@@ -1376,7 +1376,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
             {/* Date & Note Inputs */}
             <div className="flex items-center gap-2">
-              <div className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 flex-shrink-0">
+              <div className="relative flex items-center bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 flex-shrink-0 min-w-0">
                 <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap mr-1 select-none flex-shrink-0">
                   📅
                 </span>
@@ -1384,7 +1384,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="bg-transparent text-white text-xs font-bold font-mono outline-none cursor-pointer [color-scheme:dark] w-28"
+                  className="bg-transparent text-white text-xs font-bold font-mono outline-none cursor-pointer [color-scheme:dark] w-28 min-w-0 appearance-none min-h-[28px] [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]"
                   title="消費日期"
                 />
               </div>

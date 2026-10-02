@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { TodoItem } from '@/types/trip';
 import { TODO_CATEGORY_PRESETS } from '@/lib/todoCategories';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, Calendar } from 'lucide-react';
 
 interface TodoModalProps {
   isOpen: boolean;
   item?: TodoItem | null;
   existingCategories?: string[];
+  tripStartDate?: string;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number, id?: string) => Promise<void>;
@@ -18,33 +19,55 @@ export const TodoModal: React.FC<TodoModalProps> = ({
   isOpen,
   item,
   existingCategories = [],
+  tripStartDate = '',
   onClose,
   onSave,
   onDelete,
 }) => {
-  const [category, setCategory] = useState('');
   const [task, setTask] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [category, setCategory] = useState('預約票券');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 跨旅程歷史待辦分類清單（純歷史紀錄）
-  const categoryPresets = Array.from(
-    new Set(existingCategories.map((c) => c.trim()).filter((c) => c && c !== '其他' && c !== '全部'))
+  // 合併預設分類與歷史分類（去重）
+  const allCategoryPresets = Array.from(
+    new Set([
+      ...TODO_CATEGORY_PRESETS,
+      ...existingCategories.map((c) => c.trim()).filter((c) => c && c !== '全部'),
+    ])
   );
 
   useEffect(() => {
     if (item) {
-      setCategory(item.category || '');
       setTask(item.task || '');
+      setDueDate(item.dueDate || '');
+      setCategory(item.category || '預約票券');
       setNote(item.note || '');
     } else {
-      setCategory('');
       setTask('');
+      setDueDate('');
+      setCategory('預約票券');
       setNote('');
     }
   }, [item, isOpen]);
 
   if (!isOpen) return null;
+
+  // 計算快捷截止日期
+  const getTomorrowStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  };
+
+  const getDaysBeforeTrip = (days: number) => {
+    if (!tripStartDate) return '';
+    const d = new Date(tripStartDate);
+    if (isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() - days);
+    return d.toISOString().split('T')[0];
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +78,9 @@ export const TodoModal: React.FC<TodoModalProps> = ({
       await onSave({
         id: item?.id,
         rowIndex: item?.rowIndex || 0,
-        category: category.trim(),
         task: task.trim(),
+        dueDate: dueDate.trim() || undefined,
+        category: category.trim() || '其他',
         note: note.trim(),
         isDone: item?.isDone || false,
       });
@@ -85,7 +109,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-scale-up border border-slate-100"
+        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-scale-up border border-slate-100 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -100,25 +124,99 @@ export const TodoModal: React.FC<TodoModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* 第一格：任務名稱 (標題優先) */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">分類</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              任務名稱 <span className="text-rose-500">*</span>
+            </label>
             <input
               type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-2"
+              autoFocus
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              placeholder="要做什麼？例：預訂晴空塔門票、換日幣..."
+              required
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
             />
-            {/* Quick Presets */}
-            <div className="flex items-center flex-wrap gap-1.5">
-              {categoryPresets.map((preset) => (
+          </div>
+
+          {/* 第二格：截止日期 (iOS WebKit 防破版標準) */}
+          <div className="min-w-0">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                <span>截止日期 (Deadline)</span>
+              </label>
+              {dueDate && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate('')}
+                  className="text-[11px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer flex items-center space-x-0.5"
+                >
+                  <X className="w-3 h-3" />
+                  <span>清除</span>
+                </button>
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full min-w-0 appearance-none min-h-[38px] px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]"
+              />
+            </div>
+
+            {/* 快捷按鈕 */}
+            <div className="flex items-center flex-wrap gap-1.5 mt-2">
+              <button
+                type="button"
+                onClick={() => setDueDate(getTomorrowStr())}
+                className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+              >
+                明天
+              </button>
+              {tripStartDate && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = getDaysBeforeTrip(7);
+                      if (d) setDueDate(d);
+                    }}
+                    className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+                  >
+                    出發前 1 週
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = getDaysBeforeTrip(3);
+                      if (d) setDueDate(d);
+                    }}
+                    className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+                  >
+                    出發前 3 天
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* 第三格：分類 (極簡直覺標籤) */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">分類</label>
+            <div className="flex items-center flex-wrap gap-1.5 mb-2">
+              {allCategoryPresets.map((preset) => (
                 <button
                   key={preset}
                   type="button"
                   onClick={() => setCategory(preset)}
                   className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
                     category === preset
-                      ? 'bg-slate-900 text-white border-slate-900'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -126,30 +224,28 @@ export const TodoModal: React.FC<TodoModalProps> = ({
                 </button>
               ))}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">任務</label>
             <input
               type="text"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder="輸入任務名稱..."
-              required
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="或輸入自訂分類..."
+              className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
             />
           </div>
 
+          {/* 第四格：備註 */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">備註</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">備註 (選填)</label>
             <textarea
-              rows={3}
+              rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              placeholder="補充說明、預約編號、連結等..."
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
             />
           </div>
 
+          {/* 按鈕列 */}
           <div className="flex items-center space-x-2 pt-2">
             {item && item.rowIndex > 1 && (
               <button
@@ -166,7 +262,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-50 shadow-md active:scale-98"
             >
               {isSubmitting ? '處理中...' : '儲存'}
             </button>

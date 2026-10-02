@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FlightItem, FlightType, FlightCheckInStatus } from '@/types/trip';
+import { formatTimeOnBlur } from '@/lib/timeUtils';
 import { X, Trash2, Plane, Clock, MapPin, Luggage, Armchair, CheckCircle2, Bot, ExternalLink, Calendar } from 'lucide-react';
 
 interface FlightModalProps {
@@ -274,22 +275,25 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white focus:outline-none focus:border-amber-400"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">出發時間 *</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  maxLength={5}
                   required
                   value={departureTime}
                   onChange={(e) => setDepartureTime(e.target.value)}
+                  onBlur={(e) => setDepartureTime(formatTimeOnBlur(e.target.value))}
                   placeholder="08:30"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-center focus:outline-none focus:border-amber-400"
+                  className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-900 border border-slate-700 rounded-xl px-2.5 sm:px-3 py-1.5 text-white font-mono text-center focus:outline-none focus:border-amber-400 text-sm"
                 />
               </div>
             </div>
 
             {/* 抵達 */}
             <div className="grid grid-cols-3 gap-2">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">抵達機場 *</label>
                 <input
                   type="text"
@@ -297,41 +301,44 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   value={arrivalAirport}
                   onChange={(e) => setArrivalAirport(e.target.value.toUpperCase())}
                   placeholder="NRT"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono font-bold text-center uppercase focus:outline-none focus:border-amber-400"
+                  className="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono font-bold text-center uppercase focus:outline-none focus:border-amber-400 min-h-[38px] text-sm"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">抵達城市</label>
                 <input
                   type="text"
                   value={arrivalCity}
                   onChange={(e) => setArrivalCity(e.target.value)}
                   placeholder="東京成田"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white focus:outline-none focus:border-amber-400"
+                  className="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white focus:outline-none focus:border-amber-400 min-h-[38px] text-sm"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">抵達時間 *</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  maxLength={5}
                   required
                   value={arrivalTime}
                   onChange={(e) => setArrivalTime(e.target.value)}
+                  onBlur={(e) => setArrivalTime(formatTimeOnBlur(e.target.value))}
                   placeholder="12:45"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white font-mono text-center focus:outline-none focus:border-amber-400"
+                  className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-900 border border-slate-700 rounded-xl px-2.5 sm:px-3 py-1.5 text-white font-mono text-center focus:outline-none focus:border-amber-400 text-sm"
                 />
               </div>
             </div>
 
             {/* 日期、航廈與登機門 */}
             <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">出發日期</label>
                 <input
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                  className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-900 border border-slate-700 rounded-xl px-2.5 sm:px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]"
                 />
               </div>
               <div>

@@ -191,14 +191,22 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       };
     });
 
-    const todo: TodoItem[] = (todoRes.data || []).map((row, idx) => ({
-      id: row.id,
-      rowIndex: idx + 2,
-      category: row.category || row.Category || '待辦',
-      task: row.task || row.Task || row.task_name || '',
-      note: row.note || row.Note || (row.due_date ? `到期日: ${row.due_date}` : ''),
-      isDone: !!(row.completed ?? row.Is_Done ?? row.is_done ?? false),
-    }));
+    const todo: TodoItem[] = (todoRes.data || []).map((row, idx) => {
+      const rawNote = row.note || row.Note || '';
+      const dueMatch = rawNote.match(/<!--DUE:([\d-]+)-->/);
+      const dueDate = row.due_date || (dueMatch ? dueMatch[1] : undefined);
+      const displayNote = rawNote.replace(/<!--DUE:[\d-]+-->\s*/g, '').trim();
+
+      return {
+        id: row.id,
+        rowIndex: idx + 2,
+        category: row.category || row.Category || '其他',
+        task: row.task || row.Task || row.task_name || '',
+        dueDate: dueDate || undefined,
+        note: displayNote,
+        isDone: !!(row.completed ?? row.Is_Done ?? row.is_done ?? false),
+      };
+    });
 
     const packing: PackingItem[] = (packingRes.data || []).map((row, idx) => ({
       id: row.id,
@@ -1112,7 +1120,7 @@ export async function batchUpdateItineraryTimes(
 
 /** 待辦事項 */
 export async function saveTodoData(formData: any, tripId = 'la-2026'): Promise<string> {
-  const { id: formId, rowIndex, task, category, note } = formData;
+  const { id: formId, rowIndex, task, category, note, dueDate } = formData;
 
   const { data: list, error: listErr } = await supabase
     .from('todo_items')
@@ -1130,10 +1138,14 @@ export async function saveTodoData(formData: any, tripId = 'la-2026'): Promise<s
 
   const dbKeys = await getTableColumns('todo_items', targetRow || sampleRow);
 
+  const cleanNote = (note || '').replace(/<!--DUE:[\d-]+-->\s*/g, '').trim();
+  const combinedNote = [cleanNote, dueDate ? `<!--DUE:${dueDate}-->` : ''].filter(Boolean).join(' ');
+
   const map: Record<string, [any, ...string[]]> = {
-    category: [category || '待辦', 'category', 'Category'],
+    category: [category || '其他', 'category', 'Category'],
     task: [task || '新待辦事項', 'task', 'Task', 'task_name'],
-    note: [note || '', 'note', 'Note', 'due_date'],
+    note: [combinedNote, 'note', 'Note'],
+    due_date: [dueDate || null, 'due_date', 'dueDate', 'deadline'],
   };
 
   const payload = matchDbPayload(dbKeys, map, tripId);

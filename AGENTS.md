@@ -33,3 +33,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 * **清楚優先於極短**：簡潔不代表模糊；若圖示或單一詞語不足以讓使用者理解功能，應使用最短且清楚的描述。
 * **說明放在次要層級**：必要的補充資訊使用 tooltip、helper text、placeholder 等方式呈現，不要污染主要操作介面。
 * **一致性優先**：相同功能應使用一致的圖示、文字與互動方式，避免同一功能在不同頁面有不同表達。
+* **填寫順序直覺**：新增/編輯彈窗的第一格欄位必須是「標題 / 任務名稱」，次要選項（如分類、標籤）置於下方輔助，不喧賓奪主。
+
+## iOS / iPhone 行動裝置輸入框防破版規範 (iOS Input & Date Picker Guidance)
+
+- **iOS Safari 日期與時間輸入框防破版**：
+  - 在 iOS Safari 上，原生 `<input type="date">`、`<input type="time">` 及 `<input type="datetime-local">` 常因 WebKit 內部預設樣式、日曆圖示擠壓或 flex/grid 容器伸縮，導致破版、折行或高度文字截斷。
+  - **跨專案全域必備防護規則**：
+    1. **外層容器防溢出**：凡是放在 `flex` 或 `grid` 內的日期/時間輸入框，外層容器與 `<input>` 本身**必須加上 `min-w-0` 與 `w-full`**，徹底杜絕 flex item 撐爆或縮減成零寬度的問題。
+    2. **高度與樣式常規化**：一律加上 `min-h-[42px]`（或 `h-10` / `h-11`）與 `appearance-none`，並給予標準內距（`px-3 py-2`）與 `leading-normal`。
+    3. **防止 iOS 點擊自動縮放**：文字大小若小於 16px，iOS Safari 會強制放大畫面；輸入框應使用 `text-[16px] sm:text-sm` 或設置 `text-sm` 搭配良好觸控尺寸。
+    4. **時間分離原則**：若需同時設定日期與時間，**優先拆為 Date 輸入框 ＋ Time 文字框/快捷按鈕**，避免單一 `datetime-local` 在 iOS 上因格式受限無法輸入 24 小時制（如 23:59）。

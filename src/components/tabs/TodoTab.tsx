@@ -4,7 +4,7 @@ import React from 'react';
 import { TodoItem } from '@/types/trip';
 import { compareTodoCategories } from '@/lib/todoCategories';
 import { linkifyText } from '@/lib/linkify';
-import { Plus, Edit3 } from 'lucide-react';
+import { Plus, Edit3, Calendar } from 'lucide-react';
 
 interface TodoTabProps {
   data: TodoItem[];
@@ -13,18 +13,97 @@ interface TodoTabProps {
   onOpenModal: (item?: TodoItem) => void;
 }
 
+/** 依據截止日期計算徽章樣式與文字 */
+function getDueDateBadge(dueDate?: string, isDone?: boolean) {
+  if (!dueDate || isDone) return null;
+
+  // 使用本地日期計算差距天數 (消除時區偏差)
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+    today.getDate()
+  ).padStart(2, '0')}`;
+
+  const due = new Date(dueDate + 'T00:00:00');
+  const cur = new Date(todayStr + 'T00:00:00');
+  const diffDays = Math.round((due.getTime() - cur.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return (
+      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-rose-50 text-rose-600 border border-rose-200">
+        <span>🚨</span>
+        <span>逾期 {Math.abs(diffDays)} 天</span>
+      </span>
+    );
+  }
+  if (diffDays === 0) {
+    return (
+      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-rose-500 text-white shadow-2xs">
+        <span>🔥</span>
+        <span>今天截止</span>
+      </span>
+    );
+  }
+  if (diffDays === 1) {
+    return (
+      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+        <span>⚡</span>
+        <span>明天截止</span>
+      </span>
+    );
+  }
+  if (diffDays <= 3) {
+    return (
+      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+        <span>⏳</span>
+        <span>剩 {diffDays} 天</span>
+      </span>
+    );
+  }
+
+  // 4 天以上顯示簡短月/日
+  const formattedDate = dueDate.length >= 10 ? `${parseInt(dueDate.slice(5, 7), 10)}/${parseInt(dueDate.slice(8, 10), 10)}` : dueDate;
+  return (
+    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
+      <Calendar className="w-3 h-3 text-slate-400" />
+      <span>{formattedDate}</span>
+    </span>
+  );
+}
+
 export const TodoTab: React.FC<TodoTabProps> = ({
   data,
   hideDone,
   onToggleTodo,
   onOpenModal,
 }) => {
-  // Sort by category (fixed priority order), then by rowIndex
+  // 排序優先序：
+  // 1. 分類順序 (依已知分類權重)
+  // 2. 未完成優先於已完成
+  // 3. 有 deadline 者優先（即將到期者排前）
+  // 4. 原始 rowIndex
   const sortedData = [...data].sort((a, b) => {
     const catA = a.category || '其他';
     const catB = b.category || '其他';
     const catCompare = compareTodoCategories(catA, catB);
     if (catCompare !== 0) return catCompare;
+
+    // 未完成優先
+    if (a.isDone !== b.isDone) {
+      return a.isDone ? 1 : -1;
+    }
+
+    // 未完成項目中，有截止日期者優先排序
+    if (!a.isDone && !b.isDone) {
+      if (a.dueDate && b.dueDate) {
+        const dateCompare = a.dueDate.localeCompare(b.dueDate);
+        if (dateCompare !== 0) return dateCompare;
+      } else if (a.dueDate) {
+        return -1;
+      } else if (b.dueDate) {
+        return 1;
+      }
+    }
+
     return a.rowIndex - b.rowIndex;
   });
 
@@ -33,7 +112,7 @@ export const TodoTab: React.FC<TodoTabProps> = ({
     return true;
   });
 
-  // Group by category
+  // 分類分組
   const groupedByCategory: Record<string, TodoItem[]> = {};
   filteredItems.forEach((item) => {
     const cat = item.category || '其他';
@@ -69,47 +148,56 @@ export const TodoTab: React.FC<TodoTabProps> = ({
               {category}
             </div>
             <div className="space-y-2">
-              {items.map((item) => (
-                <div
-                  key={item.id || item.rowIndex}
-                  className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
-                    item.isDone
-                      ? 'border-slate-100 opacity-40 bg-slate-50'
-                      : 'border-slate-100 shadow-2xs hover:shadow-xs'
-                  }`}
-                >
-                  <div className="flex-1 pr-4 min-w-0">
-                    <h3
-                      className={`text-base font-extrabold text-slate-900 leading-tight ${
-                        item.isDone ? 'line-through text-slate-400' : ''
-                      }`}
-                    >
-                      <span>{item.task}</span>
-                    </h3>
-                    {item.note && (
-                      <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
-                        {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
-                      </div>
-                    )}
-                  </div>
+              {items.map((item) => {
+                const dueBadge = getDueDateBadge(item.dueDate, item.isDone);
 
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button
-                      onClick={() => onOpenModal(item)}
-                      className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                      title="編輯"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <input
-                      type="checkbox"
-                      checked={item.isDone}
-                      onChange={() => onToggleTodo(item.rowIndex, item.isDone, item.id)}
-                      className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
-                    />
+                return (
+                  <div
+                    key={item.id || item.rowIndex}
+                    className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
+                      item.isDone
+                        ? 'border-slate-100 opacity-40 bg-slate-50'
+                        : 'border-slate-100 shadow-2xs hover:shadow-xs'
+                    }`}
+                  >
+                    <div className="flex-1 pr-4 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2">
+                        <h3
+                          className={`text-base font-extrabold text-slate-900 leading-tight ${
+                            item.isDone ? 'line-through text-slate-400' : ''
+                          }`}
+                        >
+                          <span>{item.task}</span>
+                        </h3>
+                        {dueBadge}
+                      </div>
+
+                      {item.note && (
+                        <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
+                          {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <button
+                        onClick={() => onOpenModal(item)}
+                        className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                        title="編輯"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <input
+                        type="checkbox"
+                        checked={item.isDone}
+                        onChange={() => onToggleTodo(item.rowIndex, item.isDone, item.id)}
+                        className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
+                      >
+                      </input>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))

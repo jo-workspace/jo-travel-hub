@@ -1,5 +1,5 @@
-// 通用待辦分類，適用於任何旅程（不綁定特定旅程的時程或月份）
-export const TODO_CATEGORY_PRESETS = ['證件保險', '機票住宿', '行前準備', '出發當天', '其他'];
+// 通用待辦分類，適用於任何旅程（極簡直覺、符合行前與旅程實際流程）
+export const TODO_CATEGORY_PRESETS = ['預約票券', '證件手續', '網卡換匯', '機酒報到', '行李打包', '其他'];
 
 // 已知分類依上表順序排序；自訂分類排在已知分類之後，彼此再依字母排序
 export function compareTodoCategories(a: string, b: string): number {

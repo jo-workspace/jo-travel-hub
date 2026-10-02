@@ -261,11 +261,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="date"
                     value={start}
                     onChange={(e) => setStart(e.target.value)}
-                    className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800 h-[38px]"
+                    className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium text-slate-800 h-[38px] [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]"
                   />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs font-bold text-slate-600 mb-1">時區</label>
                   <input
                     type="text"

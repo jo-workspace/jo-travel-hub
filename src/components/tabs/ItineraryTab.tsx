@@ -27,6 +27,7 @@ import {
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
 import { FlightCard, isFlightFinished } from '@/components/FlightCard';
+import { formatTimeOnBlur } from '@/lib/timeUtils';
 import {
   getCityForDay,
   getUniqueCities,
@@ -1079,11 +1080,14 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
             <form onSubmit={handleSaveQuickTime} className="space-y-3">
               <input
                 type="text"
+                inputMode="numeric"
+                maxLength={5}
                 autoFocus
                 value={quickTimeInput}
                 onChange={(e) => setQuickTimeInput(e.target.value)}
+                onBlur={(e) => setQuickTimeInput(formatTimeOnBlur(e.target.value))}
                 placeholder="例: 12:30"
-                className="w-full text-center text-lg font-black font-mono tracking-wider py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-slate-900 focus:outline-none transition-all"
+                className="w-full min-w-0 appearance-none min-h-[38px] text-center text-lg font-black font-mono tracking-wider py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-slate-900 focus:outline-none transition-all"
               />
 
               <div className="flex items-center gap-2">

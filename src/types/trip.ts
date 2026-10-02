@@ -17,6 +17,7 @@ export interface TodoItem {
   rowIndex: number;
   category: string;
   task: string;
+  dueDate?: string; // YYYY-MM-DD 截止日期
   note?: string;
   isDone: boolean;
 }
