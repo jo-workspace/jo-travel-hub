@@ -69,15 +69,15 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffMs < 0) {
-      return { status: 'expired', label: '已過期', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' };
+      return { status: 'expired', label: '已過期', color: 'text-rose-700 bg-rose-50 border-rose-200' };
     }
     if (diffHours <= 24) {
-      return { status: 'critical', label: `即將截止 (${diffHours}小時後)`, color: 'text-rose-400 bg-rose-500/15 border-rose-500/40 animate-pulse' };
+      return { status: 'critical', label: `即將截止 (${diffHours}小時後)`, color: 'text-rose-700 bg-rose-100 border-rose-300 animate-pulse' };
     }
     if (diffDays <= 3) {
-      return { status: 'warning', label: `剩餘 ${diffDays} 天截止`, color: 'text-amber-400 bg-amber-500/15 border-amber-500/30 font-bold' };
+      return { status: 'warning', label: `剩餘 ${diffDays} 天截止`, color: 'text-amber-800 bg-amber-50 border-amber-300 font-bold' };
     }
-    return { status: 'safe', label: `截止: ${deadlineStr.replace('T', ' ')}`, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+    return { status: 'safe', label: `截止: ${deadlineStr.replace('T', ' ')}`, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
   };
 
   // 複製訂單號
@@ -196,38 +196,38 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   return (
     <div className="space-y-4 max-w-5xl mx-auto pb-20">
       {/* 1. 頂部緊湊統計 & 快捷工具列 */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto py-1">
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/50">
-            <BedDouble className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-slate-400">總預訂</span>
-            <span className="font-bold text-white text-xs sm:text-sm">{stats.total}</span>
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200">
+            <BedDouble className="w-4 h-4 text-slate-700" />
+            <span className="text-xs text-slate-500">總預訂</span>
+            <span className="font-bold text-slate-900 text-xs sm:text-sm">{stats.total}</span>
           </div>
 
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span className="text-xs text-amber-300">抉擇中</span>
-            <span className="font-bold text-amber-400 text-xs sm:text-sm">{stats.candidateCount}</span>
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-xs text-amber-800">抉擇中</span>
+            <span className="font-bold text-amber-700 text-xs sm:text-sm">{stats.candidateCount}</span>
           </div>
 
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-xs text-emerald-300">已保留</span>
-            <span className="font-bold text-emerald-400 text-xs sm:text-sm">{stats.confirmedCount}</span>
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-xs text-emerald-800">已保留</span>
+            <span className="font-bold text-emerald-700 text-xs sm:text-sm">{stats.confirmedCount}</span>
           </div>
 
           {stats.pendingCancelCount > 0 && (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-500/15 rounded-xl border border-rose-500/30 animate-pulse">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-              <span className="text-xs text-rose-300 font-bold">待退訂</span>
-              <span className="font-bold text-rose-400 text-xs sm:text-sm">{stats.pendingCancelCount}</span>
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-50 rounded-xl border border-rose-200 animate-pulse">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <span className="text-xs text-rose-800 font-bold">待退訂</span>
+              <span className="font-bold text-rose-600 text-xs sm:text-sm">{stats.pendingCancelCount}</span>
             </div>
           )}
         </div>
 
         <button
           onClick={() => onOpenModal(null)}
-          className="flex items-center space-x-1.5 px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl font-bold text-xs sm:text-sm transition-all duration-150 cursor-pointer shadow-md shadow-amber-400/20 active:scale-95"
+          className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs sm:text-sm transition-all duration-150 cursor-pointer shadow-xs active:scale-95"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
           <span>新增預訂</span>
@@ -236,8 +236,8 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
       {/* 2. 免費取消警示橫幅（若有即將到期者） */}
       {stats.urgentItems.length > 0 && (
-        <div className="bg-gradient-to-r from-rose-950/60 to-amber-950/40 border border-rose-500/40 rounded-2xl p-3 sm:p-4 text-slate-200 shadow-md">
-          <div className="flex items-center space-x-2 text-rose-400 font-bold text-xs sm:text-sm mb-1.5">
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 sm:p-4 text-slate-800 shadow-2xs">
+          <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs sm:text-sm mb-1.5">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>免費取消期限即將截止警示</span>
           </div>
@@ -245,8 +245,8 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
             {stats.urgentItems.map((u) => {
               const d = getDeadlineStatus(u.freeCancellationDeadline);
               return (
-                <div key={u.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-900/60">
-                  <span className="font-semibold text-white truncate max-w-[200px] sm:max-w-md">{u.name}</span>
+                <div key={u.id} className="flex items-center justify-between text-xs py-1 px-2.5 rounded-lg bg-white border border-rose-100 shadow-2xs">
+                  <span className="font-semibold text-slate-800 truncate max-w-[200px] sm:max-w-md">{u.name}</span>
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     <span className={`px-2 py-0.5 rounded text-[10px] border ${d?.color}`}>{d?.label}</span>
                     {u.bookingUrl && (
@@ -254,7 +254,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                         href={u.bookingUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-amber-400 hover:underline flex items-center space-x-0.5 text-[11px]"
+                        className="text-amber-700 hover:underline flex items-center space-x-0.5 text-[11px]"
                       >
                         <span>去平台</span>
                         <ExternalLink className="w-3 h-3" />
@@ -281,10 +281,10 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
             <button
               key={tab.id}
               onClick={() => setFilterStatus(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 filterStatus === tab.id
-                  ? 'bg-amber-400 text-slate-950 shadow-sm'
-                  : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               {tab.label}
@@ -295,7 +295,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
         {filterStatus === 'all' && stats.cancelledCount > 0 && (
           <button
             onClick={() => setShowCancelled(!showCancelled)}
-            className="text-[11px] text-slate-400 hover:text-slate-200 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors flex items-center space-x-1 flex-shrink-0"
+            className="text-[11px] text-slate-500 hover:text-slate-800 px-2 py-1 rounded-lg hover:bg-slate-200 transition-colors flex items-center space-x-1 flex-shrink-0 cursor-pointer"
           >
             <span>{showCancelled ? '隱藏已退訂' : `顯示已退訂 (${stats.cancelledCount})`}</span>
           </button>
@@ -304,15 +304,15 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
       {/* 4. 房型 PK 與分組清單 */}
       {groupedAccommodations.length === 0 ? (
-        <div className="bg-slate-900/60 border border-dashed border-slate-800 rounded-3xl p-12 text-center">
-          <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h4 className="text-slate-300 font-bold text-base mb-1">尚未建立住宿預訂</h4>
+        <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-12 text-center shadow-2xs">
+          <Building2 className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+          <h4 className="text-slate-800 font-bold text-base mb-1">尚未建立住宿預訂</h4>
           <p className="text-slate-500 text-xs max-w-sm mx-auto mb-5">
             將您與旅伴在各平台預訂的免費取消房型記錄在此，隨時掌握截止倒數與同梯比價！
           </p>
           <button
             onClick={() => onOpenModal(null)}
-            className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-md inline-flex items-center space-x-1.5"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-xs inline-flex items-center space-x-1.5"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>新增第一間預訂</span>
@@ -328,19 +328,19 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                 {/* Group Header */}
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-amber-400" />
-                    <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight">
+                    <Calendar className="w-4 h-4 text-amber-500" />
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
                       {group.label}
                     </h3>
                     {group.nights !== undefined && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold border border-slate-700/60">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-mono font-bold border border-slate-300">
                         {group.nights} 晚
                       </span>
                     )}
                   </div>
 
                   {hasMultipleCandidates && (
-                    <span className="text-[11px] text-amber-400 font-semibold flex items-center space-x-1">
+                    <span className="text-[11px] text-amber-700 font-bold flex items-center space-x-1">
                       <span>🥊 {group.items.filter((i) => i.status === 'candidate').length} 間比價中</span>
                     </span>
                   )}
@@ -369,12 +369,12 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                         key={item.id}
                         className={`rounded-2xl p-4 transition-all duration-200 border relative flex flex-col justify-between ${
                           isConfirmed
-                            ? 'bg-emerald-950/20 border-emerald-500/40 shadow-sm'
+                            ? 'bg-emerald-50/50 border-emerald-300 shadow-xs'
                             : isPendingCancel
-                            ? 'bg-rose-950/20 border-rose-500/40'
+                            ? 'bg-rose-50/50 border-rose-300 shadow-xs'
                             : isCancelled
-                            ? 'bg-slate-900/40 border-slate-800/60 opacity-60'
-                            : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                            ? 'bg-slate-100/70 border-slate-200 opacity-60'
+                            : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-xs'
                         }`}
                       >
                         {/* Card Top: Tags & Status */}
@@ -382,29 +382,29 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                               {/* Platform Badge */}
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-50 text-amber-900 border border-amber-200">
                                 {item.platform || 'Agoda'}
                               </span>
 
                               {/* Booker Badge */}
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-sky-400/10 text-sky-300 border border-sky-400/20 flex items-center space-x-1">
+                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-sky-50 text-sky-900 border border-sky-200 flex items-center space-x-1">
                                 <User className="w-2.5 h-2.5" />
                                 <span>{item.booker || 'Jo'}</span>
                               </span>
 
                               {/* Status Tag */}
                               {isConfirmed && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                                   ✓ 已保留
                                 </span>
                               )}
                               {isPendingCancel && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-100 text-rose-800 border border-rose-300">
                                   ⚠️ 待去平台退訂
                                 </span>
                               )}
                               {isCancelled && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-slate-200 text-slate-600 border border-slate-300">
                                   ✕ 已退訂
                                 </span>
                               )}
@@ -413,11 +413,11 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                             {/* Price */}
                             {item.price !== undefined && (
                               <div className="text-right flex-shrink-0">
-                                <span className="text-sm sm:text-base font-extrabold text-white font-mono">
+                                <span className="text-sm sm:text-base font-extrabold text-slate-900 font-mono">
                                   {item.currency} {item.price.toLocaleString()}
                                 </span>
                                 {twdEstimate && item.currency?.toUpperCase() !== 'TWD' && (
-                                  <div className="text-[10px] text-slate-400 font-mono">
+                                  <div className="text-[10px] text-slate-500 font-mono">
                                     ≈ NT$ {twdEstimate.toLocaleString()}
                                   </div>
                                 )}
@@ -427,12 +427,12 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
                           {/* Hotel Name & Area */}
                           <div className="mb-2">
-                            <h4 className="font-bold text-sm sm:text-base text-white tracking-tight leading-snug">
+                            <h4 className="font-bold text-sm sm:text-base text-slate-900 tracking-tight leading-snug">
                               {item.name}
                             </h4>
                             {item.cityArea && (
-                              <div className="flex items-center space-x-1 text-slate-400 text-xs mt-0.5">
-                                <MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                              <div className="flex items-center space-x-1 text-slate-500 text-xs mt-0.5">
+                                <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
                                 <span>{item.cityArea}</span>
                               </div>
                             )}
@@ -440,7 +440,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
                           {/* Room Type */}
                           {item.roomType && (
-                            <div className="text-xs text-slate-300 bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-700/40 mb-2.5">
+                            <div className="text-xs text-slate-700 bg-slate-100/80 px-2.5 py-1.5 rounded-xl border border-slate-200 mb-2.5">
                               {item.roomType}
                             </div>
                           )}
@@ -462,14 +462,14 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
                           {/* Note */}
                           {item.note && (
-                            <p className="text-xs text-slate-400 mb-2 line-clamp-2">
+                            <p className="text-xs text-slate-600 mb-2 line-clamp-2">
                               {item.note}
                             </p>
                           )}
                         </div>
 
                         {/* Card Bottom: Quick Links & Actions */}
-                        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2 mt-2">
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
                           {/* Links (Order / Map / Ref) */}
                           <div className="flex items-center space-x-1.5">
                             {item.bookingUrl && (
@@ -477,7 +477,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 href={item.bookingUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
                                 title="開啟平台訂單"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -488,7 +488,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 href={item.mapUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
                                 title="開啟地圖導航"
                               >
                                 <MapPin className="w-3.5 h-3.5" />
@@ -500,8 +500,8 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 onClick={() => handleCopyRef(item.bookingRef!, item.id)}
                                 className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-colors flex items-center space-x-1 ${
                                   copiedId === item.id
-                                    ? 'bg-emerald-500/20 text-emerald-300'
-                                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
                                 }`}
                                 title="複製訂單號"
                               >
@@ -517,7 +517,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleConfirmKeep(item)}
-                                className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+                                className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-300"
                                 title="保留此間"
                               >
                                 <Check className="w-3.5 h-3.5" />
@@ -531,8 +531,8 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 onClick={() => onStatusChange(item.id, isPendingCancel ? 'cancelled' : 'pending_cancel')}
                                 className={`px-2 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center space-x-1 ${
                                   isPendingCancel
-                                    ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold'
-                                    : 'bg-slate-800 hover:bg-rose-500/10 text-slate-400 hover:text-rose-300'
+                                    ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold border border-rose-300'
+                                    : 'bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200'
                                 }`}
                                 title={isPendingCancel ? '確認已在平台完成退訂' : '標記為待退訂'}
                               >
@@ -543,7 +543,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onStatusChange(item.id, 'candidate')}
-                                className="px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                                className="px-2 py-1 rounded-lg text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200"
                                 title="恢復為抉擇中"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
@@ -553,7 +553,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                             <button
                               type="button"
                               onClick={() => onOpenModal(item)}
-                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer border border-slate-200"
                               title="編輯"
                             >
                               <Pencil className="w-3.5 h-3.5" />

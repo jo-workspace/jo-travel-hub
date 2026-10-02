@@ -36,7 +36,8 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
   const [price, setPrice] = useState<string>('');
   const [currency, setCurrency] = useState(defaultCurrency || 'TWD');
   const [roomType, setRoomType] = useState('');
-  const [freeCancellationDeadline, setFreeCancellationDeadline] = useState('');
+  const [deadlineDate, setDeadlineDate] = useState('');
+  const [deadlineTime, setDeadlineTime] = useState('23:59');
   const [status, setStatus] = useState<AccommodationStatus>('candidate');
   const [bookingRef, setBookingRef] = useState('');
   const [bookingUrl, setBookingUrl] = useState('');
@@ -65,7 +66,14 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
       setPrice(item.price !== undefined ? String(item.price) : '');
       setCurrency(item.currency || defaultCurrency || 'TWD');
       setRoomType(item.roomType || '');
-      setFreeCancellationDeadline(item.freeCancellationDeadline || '');
+      if (item.freeCancellationDeadline) {
+        const parts = item.freeCancellationDeadline.split(/[T ]/);
+        setDeadlineDate(parts[0] || '');
+        setDeadlineTime(parts[1] ? parts[1].slice(0, 5) : '23:59');
+      } else {
+        setDeadlineDate('');
+        setDeadlineTime('23:59');
+      }
       setStatus(item.status || 'candidate');
       setBookingRef(item.bookingRef || '');
       setBookingUrl(item.bookingUrl || '');
@@ -81,7 +89,8 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
       setPrice('');
       setCurrency(defaultCurrency || 'TWD');
       setRoomType('');
-      setFreeCancellationDeadline('');
+      setDeadlineDate('');
+      setDeadlineTime('23:59');
       setStatus('candidate');
       setBookingRef('');
       setBookingUrl('');
@@ -98,6 +107,8 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const freeCancellationDeadline = deadlineDate ? `${deadlineDate}T${deadlineTime || '23:59'}` : '';
+
       await onSave({
         id: item?.id,
         name: name.trim(),
@@ -327,20 +338,78 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
           </div>
 
           {/* 免費取消截止時間 */}
-          <div className="bg-amber-400/5 border border-amber-400/20 rounded-xl p-3">
-            <div className="flex items-center space-x-2 mb-1.5">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <label className="font-bold text-amber-300 text-xs">免費取消截止時間</label>
+          <div className="bg-amber-400/5 border border-amber-400/20 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-1.5">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <label className="font-bold text-amber-300 text-xs">免費取消截止時間</label>
+              </div>
+              {deadlineDate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeadlineDate('');
+                    setDeadlineTime('23:59');
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-rose-400 flex items-center space-x-0.5 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                  <span>清除</span>
+                </button>
+              )}
             </div>
-            <input
-              type="datetime-local"
-              value={freeCancellationDeadline}
-              onChange={(e) => setFreeCancellationDeadline(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400 font-mono text-xs"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">
-              以當地時區為準（建議設為截止當日 23:59）
-            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div className="sm:col-span-7">
+                <input
+                  type="date"
+                  value={deadlineDate}
+                  onChange={(e) => {
+                    setDeadlineDate(e.target.value);
+                    if (!deadlineTime) setDeadlineTime('23:59');
+                  }}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400 font-mono text-xs cursor-pointer"
+                />
+              </div>
+              <div className="sm:col-span-5 flex items-center space-x-1.5">
+                <input
+                  type="text"
+                  maxLength={5}
+                  value={deadlineTime}
+                  onChange={(e) => setDeadlineTime(e.target.value)}
+                  placeholder="23:59"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-amber-400 font-mono text-xs text-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDeadlineTime('23:59')}
+                  className={`px-2.5 py-2 rounded-xl text-[11px] font-mono font-bold whitespace-nowrap transition-colors cursor-pointer border ${
+                    deadlineTime === '23:59'
+                      ? 'bg-amber-400/20 text-amber-300 border-amber-400/40'
+                      : 'bg-slate-800 text-slate-400 hover:text-white border-slate-700'
+                  }`}
+                  title="設為 23:59"
+                >
+                  23:59
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+              <span>以當地時區為準，預設為當日 23:59</span>
+              <div className="flex items-center space-x-1">
+                {['18:00', '12:00'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setDeadlineTime(preset)}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* 訂單編號 & 訂單連結 */}
