@@ -236,7 +236,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-4 sm:p-5 text-slate-100 shadow-2xl relative my-auto max-h-[92vh] flex flex-col"
+        className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-4 sm:p-5 text-slate-100 shadow-2xl relative my-auto max-h-[92vh] flex flex-col min-w-0 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -256,9 +256,9 @@ export const FlightModal: React.FC<FlightModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-3.5 pr-1 pt-3 text-xs sm:text-sm">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overflow-x-hidden space-y-3.5 pr-1 pt-3 text-xs sm:text-sm min-w-0 w-full">
           {/* 航段類型切換 (極簡 3 鍵 Segment，單詞無贅字) */}
-          <div className="flex items-center space-x-1.5 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+          <div className="flex items-center space-x-1.5 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 min-w-0 w-full">
             {[
               { id: 'outbound', label: '去程' },
               { id: 'inbound', label: '回程' },
@@ -268,7 +268,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                 key={t.id}
                 type="button"
                 onClick={() => setType(t.id as FlightType)}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer text-center ${
+                className={`flex-1 min-w-0 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer text-center ${
                   type === t.id
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -280,11 +280,11 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           </div>
 
           {/* 第一格：航班號碼 (核心主體) + AI 查詢 */}
-          <div>
+          <div className="min-w-0 w-full">
             <label className="block text-xs font-bold text-slate-300 mb-1">
               航班號碼 <span className="text-rose-500">*</span>
             </label>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2 min-w-0 w-full">
               <input
                 type="text"
                 autoFocus
@@ -297,20 +297,20 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                     handleAiLookup();
                   }
                 }}
-                placeholder="例：JX800, EK366, BR12"
-                className="flex-1 bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono text-base font-black uppercase tracking-wider min-h-[38px]"
+                placeholder="例：JX800"
+                className="flex-1 min-w-0 w-full appearance-none bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono text-sm sm:text-base font-black uppercase tracking-wider min-h-[38px]"
               />
               <button
                 type="button"
                 onClick={handleAiLookup}
                 disabled={isAiLoading || !flightNumber.trim()}
-                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer min-h-[38px] whitespace-nowrap"
+                className="flex-shrink-0 px-3 sm:px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer min-h-[38px] whitespace-nowrap"
                 title="使用 Gemini AI 查詢全球時刻表並自動帶入"
               >
                 {isAiLoading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>查詢中...</span>
+                    <span className="hidden sm:inline">查詢中...</span>
                   </>
                 ) : (
                   <>
