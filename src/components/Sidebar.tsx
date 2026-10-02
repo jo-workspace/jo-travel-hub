@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Calendar, CheckSquare, Package, DollarSign, ShoppingBag, Eye, EyeOff, Plane } from 'lucide-react';
+import { Calendar, BedDouble, CheckSquare, Package, DollarSign, ShoppingBag, Eye, EyeOff, Plane } from 'lucide-react';
 
-export type TabType = 'itinerary' | 'todo' | 'packing' | 'expenses' | 'shopping';
+export type TabType = 'itinerary' | 'accommodations' | 'todo' | 'packing' | 'expenses' | 'shopping';
 
 interface SidebarProps {
   currentTab: TabType;
@@ -24,11 +24,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const tabs = [
     { id: 'itinerary', label: '行程', icon: Calendar },
+    { id: 'accommodations', label: '住宿', icon: BedDouble },
     { id: 'todo', label: '待辦', icon: CheckSquare },
     { id: 'packing', label: '打包', icon: Package },
     { id: 'expenses', label: '記帳', icon: DollarSign },
     { id: 'shopping', label: '購物', icon: ShoppingBag },
   ] as const;
+
 
   // 算乾淨的 Badge 符號：若包含英文則取前兩個英文字母（如 LA），中文則用 Plane 圖示
   const englishMatches = tripTitle.match(/[A-Za-z]+/g);

@@ -84,6 +84,30 @@ export interface AllTripData {
   historicalPackingCategories?: string[]; // 跨旅程歷史打包類別
   historicalTodoCategories?: string[];    // 跨旅程歷史待辦分類
   coupons?: CouponItem[]; // 優惠券與票券截圖清單
+  accommodations?: AccommodationItem[]; // 住宿預訂與比價清單
+}
+
+export type AccommodationStatus = 'candidate' | 'confirmed' | 'pending_cancel' | 'cancelled';
+
+export interface AccommodationItem {
+  id: string;
+  tripId: string;
+  name: string;
+  cityArea?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  platform: string;
+  booker: string;
+  price?: number;
+  currency?: string;
+  roomType?: string;
+  freeCancellationDeadline?: string;
+  status: AccommodationStatus;
+  bookingRef?: string;
+  bookingUrl?: string;
+  mapUrl?: string;
+  note?: string;
+  createdAt?: number;
 }
 
 export interface CouponItem {
@@ -96,3 +120,4 @@ export interface CouponItem {
   note?: string;          // 使用說明或備註
   createdAt?: number;
 }
+

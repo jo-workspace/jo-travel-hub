@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem, AccommodationItem, AccommodationStatus } from '@/types/trip';
 import { TripConfig, TRIPS } from '@/config/trips';
 
 // 預設兩趟旅程範例
@@ -145,6 +145,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripRes,
       allPackingCatsRes,
       allTodoCatsRes,
+      accommodationsRes,
     ] = await Promise.all([
       supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
       supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
@@ -162,7 +163,9 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         .limit(1),
       supabase.from('packing_items').select('category'),
       supabase.from('todo_items').select('category'),
+      supabase.from('accommodations').select('*').eq('trip_id', tripId).order('check_in_date', { ascending: true }),
     ]);
+
 
     const itinerary: ItineraryItem[] = (itineraryRes.data || []).map((row, idx) => {
       const rawContent = row.Content || row.content || row.note || '';
@@ -345,12 +348,66 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       }
     }
 
+    // 解析跨裝置同步的住宿預訂與比價 (accommodations)
+    let accommodations: AccommodationItem[] = [];
+    if (accommodationsRes?.data && accommodationsRes.data.length > 0) {
+      accommodations = accommodationsRes.data.map((row: any) => ({
+        id: row.id,
+        tripId: row.trip_id || tripId,
+        name: row.name || '未命名住宿',
+        cityArea: row.city_area || '',
+        checkInDate: row.check_in_date || '',
+        checkOutDate: row.check_out_date || '',
+        platform: row.platform || 'Agoda',
+        booker: row.booker || 'Jo',
+        price: row.price !== null && row.price !== undefined ? Number(row.price) : undefined,
+        currency: row.currency || 'TWD',
+        roomType: row.room_type || '',
+        freeCancellationDeadline: row.free_cancellation_deadline || '',
+        status: (row.status as AccommodationStatus) || 'candidate',
+        bookingRef: row.booking_ref || '',
+        bookingUrl: row.booking_url || '',
+        mapUrl: row.map_url || '',
+        note: row.note || '',
+        createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+      }));
+    } else {
+      const accMatch = rawTripNote.match(/<!--ACCOMMODATIONS_START-->([\s\S]*?)<!--ACCOMMODATIONS_END-->/);
+      if (accMatch && accMatch[1].trim()) {
+        const inner = accMatch[1].trim();
+        try {
+          const decoded = decodeURIComponent(atob(inner));
+          accommodations = JSON.parse(decoded);
+        } catch {
+          try {
+            accommodations = JSON.parse(decodeURIComponent(inner));
+          } catch {
+            try {
+              accommodations = JSON.parse(inner);
+            } catch (err) {
+              console.warn('Failed to parse accommodations from trip_note:', err);
+            }
+          }
+        }
+      }
+      if (!accommodations || accommodations.length === 0) {
+        try {
+          const local = typeof window !== 'undefined' ? localStorage.getItem(`accommodations_${tripId}`) : null;
+          if (local) accommodations = JSON.parse(local);
+        } catch (err) {
+          console.warn('Failed to parse accommodations from localStorage:', err);
+        }
+      }
+    }
+    if (!Array.isArray(accommodations)) accommodations = [];
+
     // 清理 tripNote 移除所有隱藏標籤
     tripNote = rawTripNote
       .replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '')
       .replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '')
       .replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '')
       .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
+      .replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '')
       .trim();
 
     const foreignCurrency = settingsData?.foreign_currency !== undefined && settingsData?.foreign_currency !== null ? settingsData.foreign_currency : '';
@@ -396,6 +453,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       historicalPackingCategories,
       historicalTodoCategories,
       coupons,
+      accommodations,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);
@@ -410,6 +468,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripNote: '',
       startDate: '',
       budgetTwd: 0,
+      accommodations: [],
+
       foreignCurrency: '',
       companions: 'Jo, Will',
       tripTitle: '',
@@ -520,6 +580,13 @@ export async function updateTripSettings(
   if (existingCouponsMatch) {
     finalTripNote = `${finalTripNote.replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '').trim()}\n${existingCouponsMatch[0]}`;
   }
+
+  // 保留原始 ACCOMMODATIONS 隱藏標籤
+  const existingAccommodationsMatch = existingRow?.trip_note?.match(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/);
+  if (existingAccommodationsMatch) {
+    finalTripNote = `${finalTripNote.replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '').trim()}\n${existingAccommodationsMatch[0]}`;
+  }
+
 
   const payload: Record<string, any> = {
     start_date: settings.startDate ?? '',
@@ -1584,8 +1651,163 @@ export async function checkoutShoppingStore(
   ]);
 }
 
+/** 同步住宿清單至 trip_settings.trip_note (無縫降級儲存) */
+async function syncAccommodationsToNote(tripId: string, list: AccommodationItem[]): Promise<void> {
+  try {
+    const { data: listData } = await supabase
+      .from('trip_settings')
+      .select('trip_note')
+      .eq('trip_id', tripId)
+      .limit(1);
+
+    const existingRow = listData?.[0] || null;
+    let rawTripNote = existingRow?.trip_note || '';
+
+    rawTripNote = rawTripNote.replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '').trim();
+
+    if (list.length > 0) {
+      try {
+        const jsonStr = JSON.stringify(list);
+        const encoded = btoa(encodeURIComponent(jsonStr));
+        rawTripNote = `${rawTripNote}\n<!--ACCOMMODATIONS_START-->${encoded}<!--ACCOMMODATIONS_END-->`;
+      } catch (e) {
+        console.error('Failed to encode accommodations:', e);
+      }
+    }
+
+    if (existingRow) {
+      await supabase
+        .from('trip_settings')
+        .update({ trip_note: rawTripNote })
+        .eq('trip_id', tripId);
+    } else {
+      await supabase
+        .from('trip_settings')
+        .insert({
+          trip_id: tripId,
+          trip_note: rawTripNote,
+        });
+    }
+  } catch (err) {
+    console.warn('Failed to sync accommodations to trip_note:', err);
+  }
+}
+
+/** 儲存或更新單筆住宿資料 (支援 DB 表與 Note 隱藏標籤雙軌同步) */
+export async function saveAccommodationData(
+  item: Partial<AccommodationItem>,
+  tripId = 'la-2026',
+  currentList: AccommodationItem[] = []
+): Promise<AccommodationItem[]> {
+  const newItem: AccommodationItem = {
+    id: item.id || `acc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    tripId: tripId,
+    name: item.name || '未命名住宿',
+    cityArea: item.cityArea || '',
+    checkInDate: item.checkInDate || '',
+    checkOutDate: item.checkOutDate || '',
+    platform: item.platform || 'Agoda',
+    booker: item.booker || 'Jo',
+    price: item.price !== undefined ? Number(item.price) : undefined,
+    currency: item.currency || 'TWD',
+    roomType: item.roomType || '',
+    freeCancellationDeadline: item.freeCancellationDeadline || '',
+    status: item.status || 'candidate',
+    bookingRef: item.bookingRef || '',
+    bookingUrl: item.bookingUrl || '',
+    mapUrl: item.mapUrl || '',
+    note: item.note || '',
+    createdAt: item.createdAt || Date.now(),
+  };
+
+  // 1. 嘗試直接寫入 Supabase accommodations 資料表
+  try {
+    const dbPayload = {
+      id: newItem.id,
+      trip_id: tripId,
+      name: newItem.name,
+      city_area: newItem.cityArea,
+      check_in_date: newItem.checkInDate,
+      check_out_date: newItem.checkOutDate,
+      platform: newItem.platform,
+      booker: newItem.booker,
+      price: newItem.price ?? null,
+      currency: newItem.currency,
+      room_type: newItem.roomType,
+      free_cancellation_deadline: newItem.freeCancellationDeadline,
+      status: newItem.status,
+      booking_ref: newItem.bookingRef,
+      booking_url: newItem.bookingUrl,
+      map_url: newItem.mapUrl,
+      note: newItem.note,
+    };
+    await supabase.from('accommodations').upsert(dbPayload);
+  } catch (err) {
+    console.warn('DB upsert accommodation fallback:', err);
+  }
+
+  // 2. 本地記憶體清單更新
+  const idx = currentList.findIndex((x) => x.id === newItem.id);
+  const updatedList = idx >= 0
+    ? currentList.map((x) => (x.id === newItem.id ? newItem : x))
+    : [...currentList, newItem];
+
+  // 3. 離線快取寫入
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('localStorage accommodations save error:', e);
+    }
+  }
+
+  // 4. 備用持久化：寫入 trip_note 隱藏標籤
+  await syncAccommodationsToNote(tripId, updatedList);
+
+  return updatedList;
+}
+
+/** 刪除住宿資料 */
+export async function deleteAccommodationData(
+  id: string,
+  tripId = 'la-2026',
+  currentList: AccommodationItem[] = []
+): Promise<AccommodationItem[]> {
+  try {
+    await supabase.from('accommodations').delete().eq('id', id);
+  } catch (err) {
+    console.warn('DB delete accommodation fallback:', err);
+  }
+
+  const updatedList = currentList.filter((x) => x.id !== id);
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('localStorage accommodations delete error:', e);
+    }
+  }
+
+  await syncAccommodationsToNote(tripId, updatedList);
+  return updatedList;
+}
+
+/** 更新住宿狀態 (candidate / confirmed / pending_cancel / cancelled) */
+export async function updateAccommodationStatus(
+  id: string,
+  status: AccommodationStatus,
+  tripId = 'la-2026',
+  currentList: AccommodationItem[] = []
+): Promise<AccommodationItem[]> {
+  const target = currentList.find((x) => x.id === id);
+  if (!target) return currentList;
+  return saveAccommodationData({ ...target, status }, tripId, currentList);
+}
+
 // 保持與舊介面極相容的函數名稱
 export function getScriptUrl(): string { return ''; }
 export function getApiToken(): string { return ''; }
 export function setScriptUrl(): void {}
 export function setApiToken(): void {}
+

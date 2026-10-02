@@ -3,18 +3,20 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem, AccommodationItem, AccommodationStatus } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
 
 import { ItineraryTab } from '@/components/tabs/ItineraryTab';
+import { AccommodationsTab } from '@/components/tabs/AccommodationsTab';
 import { TodoTab } from '@/components/tabs/TodoTab';
 import { PackingTab } from '@/components/tabs/PackingTab';
 import { ExpensesTab } from '@/components/tabs/ExpensesTab';
 import { ShoppingTab, parseRecipientTags } from '@/components/tabs/ShoppingTab';
 
 import { ItineraryModal } from '@/components/modals/ItineraryModal';
+import { AccommodationModal } from '@/components/modals/AccommodationModal';
 import { TodoModal } from '@/components/modals/TodoModal';
 import { PackingModal } from '@/components/modals/PackingModal';
 import { ImportPackingModal } from '@/components/modals/ImportPackingModal';
@@ -49,6 +51,9 @@ import {
   toggleShoppingIgnoredStatus,
   checkoutShoppingStore,
   updateTripCoupons,
+  saveAccommodationData,
+  deleteAccommodationData,
+  updateAccommodationStatus,
 } from '@/lib/supabase-client';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -57,7 +62,8 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-const VALID_TABS: TabType[] = ['itinerary', 'todo', 'packing', 'expenses', 'shopping'];
+const VALID_TABS: TabType[] = ['itinerary', 'accommodations', 'todo', 'packing', 'expenses', 'shopping'];
+
 
 export default function TripPage({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -107,6 +113,7 @@ export default function TripPage({ params }: PageProps) {
   // Main data state
   const [tripData, setTripData] = useState<AllTripData>({
     itinerary: [],
+    accommodations: [],
     todo: [],
     packing: [],
     expenses: [],
@@ -120,6 +127,7 @@ export default function TripPage({ params }: PageProps) {
     tripDates: '',
     timezone: tripConfig?.timezone || 'Asia/Taipei',
   });
+
 
   // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (安全更新 href，切勿刪除 DOM 節點以免損壞 React 19 Fiber 樹)
   useEffect(() => {
@@ -208,6 +216,10 @@ export default function TripPage({ params }: PageProps) {
 
   const [couponModalOpen, setCouponModalOpen] = useState(false);
   const [activeCoupon, setActiveCoupon] = useState<CouponItem | null>(null);
+
+  const [accommodationModalOpen, setAccommodationModalOpen] = useState(false);
+  const [activeAccommodationItem, setActiveAccommodationItem] = useState<AccommodationItem | null>(null);
+
 
   // 判斷旅程是否有 Will 同行（基本資訊 checkbox 或設定中包含 Will）
   const companionTokens = useMemo(() => {
@@ -831,7 +843,48 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleSaveAccommodation = async (formData: Partial<AccommodationItem>) => {
+    try {
+      showToast('正在儲存住宿資訊...');
+      const updated = await saveAccommodationData(formData, tripId, tripData.accommodations || []);
+      setTripData((prev) => ({
+        ...prev,
+        accommodations: updated,
+      }));
+      showToast('住宿儲存成功！');
+    } catch (err: any) {
+      showToast(`儲存失敗: ${err.message}`);
+    }
+  };
+
+  const handleDeleteAccommodation = async (id: string) => {
+    try {
+      showToast('正在刪除住宿...');
+      const updated = await deleteAccommodationData(id, tripId, tripData.accommodations || []);
+      setTripData((prev) => ({
+        ...prev,
+        accommodations: updated,
+      }));
+      showToast('刪除成功！');
+    } catch (err: any) {
+      showToast(`刪除失敗: ${err.message}`);
+    }
+  };
+
+  const handleAccommodationStatusChange = async (id: string, status: AccommodationStatus) => {
+    try {
+      const updated = await updateAccommodationStatus(id, status, tripId, tripData.accommodations || []);
+      setTripData((prev) => ({
+        ...prev,
+        accommodations: updated,
+      }));
+    } catch (err: any) {
+      showToast(`狀態更新失敗: ${err.message}`);
+    }
+  };
+
   return (
+
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
       {/* Desktop Sidebar Navigation */}
       <Sidebar
@@ -900,7 +953,28 @@ export default function TripPage({ params }: PageProps) {
                 />
               )}
 
+              {currentTab === 'accommodations' && (
+                <AccommodationsTab
+                  accommodations={tripData.accommodations || []}
+                  tripId={tripId}
+                  fxRate={tripData.fxRate}
+                  foreignCurrency={tripData.foreignCurrency}
+                  timezone={tripData.timezone}
+                  companions={tripData.companions}
+                  startDate={tripData.startDate}
+                  onSave={handleSaveAccommodation}
+                  onDelete={handleDeleteAccommodation}
+                  onStatusChange={handleAccommodationStatusChange}
+                  onOpenModal={(item) => {
+                    setActiveAccommodationItem(item || null);
+                    setAccommodationModalOpen(true);
+                  }}
+                  showToast={showToast}
+                />
+              )}
+
               {currentTab === 'todo' && (
+
                 <TodoTab
                   data={tripData.todo}
                   hideDone={hideVisited}
@@ -995,6 +1069,18 @@ export default function TripPage({ params }: PageProps) {
         onSave={handleSaveItinerary}
         onDelete={handleDeleteItinerary}
       />
+
+      <AccommodationModal
+        isOpen={accommodationModalOpen}
+        item={activeAccommodationItem}
+        companions={tripData.companions}
+        defaultCurrency={tripData.foreignCurrency || 'TWD'}
+        tripStartDate={tripData.startDate}
+        onClose={() => setAccommodationModalOpen(false)}
+        onSave={handleSaveAccommodation}
+        onDelete={handleDeleteAccommodation}
+      />
+
 
       <TodoModal
         isOpen={todoModalOpen}
