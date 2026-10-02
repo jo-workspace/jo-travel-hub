@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem, AccommodationItem, AccommodationStatus } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem, AccommodationItem, AccommodationStatus, FlightItem, FlightType } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
@@ -17,6 +17,7 @@ import { ShoppingTab, parseRecipientTags } from '@/components/tabs/ShoppingTab';
 
 import { ItineraryModal } from '@/components/modals/ItineraryModal';
 import { AccommodationModal } from '@/components/modals/AccommodationModal';
+import { FlightModal } from '@/components/modals/FlightModal';
 import { TodoModal } from '@/components/modals/TodoModal';
 import { PackingModal } from '@/components/modals/PackingModal';
 import { ImportPackingModal } from '@/components/modals/ImportPackingModal';
@@ -54,7 +55,10 @@ import {
   saveAccommodationData,
   deleteAccommodationData,
   updateAccommodationStatus,
+  saveFlightData,
+  deleteFlightData,
 } from '@/lib/supabase-client';
+
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
@@ -114,6 +118,7 @@ export default function TripPage({ params }: PageProps) {
   const [tripData, setTripData] = useState<AllTripData>({
     itinerary: [],
     accommodations: [],
+    flights: [],
     todo: [],
     packing: [],
     expenses: [],
@@ -127,6 +132,7 @@ export default function TripPage({ params }: PageProps) {
     tripDates: '',
     timezone: tripConfig?.timezone || 'Asia/Taipei',
   });
+
 
 
   // 動態更新當前旅程的 Favicon 與 Apple Touch Icon (安全更新 href，切勿刪除 DOM 節點以免損壞 React 19 Fiber 樹)
@@ -219,6 +225,11 @@ export default function TripPage({ params }: PageProps) {
 
   const [accommodationModalOpen, setAccommodationModalOpen] = useState(false);
   const [activeAccommodationItem, setActiveAccommodationItem] = useState<AccommodationItem | null>(null);
+
+  const [flightModalOpen, setFlightModalOpen] = useState(false);
+  const [activeFlightItem, setActiveFlightItem] = useState<FlightItem | null>(null);
+  const [defaultFlightType, setDefaultFlightType] = useState<FlightType>('outbound');
+
 
 
   // 判斷旅程是否有 Will 同行（基本資訊 checkbox 或設定中包含 Will）
@@ -883,7 +894,42 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleOpenFlightModal = (flight?: FlightItem | null, defaultType?: 'outbound' | 'inbound') => {
+    setActiveFlightItem(flight || null);
+    setDefaultFlightType(defaultType || (flight?.type as FlightType) || 'outbound');
+    setFlightModalOpen(true);
+  };
+
+  const handleSaveFlight = async (formData: Partial<FlightItem>) => {
+    try {
+      showToast('正在儲存班機資訊...');
+      const updated = await saveFlightData(formData, tripId, tripData.flights || []);
+      setTripData((prev) => ({
+        ...prev,
+        flights: updated,
+      }));
+      showToast('班機資訊儲存成功！');
+    } catch (err: any) {
+      showToast(`儲存失敗: ${err.message}`);
+    }
+  };
+
+  const handleDeleteFlight = async (id: string) => {
+    try {
+      showToast('正在刪除班機資訊...');
+      const updated = await deleteFlightData(id, tripId, tripData.flights || []);
+      setTripData((prev) => ({
+        ...prev,
+        flights: updated,
+      }));
+      showToast('班機資訊已刪除！');
+    } catch (err: any) {
+      showToast(`刪除失敗: ${err.message}`);
+    }
+  };
+
   return (
+
 
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
       {/* Desktop Sidebar Navigation */}
@@ -940,8 +986,12 @@ export default function TripPage({ params }: PageProps) {
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
                   isTaiwanTrip={tripData.isTaiwanTrip}
+                  flights={tripData.flights || []}
+                  onOpenFlightModal={handleOpenFlightModal}
+                  showToast={showToast}
                   onToggleVisited={handleToggleVisited}
                   onToggleIgnored={handleToggleIgnored}
+
                   onOpenModal={(item, initialDay) => {
                     setActiveItineraryItem(item || null);
                     if (initialDay) setDefaultItineraryDay(initialDay);
@@ -1081,6 +1131,17 @@ export default function TripPage({ params }: PageProps) {
         onDelete={handleDeleteAccommodation}
       />
 
+      <FlightModal
+        isOpen={flightModalOpen}
+        item={activeFlightItem}
+        tripStartDate={tripData.startDate}
+        defaultFlightType={defaultFlightType}
+        onClose={() => setFlightModalOpen(false)}
+        onSave={handleSaveFlight}
+        onDelete={handleDeleteFlight}
+      />
+
+
 
       <TodoModal
         isOpen={todoModalOpen}
@@ -1160,7 +1221,9 @@ export default function TripPage({ params }: PageProps) {
         citySchedule={tripData.citySchedule}
         badgeText={tripData.badgeText || tripConfig.badgeText || '進行中'}
         isTaiwanTrip={tripData.isTaiwanTrip}
+        onOpenFlights={() => handleOpenFlightModal(null, 'outbound')}
       />
+
 
       <CouponModal
         isOpen={couponModalOpen}

@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { ItineraryItem } from '@/types/trip';
+import { ItineraryItem, FlightItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
 import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon, Bookmark, X, Check } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
+import { FlightCard } from '@/components/FlightCard';
 import {
   getCityForDay,
   getUniqueCities,
@@ -28,6 +29,9 @@ interface ItineraryTabProps {
   timezone?: string; // 旅程目的地時區（IANA），用來判斷「今天」是第幾天
   citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
   isTaiwanTrip?: boolean; // 是否為台灣本地行程
+  flights?: FlightItem[];
+  onOpenFlightModal?: (flight?: FlightItem | null, defaultType?: 'outbound' | 'inbound') => void;
+  showToast?: (msg: string) => void;
   onToggleVisited: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onToggleIgnored?: (rowIndex: number, currentIgnored: boolean, id?: string) => void;
   onOpenModal: (item?: ItineraryItem, initialDay?: string) => void;
@@ -35,6 +39,7 @@ interface ItineraryTabProps {
   onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
   onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
 }
+
 
 import { ItineraryCategoryIcon, cleanCategoryName } from '@/lib/itineraryCategories';
 
@@ -123,12 +128,16 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   timezone,
   citySchedule,
   isTaiwanTrip,
+  flights = [],
+  onOpenFlightModal,
+  showToast,
   onToggleVisited,
   onToggleIgnored,
   onOpenModal,
   onSwapItemTimes,
   onBatchUpdateTimes,
 }) => {
+
   const [weatherMap, setWeatherMap] = useState<Record<string, CityWeatherData>>({});
   const [inspectingWeather, setInspectingWeather] = useState<{
     isOpen: boolean;
@@ -259,8 +268,21 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
   return (
     <div className="space-y-4 pb-20">
+      {/* Flight Information Card */}
+      {onOpenFlightModal && (
+        <FlightCard
+          flights={flights}
+          hideVisited={hideVisited}
+          timezone={timezone}
+          startDate={startDate}
+          onOpenModal={onOpenFlightModal}
+          showToast={showToast}
+        />
+      )}
+
       {/* Trip Note Alert Banner with Resource Links */}
       {tripNote && (() => {
+
         const rawLines = tripNote.replace(/<br\s*\/?>/gi, '\n').split('\n');
         const textLines: string[] = [];
         const links: Array<{ title: string; url: string }> = [];
@@ -444,8 +466,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         <div ref={mapAnchorRef} className="scroll-mt-20 md:scroll-mt-6">
           <ItineraryMap
             items={data}
-            days={days}
+            days={hideVisited ? visibleDays : days}
             selectedDay={selectedDay}
+
             citySchedule={citySchedule}
             hideVisited={hideVisited}
             onSelectDay={setSelectedDay}

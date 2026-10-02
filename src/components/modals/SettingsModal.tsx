@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Settings2, Calendar, DollarSign, FileText, LogOut, Upload, Image as ImageIcon, Trash2, Archive } from 'lucide-react';
+import { X, Settings2, Calendar, DollarSign, FileText, LogOut, Upload, Image as ImageIcon, Trash2, Archive, Plane } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
 import { computeAutoTripStatus } from '@/lib/tripDate';
 
@@ -25,7 +25,9 @@ interface SettingsModalProps {
   citySchedule?: string;
   badgeText?: string;
   isTaiwanTrip?: boolean;
+  onOpenFlights?: () => void;
 }
+
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -46,7 +48,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   citySchedule,
   badgeText,
   isTaiwanTrip,
+  onOpenFlights,
 }) => {
+
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
   const [isArchived, setIsArchived] = useState(false);
@@ -364,7 +368,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
+            {/* 班機資訊捷徑 */}
+            {onOpenFlights && (
+              <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-500 flex items-center justify-center">
+                    <Plane className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">班機資訊</div>
+                    <div className="text-[10px] text-slate-500">設定去程/回程航班、報到狀態與行李額度</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenFlights();
+                  }}
+                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center space-x-1"
+                >
+                  <span>管理航班</span>
+                </button>
+              </div>
+            )}
+
             <div className="border-t border-slate-100" />
+
 
             {/* 備註 */}
             <div className="space-y-2.5">

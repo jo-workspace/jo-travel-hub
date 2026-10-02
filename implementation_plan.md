@@ -1,95 +1,94 @@
-# 住宿管理與預訂比價中心 (Accommodation Hub) 實作計畫
+# 班機資訊獨立管理與行程頁面整合實作計畫
 
 ## 1. 需求理解與摘要 (Requirement Summary)
 
-- **核心使用情境**：
-  - 在旅程籌備期，使用者與旅伴習慣在不同平台（Agoda, Booking.com, Airbnb, 飯店官網等）預訂多間**支援免費取消**的房間先卡位。
-  - 訂單由不同旅伴（如 Jo, Will）分別刷卡預訂，分散在不同帳號與電子郵件。
-  - 後續行程確定後，需要集中比價與挑選，將最合適的一間標記為**保留**，並在**免費取消截止日前**及時將其餘房間退訂，避免逾期扣款。
-- **核心痛點**：
-  - 各平台訂單分散、訂房者不同，容易混淆。
-  - 最致命的是忘記取消截止日導致扣款。
-  - 缺乏同一日期區間各家房型的橫向比較檢視。
+- **現狀與痛點**：
+  - 目前使用者將班機資訊（班號、時間、訂位代號、行李額度）混寫在「旅程設定 ➔ 備註 (tripNote)」中。
+  - 缺乏結構化，文字瑣碎且難以一眼掌握重要狀態。
+  - 出發前最焦慮的「是否已自動報到」、「是否已完成選位」、「兩人各自可帶幾件/幾公斤行李」沒有清晰的檢視清單。
+- **核心目標**：
+  1. 建立獨立結構化的班機資料模型 (`FlightInfo`)。
+  2. 在行程頁面 (`ItineraryTab`) 自動呈現具質感的航班資訊卡片（機票票根風格 Boarding Pass Style）。
+  3. 清晰展示與管理：**自動報到狀態**、**選位狀態/座位號**、**行李件數與公斤數**、**訂位代號 (PNR) 一鍵複製**。
 
 ---
 
-## 2. 客觀建議與產品設計 (Objective Advice & Design)
+## 2. 客觀建議與 UI/UX 設計 (Objective Advice & UX Design)
 
-1. **獨立一級分頁「住宿」 (Accommodations)**
-   - 於桌機側邊欄 (Sidebar) 與手機底導覽 (MobileNav) 新增 `住宿` 分頁（圖示優先：`BedDouble` 或 `Building2`）。
-   - 與「行程」、「待辦」、「打包」、「記帳」、「購物」並列，不污染每日行程表，保持畫面專注乾淨。
-2. **多視角篩選與同日期比價檢視**
-   - **時段分組檢視**：按「入住日期/城市」自動分組，一眼看出「同一晚有哪些飯店在 PK 比較」。
-   - **狀態快捷切換**：
-     - `抉擇中` (Pending/Candidate)：正在比較的候補房間。
-     - `已保留` (Confirmed)：已決定入住的最終選擇。
-     - `已取消` (Cancelled)：已在平台完成退訂的歷史紀錄。
-3. **免費取消截止高亮提醒 (Cancellation Alert)**
-   - 距離截止日 $\le 3$ 天：黃色/琥珀色警示標籤「3 天後截止」。
-   - 當天或已過截止日：紅色警示「今日截止」或「已過取消期」。
-   - 支援顯示取消截止之確切日期與時間（如 2026/08/10 23:59）。
-4. **一鍵決策流 (Quick Decision Workflow)**
-   - 當決定選擇某間時，點擊「✓ 保留此間」，狀態轉為「已保留」；
-   - 系統友善提示：「同梯其他候補房間是否標記為待退訂？」，簡化決策心智負擔。
-5. **精簡與直覺的彈窗編輯 (AccommodationModal)**
-   - 支援點擊背景關閉（遵守彈窗規範）。
-   - 預訂平台支援常見快捷膠囊（Agoda, Booking.com, Airbnb, Trip.com, 官網...）與自訂輸入。
-   - 訂房者自動帶入旅程成員（如 Jo, Will）。
-   - 費用自動連動外幣/台幣匯率試算。
-   - 訂單編號、訂單連結、Google 地圖導航連結、備註等完整收納。
+1. **行程頁面呈現方式 (Itinerary Display)**：
+   - 位於行程頁面頂部（在天氣與備註橫幅之間/旁邊），呈現精緻俐落的「航班資訊膠囊/卡片」。
+   - **圖示優先、極簡美觀**：
+     - 機票核心：`✈️ 去程` / `🛬 回程`、航空公司與班號（例：`星宇 JX800`）、`TPE 08:30 ➔ NRT 12:45`。
+     - 訂位代號：`PNR: ABC123` 附一鍵複製圖示 📋。
+     - 報到狀態：`✓ 已報到` / `🤖 自動報到` / `⏳ 待報到`。
+     - 選位狀態：`💺 24A, 24B` / `⚠️ 未選位`。
+     - 行李額度：`🧳 2件×23kg`、`手提 7kg`。
+   - 支援展開與收合（Collapse/Expand），預設精簡顯示，點擊展開航廈 Gate、航程時間與電子機票連結。
+2. **編輯入口 (Entry Points)**：
+   - 入口 A：行程頁面的航班卡片右上角直覺提供「✎ 編輯」按鈕；若未填寫時顯示「＋ 填寫班機資訊」按鈕。
+   - 入口 B：旅程設定彈窗 (`SettingsModal`) 中整合「班機資訊」快捷入口，方便行前總覽。
+3. **班機編輯彈窗 (`FlightModal`)**：
+   - 遵守「點擊空白處關閉」規範。
+   - 直覺切換「去程」與「回程」（以及可選轉機/內陸航班）。
+   - 提供行李額度快捷標籤（`23kg × 2`、`20kg × 1`、`無託運`），報到與選位提供單選/切換鈕，填寫極致順暢。
 
 ---
 
-## 3. 資料架構與雙軌相容性設計 (Data Architecture)
+## 3. 資料架構與持久化 (Data Architecture)
 
-### 3.1 房型資料結構 (`AccommodationItem`)
+### 3.1 班機資料結構 (`FlightItem` & `FlightInfo`)
 ```typescript
-export interface AccommodationItem {
+export interface FlightItem {
   id: string;
-  tripId: string;
-  name: string;               // 飯店/住宿名稱
-  cityArea?: string;          // 城市/地區（如：那霸國際通、名護海濱、LA Downtown）
-  checkInDate: string;        // 入住日期 YYYY-MM-DD
-  checkOutDate: string;       // 退房日期 YYYY-MM-DD
-  platform: string;           // 預訂平台（Agoda, Booking.com, Airbnb, 官網...）
-  booker: string;             // 訂房者（Jo, Will...）
-  price?: number;             // 金額
-  currency?: string;          // 幣別（JPY, USD, TWD...）
-  roomType?: string;          // 房型說明（如：海景雙人房、雙床含早）
-  freeCancellationDate?: string; // 免費取消截止日期時間 (YYYY-MM-DD HH:mm)
-  status: 'candidate' | 'confirmed' | 'cancelled'; // 狀態：抉擇中 / 已保留 / 已取消
-  bookingRef?: string;        // 訂單編號 / 確認號
-  bookingUrl?: string;        // 平台訂單連結
-  mapUrl?: string;            // Google Maps 連結
-  note?: string;              // 備註（停車費、入住說明等）
-  createdAt?: number;
+  type: 'outbound' | 'inbound' | 'transit'; // 去程 / 回程 / 內陸或轉機
+  airline: string;          // 航空公司 (如：長榮航空, 星宇航空)
+  flightNumber: string;     // 班機號碼 (如：BR12, JX800)
+  departureAirport: string; // 出發機場代碼 (如：TPE, LAX, OKA)
+  departureCity?: string;   // 出發城市 (如：台北桃園)
+  departureTime: string;    // 出發時間 (YYYY-MM-DD HH:mm 或 HH:mm)
+  arrivalAirport: string;   // 抵達機場代碼 (如：LAX, NRT)
+  arrivalCity?: string;     // 抵達城市 (如：洛杉磯)
+  arrivalTime: string;      // 抵達時間 (YYYY-MM-DD HH:mm 或 HH:mm)
+  terminal?: string;        // 航廈 (如：T2)
+  gate?: string;            // 登機門 (如：B4)
+  pnr?: string;             // 訂位代號 / 電腦代號 (Booking Reference)
+  
+  // 核心檢查清單欄位
+  checkInStatus: 'none' | 'auto' | 'done'; // 待報到 / 已設自動報到 / 已完成報到
+  seatStatus: 'unselected' | 'selected';   // 未選位 / 已選位
+  seatNumbers?: string;     // 座位號 (如：Jo: 24A, Will: 24B)
+  checkedBaggage?: string;  // 託運行李 (如：每人 2 件 (23kg))
+  carryOnBaggage?: string;  // 手提行李 (如：每人 1 件 (7kg))
+  ticketUrl?: string;       // 電子機票/行程單/航空公司官網連結
+  note?: string;            // 備註
 }
 ```
 
 ### 3.2 雙軌資料持久化 (Dual-Track Persistence)
-- **軌道 A（主軌/零設定相容）**：比照 `coupons` 與 `city_schedule` 機制，透過 `trip_settings.trip_note` 內的隱藏標籤 `<!--ACCOMMODATIONS_START-->...<!--ACCOMMODATIONS_END-->` 進行 Base64/JSON 儲存，並同步更新客戶端 `localStorage`。**無需立即變更遠端 Supabase 結構，直接就能 100% 穩定使用與跨裝置同步！**
-- **軌道 B（擴充軌/資料庫資料表）**：提供 `supabase/migrations/202610020001_create_accommodations_table.sql`，並於 `supabase-client.ts` 實現相容偵測，若資料表存在則優先寫入資料表，不存在時優雅降級至軌道 A。
+- **軌道 A（主軌/零相容成本）**：透過 `trip_settings.trip_note` 隱藏標籤 `<!--FLIGHTS_START-->...<!--FLIGHTS_END-->` + `localStorage` 快取，無縫跨裝置同步。
+- **軌道 B（擴充軌）**：提供 `supabase/migrations/202610020002_create_flights_table.sql`，並於 `supabase-client.ts` 支援讀寫自動升級/降級。
 
 ---
 
-## 4. 實作計畫步驟 (Implementation Steps)
+## 4. 實作步驟 (Implementation Steps)
 
-1. **型別定義與輔助工具** (`src/types/trip.ts`)
-   - 增加 `AccommodationItem` 介面及在 `AllTripData` 中增加 `accommodations: AccommodationItem[]`。
-2. **後端資料讀寫與同步邏輯** (`src/lib/supabase-client.ts`)
-   - 在 `getAllData` 增加 accommodations 解析。
-   - 新增 `saveAccommodationData`、`deleteAccommodationData`、`updateAccommodationStatus` 等操作函式。
-3. **住宿分頁元件** (`src/components/tabs/AccommodationsTab.tsx`)
-   - 頂部摘要列：候補中房數、已保留房數、即將到期提醒。
-   - 分組切換：按「入住時段對比」或「全部清單」。
-   - 房型卡片：顯示飯店名稱、平台徽章、訂房者標籤、價格、取消截止倒數、快捷按鈕（保留/退訂/編輯/刪除/地圖/訂單）。
-4. **住宿新增與編輯彈窗** (`src/components/modals/AccommodationModal.tsx`)
+1. **型別定義** (`src/types/trip.ts`)
+   - 增加 `FlightItem` 介面，在 `AllTripData` 增加 `flights?: FlightItem[]`。
+2. **後端資料讀寫與同步** (`src/lib/supabase-client.ts`)
+   - `getAllData` 解析 `flights`。
+   - 新增 `saveFlightData`、`deleteFlightData` 函數，並維護 `trip_note` 標籤與 localStorage。
+3. **班機卡片元件** (`src/components/FlightCard.tsx`)
+   - 機票票根 (Boarding Pass) 質感卡片。
+   - 顯示航段、起降機場與時間、PNR 一鍵複製。
+   - 清楚呈現「自動報到標籤」、「選位狀態」、「行李件數」。
+   - 支援折疊與展開。
+4. **行程分頁整合** (`src/components/tabs/ItineraryTab.tsx`)
+   - 於行程頂部渲染 `FlightCard`，並提供編輯按鈕。
+5. **班機編輯彈窗** (`src/components/modals/FlightModal.tsx`)
    - 遵守「點擊空白處關閉」規範。
-   - 圖示優先、極簡好填：入住退房日期選擇、取消截止日與倒數預覽、平台與訂房者快捷選擇按鈕。
-5. **整合進主旅程頁面與導覽列** (`src/app/trip/[id]/page.tsx`, `Sidebar.tsx`, `MobileNav.tsx`)
-   - 增加 `accommodations` 分頁項目與導航。
-   - 支援 URL 參數 `?tab=accommodations`。
-6. **SQL 遷移腳本準備** (`supabase/migrations/202610020001_create_accommodations_table.sql`)
-7. **驗證與建置測試** (`npm run build`)
-   - 確保 TypeScript 型別無誤、Next.js 編譯通過。
-8. **Git 自動提交與推送** (遵照 Git 規範)。
+   - 去程 / 回程切換標籤、快捷行李額度、報到與選位狀態切換。
+6. **設定彈窗整合** (`src/components/modals/SettingsModal.tsx`)
+   - 增加班機資訊入口按鈕，方便隨時設定。
+7. **主旅程頁面串接** (`src/app/trip/[id]/page.tsx`)
+   - 狀態傳遞與 Modal 開啟閉合控制。
+8. **SQL 遷移腳本與驗證** (`npm run build` & Git push)。

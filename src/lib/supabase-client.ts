@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem, AccommodationItem, AccommodationStatus } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem, AccommodationItem, AccommodationStatus, FlightItem } from '@/types/trip';
 import { TripConfig, TRIPS } from '@/config/trips';
+
 
 // 預設兩趟旅程範例
 const INITIAL_TRIPS: TripConfig[] = [
@@ -146,6 +147,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       allPackingCatsRes,
       allTodoCatsRes,
       accommodationsRes,
+      flightsRes,
     ] = await Promise.all([
       supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
       supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
@@ -164,7 +166,9 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       supabase.from('packing_items').select('category'),
       supabase.from('todo_items').select('category'),
       supabase.from('accommodations').select('*').eq('trip_id', tripId).order('check_in_date', { ascending: true }),
+      supabase.from('flights').select('*').eq('trip_id', tripId).order('departure_date', { ascending: true }),
     ]);
+
 
 
     const itinerary: ItineraryItem[] = (itineraryRes.data || []).map((row, idx) => {
@@ -401,6 +405,65 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     }
     if (!Array.isArray(accommodations)) accommodations = [];
 
+    // 解析跨裝置同步的航班資訊 (flights)
+    let flights: FlightItem[] = [];
+    if (flightsRes?.data && flightsRes.data.length > 0) {
+      flights = flightsRes.data.map((row: any) => ({
+        id: row.id,
+        type: row.type || 'outbound',
+        airline: row.airline || '',
+        flightNumber: row.flight_number || '',
+        departureAirport: row.departure_airport || '',
+        departureCity: row.departure_city || '',
+        departureDate: row.departure_date || '',
+        departureTime: row.departure_time || '',
+        arrivalAirport: row.arrival_airport || '',
+        arrivalCity: row.arrival_city || '',
+        arrivalDate: row.arrival_date || '',
+        arrivalTime: row.arrival_time || '',
+        terminal: row.terminal || '',
+        gate: row.gate || '',
+        pnr: row.pnr || '',
+        checkInStatus: row.check_in_status || 'none',
+        seatStatus: row.seat_status || 'unselected',
+        seatNumbers: row.seat_numbers || '',
+        checkedBaggage: row.checked_baggage || '',
+        carryOnBaggage: row.carry_on_baggage || '',
+        ticketUrl: row.ticket_url || '',
+        note: row.note || '',
+        isCompleted: !!row.is_completed,
+        createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+      }));
+    } else {
+      const flMatch = rawTripNote.match(/<!--FLIGHTS_START-->([\s\S]*?)<!--FLIGHTS_END-->/);
+      if (flMatch && flMatch[1].trim()) {
+        const inner = flMatch[1].trim();
+        try {
+          const decoded = decodeURIComponent(atob(inner));
+          flights = JSON.parse(decoded);
+        } catch {
+          try {
+            flights = JSON.parse(decodeURIComponent(inner));
+          } catch {
+            try {
+              flights = JSON.parse(inner);
+            } catch (err) {
+              console.warn('Failed to parse flights from trip_note:', err);
+            }
+          }
+        }
+      }
+      if (!flights || flights.length === 0) {
+        try {
+          const local = typeof window !== 'undefined' ? localStorage.getItem(`flights_${tripId}`) : null;
+          if (local) flights = JSON.parse(local);
+        } catch (err) {
+          console.warn('Failed to parse flights from localStorage:', err);
+        }
+      }
+    }
+    if (!Array.isArray(flights)) flights = [];
+
     // 清理 tripNote 移除所有隱藏標籤
     tripNote = rawTripNote
       .replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '')
@@ -408,6 +471,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       .replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '')
       .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
       .replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '')
+      .replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '')
       .trim();
 
     const foreignCurrency = settingsData?.foreign_currency !== undefined && settingsData?.foreign_currency !== null ? settingsData.foreign_currency : '';
@@ -454,6 +518,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       historicalTodoCategories,
       coupons,
       accommodations,
+      flights,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);
@@ -469,6 +534,8 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       startDate: '',
       budgetTwd: 0,
       accommodations: [],
+      flights: [],
+
 
       foreignCurrency: '',
       companions: 'Jo, Will',
@@ -586,6 +653,13 @@ export async function updateTripSettings(
   if (existingAccommodationsMatch) {
     finalTripNote = `${finalTripNote.replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '').trim()}\n${existingAccommodationsMatch[0]}`;
   }
+
+  // 保留原始 FLIGHTS 隱藏標籤
+  const existingFlightsMatch = existingRow?.trip_note?.match(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/);
+  if (existingFlightsMatch) {
+    finalTripNote = `${finalTripNote.replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '').trim()}\n${existingFlightsMatch[0]}`;
+  }
+
 
 
   const payload: Record<string, any> = {
@@ -1805,9 +1879,165 @@ export async function updateAccommodationStatus(
   return saveAccommodationData({ ...target, status }, tripId, currentList);
 }
 
+/** 同步班機清單至 trip_settings.trip_note (無縫降級儲存) */
+async function syncFlightsToNote(tripId: string, list: FlightItem[]): Promise<void> {
+  try {
+    const { data: listData } = await supabase
+      .from('trip_settings')
+      .select('trip_note')
+      .eq('trip_id', tripId)
+      .limit(1);
+
+    const existingRow = listData?.[0] || null;
+    let rawTripNote = existingRow?.trip_note || '';
+
+    rawTripNote = rawTripNote.replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '').trim();
+
+    if (list.length > 0) {
+      try {
+        const jsonStr = JSON.stringify(list);
+        const encoded = btoa(encodeURIComponent(jsonStr));
+        rawTripNote = `${rawTripNote}\n<!--FLIGHTS_START-->${encoded}<!--FLIGHTS_END-->`;
+      } catch (e) {
+        console.error('Failed to encode flights:', e);
+      }
+    }
+
+    if (existingRow) {
+      await supabase
+        .from('trip_settings')
+        .update({ trip_note: rawTripNote })
+        .eq('trip_id', tripId);
+    } else {
+      await supabase
+        .from('trip_settings')
+        .insert({
+          trip_id: tripId,
+          trip_note: rawTripNote,
+        });
+    }
+  } catch (err) {
+    console.warn('Failed to sync flights to trip_note:', err);
+  }
+}
+
+/** 儲存或更新航班資料 (支援 DB 表與 Note 隱藏標籤雙軌同步) */
+export async function saveFlightData(
+  item: Partial<FlightItem>,
+  tripId = 'la-2026',
+  currentList: FlightItem[] = []
+): Promise<FlightItem[]> {
+  const newItem: FlightItem = {
+    id: item.id || `flt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    type: item.type || 'outbound',
+    airline: item.airline || '',
+    flightNumber: item.flightNumber || '',
+    departureAirport: item.departureAirport || '',
+    departureCity: item.departureCity || '',
+    departureDate: item.departureDate || '',
+    departureTime: item.departureTime || '',
+    arrivalAirport: item.arrivalAirport || '',
+    arrivalCity: item.arrivalCity || '',
+    arrivalDate: item.arrivalDate || '',
+    arrivalTime: item.arrivalTime || '',
+    terminal: item.terminal || '',
+    gate: item.gate || '',
+    pnr: item.pnr || '',
+    checkInStatus: item.checkInStatus || 'none',
+    seatStatus: item.seatStatus || 'unselected',
+    seatNumbers: item.seatNumbers || '',
+    checkedBaggage: item.checkedBaggage || '',
+    carryOnBaggage: item.carryOnBaggage || '',
+    ticketUrl: item.ticketUrl || '',
+    note: item.note || '',
+    isCompleted: !!item.isCompleted,
+    createdAt: item.createdAt || Date.now(),
+  };
+
+  // 1. 嘗試直接寫入 Supabase flights 表
+  try {
+    const dbPayload = {
+      id: newItem.id,
+      trip_id: tripId,
+      type: newItem.type,
+      airline: newItem.airline,
+      flight_number: newItem.flightNumber,
+      departure_airport: newItem.departureAirport,
+      departure_city: newItem.departureCity,
+      departure_date: newItem.departureDate,
+      departure_time: newItem.departureTime,
+      arrival_airport: newItem.arrivalAirport,
+      arrival_city: newItem.arrivalCity,
+      arrival_date: newItem.arrivalDate,
+      arrival_time: newItem.arrivalTime,
+      terminal: newItem.terminal,
+      gate: newItem.gate,
+      pnr: newItem.pnr,
+      check_in_status: newItem.checkInStatus,
+      seat_status: newItem.seatStatus,
+      seat_numbers: newItem.seatNumbers,
+      checked_baggage: newItem.checkedBaggage,
+      carry_on_baggage: newItem.carryOnBaggage,
+      ticket_url: newItem.ticketUrl,
+      note: newItem.note,
+      is_completed: newItem.isCompleted,
+    };
+    await supabase.from('flights').upsert(dbPayload);
+  } catch (err) {
+    console.warn('DB upsert flight fallback:', err);
+  }
+
+  // 2. 本地記憶體清單更新
+  const idx = currentList.findIndex((x) => x.id === newItem.id);
+  const updatedList = idx >= 0
+    ? currentList.map((x) => (x.id === newItem.id ? newItem : x))
+    : [...currentList, newItem];
+
+  // 3. 離線快取寫入
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`flights_${tripId}`, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('localStorage flights save error:', e);
+    }
+  }
+
+  // 4. 備用持久化：寫入 trip_note 隱藏標籤
+  await syncFlightsToNote(tripId, updatedList);
+
+  return updatedList;
+}
+
+/** 刪除航班資料 */
+export async function deleteFlightData(
+  id: string,
+  tripId = 'la-2026',
+  currentList: FlightItem[] = []
+): Promise<FlightItem[]> {
+  try {
+    await supabase.from('flights').delete().eq('id', id);
+  } catch (err) {
+    console.warn('DB delete flight fallback:', err);
+  }
+
+  const updatedList = currentList.filter((x) => x.id !== id);
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`flights_${tripId}`, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('localStorage flights delete error:', e);
+    }
+  }
+
+  await syncFlightsToNote(tripId, updatedList);
+  return updatedList;
+}
+
 // 保持與舊介面極相容的函數名稱
 export function getScriptUrl(): string { return ''; }
 export function getApiToken(): string { return ''; }
 export function setScriptUrl(): void {}
 export function setApiToken(): void {}
+
 
