@@ -29,6 +29,19 @@ interface FlightCardProps {
   showToast?: (msg: string) => void;
 }
 
+// 判斷某航班是否已搭乘完成（依 isCompleted 或已過抵達日期時間）
+export const isFlightFinished = (f: FlightItem) => {
+  if (f.isCompleted) return true;
+  if (f.arrivalDate) {
+    const arrDateTimeStr = `${f.arrivalDate}T${f.arrivalTime || '23:59'}:00`;
+    const arrTime = new Date(arrDateTimeStr).getTime();
+    if (!isNaN(arrTime) && Date.now() > arrTime) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export const FlightCard: React.FC<FlightCardProps> = ({
   flights = [],
   hideVisited = false,
@@ -50,19 +63,6 @@ export const FlightCard: React.FC<FlightCardProps> = ({
     } catch {
       showToast(`複製失敗：${pnr}`);
     }
-  };
-
-  // 判斷某航班是否已搭乘完成（依 isCompleted 或已過抵達日期時間）
-  const isFlightFinished = (f: FlightItem) => {
-    if (f.isCompleted) return true;
-    if (f.arrivalDate) {
-      const arrDateTimeStr = `${f.arrivalDate}T${f.arrivalTime || '23:59'}:00`;
-      const arrTime = new Date(arrDateTimeStr).getTime();
-      if (!isNaN(arrTime) && Date.now() > arrTime) {
-        return true;
-      }
-    }
-    return false;
   };
 
   // 若尚未設定任何航班，呈現緊湊引導橫幅

@@ -4,10 +4,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { ItineraryItem, FlightItem } from '@/types/trip';
 import { getTodayDayLabel } from '@/lib/tripDate';
-import { MapPin, ExternalLink, Plus, CheckCircle2, Circle, Edit3, List, Map as MapIcon, Bookmark, X, Check } from 'lucide-react';
+import {
+  MapPin,
+  ExternalLink,
+  Plus,
+  CheckCircle2,
+  Circle,
+  Edit3,
+  List,
+  Map as MapIcon,
+  Bookmark,
+  X,
+  Check,
+  Plane,
+  PlaneTakeoff,
+  PlaneLanding,
+  Luggage,
+  Armchair,
+  Copy,
+  Pencil,
+} from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
-import { FlightCard } from '@/components/FlightCard';
+import { FlightCard, isFlightFinished } from '@/components/FlightCard';
 import {
   getCityForDay,
   getUniqueCities,
@@ -40,7 +59,6 @@ interface ItineraryTabProps {
   onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
 }
 
-
 import { ItineraryCategoryIcon, cleanCategoryName } from '@/lib/itineraryCategories';
 
 // 由 startDate (YYYY-MM-DD) + Day N 計算出日期字串，例如 "8/28 Thu"
@@ -55,6 +73,49 @@ function calcDateFromStartDate(startDateStr: string, dayLabel: string): string {
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return `${target.getMonth() + 1}/${target.getDate()} ${weekdays[target.getDay()]}`;
 }
+
+// 由 startDate (YYYY-MM-DD) + Day N 計算出西元標準日期字串，例如 "2026-08-28"
+function getIsoDateForDay(startDateStr: string, dayLabel: string): string {
+  if (!startDateStr) return '';
+  const dayNum = parseInt(dayLabel.replace(/[^0-9]/g, ''), 10);
+  if (isNaN(dayNum)) return '';
+  const start = new Date(startDateStr);
+  if (isNaN(start.getTime())) return '';
+  const target = new Date(start);
+  target.setDate(target.getDate() + dayNum - 1);
+  const y = target.getFullYear();
+  const m = String(target.getMonth() + 1).padStart(2, '0');
+  const d = String(target.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// 根據天數與日期計算出該天所屬的航班清單
+function getFlightsForDay(
+  flights: FlightItem[] = [],
+  dayLabel: string,
+  allDays: string[],
+  startDate?: string
+): FlightItem[] {
+  if (!flights || flights.length === 0) return [];
+  const dayIso = startDate ? getIsoDateForDay(startDate, dayLabel) : '';
+  const isFirstDay = dayLabel === allDays[0];
+  const isLastDay = dayLabel === allDays[allDays.length - 1];
+
+  return flights.filter((flight) => {
+    // 1. 若有填寫出發日期且旅程有 startDate，優先比對 ISO 日期
+    if (flight.departureDate && dayIso) {
+      return flight.departureDate === dayIso;
+    }
+    // 2. 若無出發日期或無 startDate，依航段類型兜底
+    if (flight.type === 'outbound' && isFirstDay) return true;
+    if (flight.type === 'inbound' && isLastDay) return true;
+    return false;
+  });
+}
+
+export type TimelineEntry =
+  | { kind: 'itinerary'; data: ItineraryItem; sortMinutes: number }
+  | { kind: 'flight'; data: FlightItem; sortMinutes: number };
 
 export function parseTimeToMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -180,7 +241,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
     return numA - numB;
   });
 
-  // 當 hideVisited 為 true 時，只保留「仍有未完成（未造訪且未略過）行程」的天數
+  // 當 hideVisited 為 true 時，保留「仍有未完成行程」或「有未結束航班」的天數
   const visibleDays = React.useMemo(() => {
     if (!hideVisited) return days;
     const daysWithUnfinished = new Set(
@@ -189,8 +250,15 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         .map((item) => item.day)
         .filter(Boolean)
     );
+    // 檢查是否有未完成的航班
+    days.forEach((d) => {
+      const dayFlights = getFlightsForDay(flights, d, days, startDate);
+      if (dayFlights.some((f) => !isFlightFinished(f))) {
+        daysWithUnfinished.add(d);
+      }
+    });
     return days.filter((d) => daysWithUnfinished.has(d));
-  }, [days, sortedItems, hideVisited]);
+  }, [days, sortedItems, hideVisited, flights, startDate]);
 
   const [selectedDay, setSelectedDay] = useState<string>(
     () => getTodayDayLabel(startDate || '', timezone || '', days) ?? 'ALL'
@@ -210,6 +278,18 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   const [quickTimeTargetItem, setQuickTimeTargetItem] = useState<ItineraryItem | null>(null);
   const [quickTimeInput, setQuickTimeInput] = useState<string>('12:00');
   const [isSavingQuickTime, setIsSavingQuickTime] = useState<boolean>(false);
+  const [copiedPnrId, setCopiedPnrId] = useState<string | null>(null);
+
+  const handleCopyPnr = async (pnr: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(pnr);
+      setCopiedPnrId(id);
+      showToast?.('已複製訂位代號 (PNR)');
+      setTimeout(() => setCopiedPnrId(null), 2000);
+    } catch {
+      showToast?.(`複製失敗：${pnr}`);
+    }
+  };
 
   const handleSaveQuickTime = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -261,15 +341,24 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   });
 
   // 渲染順序依照已排序的 days，而非物件的插入順序；例外 key（如未定日期）排在最後
+  // 同時考慮若某天有航班但無一般行程，該天也應在清單中
+  const activeDaysWithContent = days.filter((d) => {
+    if (selectedDay !== 'ALL' && d !== selectedDay) return false;
+    const hasItems = Boolean(groupedByDay[d] && groupedByDay[d].length > 0);
+    const dayFlights = getFlightsForDay(flights, d, days, startDate);
+    const hasVisibleFlights = dayFlights.some((f) => !(hideVisited && isFlightFinished(f)));
+    return hasItems || hasVisibleFlights;
+  });
+
   const orderedDayKeys = [
-    ...days.filter((d) => groupedByDay[d]),
+    ...activeDaysWithContent,
     ...Object.keys(groupedByDay).filter((d) => !days.includes(d)),
   ];
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Flight Information Card */}
-      {onOpenFlightModal && (
+      {/* Flight Information Card: 僅在檢視「全部」時呈現頂部總覽，點選單天時直接在該天時間軸內呈現 */}
+      {onOpenFlightModal && selectedDay === 'ALL' && (
         <FlightCard
           flights={flights}
           hideVisited={hideVisited}
@@ -503,7 +592,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
           {/* Itinerary Cards Grouped by Day */}
           {orderedDayKeys.map((day) => {
-            const items = groupedByDay[day];
+            const items = groupedByDay[day] || [];
             // 優先使用計算出來的日期，其次用資料本身的 date 欄位
             const dateText = startDate
               ? calcDateFromStartDate(startDate, day)
@@ -584,21 +673,177 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
               )}
             </div>
 
-            {/* 分割：有指定時間的主行程 vs 未指定時間的口袋候選名單 */}
+            {/* 分割：有指定時間的主行程與當日航班 vs 未指定時間的口袋候選名單 */}
             {(() => {
               const isCandidate = (item: ItineraryItem) =>
                 !item.time ||
                 !item.time.trim() ||
                 /候選|備選|口袋|彈性|wishlist|candidate/i.test(item.time);
-              const mainItems = items.filter((item) => !isCandidate(item));
-              const candidateItems = items.filter((item) => isCandidate(item));
+              const dayNormalItems = (items || []).filter((item) => !isCandidate(item));
+              const candidateItems = (items || []).filter((item) => isCandidate(item));
+
+              // 獲取該天匹配的航班（若開啟 hideVisited 且該航班已結束則略過）
+              const dayFlights = getFlightsForDay(flights, day, days, startDate).filter((f) => {
+                if (hideVisited && isFlightFinished(f)) return false;
+                return true;
+              });
+
+              // 結合一般主行程與當日航班，並依時間自然排序
+              const combinedTimeline: TimelineEntry[] = [
+                ...dayNormalItems.map((it) => ({
+                  kind: 'itinerary' as const,
+                  data: it,
+                  sortMinutes: parseTimeToMinutes(it.time) ?? 9999,
+                })),
+                ...dayFlights.map((fl) => ({
+                  kind: 'flight' as const,
+                  data: fl,
+                  sortMinutes: parseTimeToMinutes(fl.departureTime) ?? (fl.type === 'outbound' ? 0 : 9999),
+                })),
+              ].sort((a, b) => {
+                if (a.sortMinutes !== b.sortMinutes) {
+                  return a.sortMinutes - b.sortMinutes;
+                }
+                return a.kind === 'flight' ? -1 : 1;
+              });
 
               return (
                 <div className="space-y-3">
-                  {/* 主要排程卡片網格 */}
-                  {mainItems.length > 0 ? (
+                  {/* 主要排程與航班卡片網格 */}
+                  {combinedTimeline.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {mainItems.map((item) => {
+                      {combinedTimeline.map((entry) => {
+                        if (entry.kind === 'flight') {
+                          const flight = entry.data;
+                          const isOutbound = flight.type === 'outbound';
+                          const isInbound = flight.type === 'inbound';
+                          const isFinished = isFlightFinished(flight);
+
+                          return (
+                            <div
+                              key={`flight-${flight.id}`}
+                              className={`rounded-2xl p-4 flex flex-col justify-between transition-all duration-200 border-2 relative ${
+                                isFinished
+                                  ? 'bg-slate-50 border-slate-200 opacity-60'
+                                  : isOutbound
+                                  ? 'bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/30 border-indigo-200/90 hover:border-indigo-300 shadow-2xs hover:shadow-xs'
+                                  : isInbound
+                                  ? 'bg-gradient-to-br from-amber-50/70 via-white to-orange-50/30 border-amber-200/90 hover:border-amber-300 shadow-2xs hover:shadow-xs'
+                                  : 'bg-white border-slate-200 shadow-2xs hover:shadow-xs'
+                              }`}
+                            >
+                              <div>
+                                {/* Top: Type Badge & PNR / Actions */}
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                                    <span
+                                      className={`text-[10px] font-black px-2 py-0.5 rounded-md flex items-center space-x-1 border ${
+                                        isOutbound
+                                          ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                                          : isInbound
+                                          ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      {isOutbound ? <PlaneTakeoff className="w-3 h-3" /> : <PlaneLanding className="w-3 h-3" />}
+                                      <span>{isOutbound ? '去程航班' : isInbound ? '回程航班' : '搭乘航班'}</span>
+                                    </span>
+
+                                    {flight.checkInStatus === 'done' ? (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold">
+                                        ✓ 已完成報到
+                                      </span>
+                                    ) : flight.checkInStatus === 'auto' ? (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200 font-semibold">
+                                        ⚡ 自動報到
+                                      </span>
+                                    ) : null}
+                                  </div>
+
+                                  <div className="flex items-center space-x-1 flex-shrink-0">
+                                    {flight.pnr && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyPnr(flight.pnr!, flight.id)}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center space-x-1 transition-colors border cursor-pointer ${
+                                          copiedPnrId === flight.id
+                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                                        }`}
+                                        title="點擊複製訂位代號"
+                                      >
+                                        <span>PNR: {flight.pnr}</span>
+                                        <Copy className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
+
+                                    {onOpenFlightModal && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onOpenFlightModal(flight)}
+                                        className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                        title="編輯航班"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Airline & Flight Number */}
+                                <div className="flex items-center space-x-2 mb-2">
+                                  {flight.departureTime && (
+                                    <span className="text-xs font-semibold text-slate-400 font-mono">
+                                      {flight.departureTime}
+                                    </span>
+                                  )}
+                                  <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                                    {flight.airline} {flight.flightNumber}
+                                  </h3>
+                                </div>
+
+                                {/* Airport Route */}
+                                <div className="bg-white/80 rounded-xl p-2.5 border border-slate-200/80 mb-2 flex items-center justify-between text-xs font-mono">
+                                  <div>
+                                    <div className="font-extrabold text-slate-900 text-sm">{flight.departureAirport}</div>
+                                    <div className="text-[10px] text-slate-500">
+                                      {flight.departureTime}{flight.terminal ? ` · ${flight.terminal}` : ''}
+                                    </div>
+                                  </div>
+                                  <div className="text-slate-400 text-sm">➔</div>
+                                  <div className="text-right">
+                                    <div className="font-extrabold text-slate-900 text-sm">{flight.arrivalAirport}</div>
+                                    <div className="text-[10px] text-slate-500">
+                                      {flight.arrivalTime}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Card Bottom: Baggage & Seats */}
+                              {(flight.seatNumbers || flight.checkedBaggage || flight.carryOnBaggage) && (
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
+                                  <div className="flex items-center space-x-3">
+                                    {flight.seatNumbers && (
+                                      <div className="flex items-center space-x-1">
+                                        <Armchair className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                        <span className="font-mono font-medium">{flight.seatNumbers}</span>
+                                      </div>
+                                    )}
+                                    {(flight.checkedBaggage || flight.carryOnBaggage) && (
+                                      <div className="flex items-center space-x-1">
+                                        <Luggage className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                        <span>{flight.checkedBaggage || flight.carryOnBaggage}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        const item = entry.data;
                         const categoryName = cleanCategoryName(item.type);
                         return (
                           <div
