@@ -9,10 +9,9 @@ import {
   Plane,
   Sparkles,
   Loader2,
-  Calendar,
-  Check,
   ChevronDown,
   ChevronUp,
+  Plus,
 } from 'lucide-react';
 
 interface FlightModalProps {
@@ -27,7 +26,6 @@ interface FlightModalProps {
 
 const COMMON_AIRLINES = ['星宇航空', '長榮航空', '中華航空', '國泰航空', '日本航空', '全日空', '酷航', '樂桃航空'];
 const COMMON_CHECKED_BAGGAGE = ['2件 (23kg)', '1件 (23kg)', '1件 (20kg)', '無託運'];
-const COMMON_CARRY_ON = ['7kg', '10kg'];
 
 export const FlightModal: React.FC<FlightModalProps> = ({
   isOpen,
@@ -52,17 +50,15 @@ export const FlightModal: React.FC<FlightModalProps> = ({
   const [terminal, setTerminal] = useState('');
   const [pnr, setPnr] = useState('');
   const [checkInStatus, setCheckInStatus] = useState<FlightCheckInStatus>('none');
-  const [seatNumbers, setSeatNumbers] = useState('');
   const [checkedBaggage, setCheckedBaggage] = useState('');
-  const [carryOnBaggage, setCarryOnBaggage] = useState('');
   const [note, setNote] = useState('');
-  const [isCompleted, setIsCompleted] = useState(false);
 
   // UI 輔助狀態
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showNote, setShowNote] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -80,15 +76,13 @@ export const FlightModal: React.FC<FlightModalProps> = ({
       setTerminal(item.terminal || '');
       setPnr(item.pnr || '');
       setCheckInStatus(item.checkInStatus || 'none');
-      setSeatNumbers(item.seatNumbers || '');
       setCheckedBaggage(
         (item.checkedBaggage || '2件 (23kg)').replace('每人', '')
       );
-      setCarryOnBaggage((item.carryOnBaggage || '7kg').replace('每人', ''));
       setNote(item.note || '');
-      setIsCompleted(!!item.isCompleted);
-      // 若已有次要資訊，自動展開細節
-      if (item.seatNumbers || item.note || item.terminal) {
+      setShowNote(!!item.note);
+      // 若已有次要資訊，自動展開
+      if (item.terminal || item.note || (item.checkedBaggage && item.checkedBaggage !== '2件 (23kg)')) {
         setShowDetails(true);
       }
     } else {
@@ -106,11 +100,9 @@ export const FlightModal: React.FC<FlightModalProps> = ({
       setTerminal('');
       setPnr('');
       setCheckInStatus('none');
-      setSeatNumbers('');
       setCheckedBaggage('2件 (23kg)');
-      setCarryOnBaggage('7kg');
       setNote('');
-      setIsCompleted(false);
+      setShowNote(false);
       setShowDetails(false);
     }
     setAiMessage(null);
@@ -198,12 +190,8 @@ export const FlightModal: React.FC<FlightModalProps> = ({
         terminal: terminal.trim(),
         pnr: pnr.trim().toUpperCase(),
         checkInStatus,
-        seatStatus: seatNumbers.trim() ? 'selected' : 'unselected',
-        seatNumbers: seatNumbers.trim(),
         checkedBaggage: checkedBaggage.trim(),
-        carryOnBaggage: carryOnBaggage.trim(),
         note: note.trim(),
-        isCompleted,
       });
       onClose();
     } catch (err) {
@@ -329,7 +317,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
           </div>
 
           {/* 航空公司 */}
-          <div>
+          <div className="min-w-0 w-full">
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-bold text-slate-300">航空公司 *</label>
               <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar">
@@ -355,12 +343,12 @@ export const FlightModal: React.FC<FlightModalProps> = ({
               value={airline}
               onChange={(e) => setAirline(e.target.value)}
               placeholder="例：星宇航空"
-              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 min-h-[38px]"
+              className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 min-h-[38px]"
             />
           </div>
 
           {/* 日期與訂位代號 */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5 min-w-0 w-full">
             <div className="min-w-0">
               <label className="block text-xs font-bold text-slate-300 mb-1">出發日</label>
               <input
@@ -377,15 +365,15 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                 value={pnr}
                 onChange={(e) => setPnr(e.target.value.toUpperCase())}
                 placeholder="例：ABC123"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold tracking-wider placeholder-slate-500 uppercase focus:outline-none focus:border-amber-400 min-h-[38px]"
+                className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold tracking-wider placeholder-slate-500 uppercase focus:outline-none focus:border-amber-400 min-h-[38px]"
               />
             </div>
           </div>
 
           {/* 起降路線化卡片 (整合出發與抵達時間/機場，杜絕破版) */}
-          <div className="bg-slate-800/40 p-3 rounded-2xl border border-slate-800 space-y-2.5">
+          <div className="bg-slate-800/40 p-3 rounded-2xl border border-slate-800 space-y-2.5 min-w-0 w-full">
             {/* 出發 */}
-            <div className="grid grid-cols-12 gap-2 items-center">
+            <div className="grid grid-cols-12 gap-2 items-center min-w-0">
               <div className="col-span-3 min-w-0">
                 <label className="block text-[10px] font-bold text-slate-400 mb-0.5">出發機場 *</label>
                 <input
@@ -394,7 +382,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   value={departureAirport}
                   onChange={(e) => setDepartureAirport(e.target.value.toUpperCase())}
                   placeholder="TPE"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-white font-mono font-bold text-center uppercase focus:outline-none focus:border-amber-400 min-h-[38px]"
+                  className="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-white font-mono font-bold text-center uppercase focus:outline-none focus:border-amber-400 min-h-[38px]"
                 />
               </div>
               <div className="col-span-5 min-w-0">
@@ -404,7 +392,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   value={departureCity}
                   onChange={(e) => setDepartureCity(e.target.value)}
                   placeholder="台北桃園"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-400 min-h-[38px]"
+                  className="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-400 min-h-[38px]"
                 />
               </div>
               <div className="col-span-4 min-w-0">
@@ -424,7 +412,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
             </div>
 
             {/* 抵達 */}
-            <div className="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80">
+            <div className="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80 min-w-0">
               <div className="col-span-3 min-w-0">
                 <label className="block text-[10px] font-bold text-slate-400 mb-0.5">抵達機場 *</label>
                 <input
@@ -433,7 +421,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   value={arrivalAirport}
                   onChange={(e) => setArrivalAirport(e.target.value.toUpperCase())}
                   placeholder="NRT"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-white font-mono font-bold text-center uppercase focus:outline-none focus:border-amber-400 min-h-[38px]"
+                  className="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-white font-mono font-bold text-center uppercase focus:outline-none focus:border-amber-400 min-h-[38px]"
                 />
               </div>
               <div className="col-span-5 min-w-0">
@@ -443,7 +431,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                   value={arrivalCity}
                   onChange={(e) => setArrivalCity(e.target.value)}
                   placeholder="東京成田"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-400 min-h-[38px]"
+                  className="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-400 min-h-[38px]"
                 />
               </div>
               <div className="col-span-4 min-w-0">
@@ -470,26 +458,16 @@ export const FlightModal: React.FC<FlightModalProps> = ({
               onClick={() => setShowDetails(!showDetails)}
               className="w-full py-2 px-3 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-xl flex items-center justify-between transition-colors cursor-pointer text-xs font-semibold"
             >
-              <span>{showDetails ? '收合更多選項' : '▾ 更多選填 (座位、行李、航廈、備註)'}</span>
+              <span>{showDetails ? '收合更多選項' : '▾ 更多選填 (航廈、行李、報到狀態)'}</span>
               {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
 
           {/* 摺疊展開區塊 */}
           {showDetails && (
-            <div className="space-y-3 pt-1 border-t border-slate-800 animate-fade-in">
-              {/* 座位與航廈 */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="min-w-0">
-                  <label className="block text-xs font-bold text-slate-300 mb-1">座位號碼</label>
-                  <input
-                    type="text"
-                    value={seatNumbers}
-                    onChange={(e) => setSeatNumbers(e.target.value)}
-                    placeholder="例：24A, 24B"
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono min-h-[38px]"
-                  />
-                </div>
+            <div className="space-y-3 pt-1 border-t border-slate-800 animate-fade-in min-w-0 w-full">
+              {/* 航廈與託運行李 */}
+              <div className="grid grid-cols-2 gap-2.5 min-w-0">
                 <div className="min-w-0">
                   <label className="block text-xs font-bold text-slate-300 mb-1">航廈</label>
                   <input
@@ -497,13 +475,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                     value={terminal}
                     onChange={(e) => setTerminal(e.target.value)}
                     placeholder="例：T2"
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-center focus:outline-none focus:border-amber-400 min-h-[38px]"
+                    className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-center focus:outline-none focus:border-amber-400 min-h-[38px]"
                   />
                 </div>
-              </div>
 
-              {/* 行李額度 (徹底去除「每人」贅字) */}
-              <div className="grid grid-cols-2 gap-2.5">
                 <div className="min-w-0">
                   <label className="block text-xs font-bold text-slate-300 mb-1">託運行李</label>
                   <input
@@ -511,7 +486,7 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                     value={checkedBaggage}
                     onChange={(e) => setCheckedBaggage(e.target.value)}
                     placeholder="例：2件 (23kg)"
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 min-h-[38px] mb-1"
+                    className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 min-h-[38px] mb-1"
                   />
                   <div className="flex items-center gap-1 flex-wrap">
                     {COMMON_CHECKED_BAGGAGE.map((b) => (
@@ -526,33 +501,10 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                     ))}
                   </div>
                 </div>
-
-                <div className="min-w-0">
-                  <label className="block text-xs font-bold text-slate-300 mb-1">手提行李</label>
-                  <input
-                    type="text"
-                    value={carryOnBaggage}
-                    onChange={(e) => setCarryOnBaggage(e.target.value)}
-                    placeholder="例：7kg"
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 min-h-[38px] mb-1"
-                  />
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {COMMON_CARRY_ON.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setCarryOnBaggage(c)}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 cursor-pointer"
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* 報到狀態 */}
-              <div>
+              <div className="min-w-0 w-full">
                 <label className="block text-xs font-bold text-slate-300 mb-1">報到狀態</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
@@ -576,29 +528,41 @@ export const FlightModal: React.FC<FlightModalProps> = ({
                 </div>
               </div>
 
-              {/* 備註 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">備註</label>
-                <textarea
-                  rows={2}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="特殊餐點、航站接駁等..."
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none"
-                />
-              </div>
-
-              {/* 搭乘完成勾選框 */}
-              <div className="flex items-center space-x-2 pt-0.5">
-                <label className="inline-flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isCompleted}
-                    onChange={(e) => setIsCompleted(e.target.checked)}
-                    className="w-4 h-4 rounded text-amber-400 bg-slate-800 border-slate-700 focus:ring-amber-400 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-300">此班機已搭乘完畢</span>
-                </label>
+              {/* 備註（預設隱藏，點擊按鈕或已有內容時展開） */}
+              <div className="pt-0.5">
+                {showNote ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-300">備註</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNote('');
+                          setShowNote(false);
+                        }}
+                        className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                      >
+                        清除
+                      </button>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="特殊餐點、航站接駁等..."
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none text-xs"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowNote(true)}
+                    className="text-xs text-slate-400 hover:text-amber-300 flex items-center space-x-1 py-1 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>新增備註</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
