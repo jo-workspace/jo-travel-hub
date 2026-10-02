@@ -227,45 +227,35 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto pb-20">
-      {/* 1. 頂部緊湊統計 & 快捷工具列 */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto py-1">
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200">
+      {/* 1. 頂部緊湊統計列 */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-2xs">
+        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto py-1 no-scrollbar">
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200 flex-shrink-0">
             <BedDouble className="w-4 h-4 text-slate-700" />
             <span className="text-xs text-slate-500">進行中</span>
             <span className="font-bold text-slate-900 text-xs sm:text-sm">{stats.activeCount}</span>
           </div>
 
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200 flex-shrink-0">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
             <span className="text-xs text-amber-800">抉擇中</span>
             <span className="font-bold text-amber-700 text-xs sm:text-sm">{stats.candidateCount}</span>
           </div>
 
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200">
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200 flex-shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span className="text-xs text-emerald-800">已確定</span>
             <span className="font-bold text-emerald-700 text-xs sm:text-sm">{stats.confirmedCount}</span>
           </div>
 
           {stats.pendingCancelCount > 0 && (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-50 rounded-xl border border-rose-200 animate-pulse">
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-50 rounded-xl border border-rose-200 animate-pulse flex-shrink-0">
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               <span className="text-xs text-rose-800 font-bold">待退訂</span>
               <span className="font-bold text-rose-600 text-xs sm:text-sm">{stats.pendingCancelCount}</span>
             </div>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => onOpenModal(null)}
-          className="p-2 sm:px-3 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all duration-150 cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
-          title="新增預訂"
-          aria-label="新增預訂"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-        </button>
       </div>
 
       {/* 2. 免費取消警示橫幅（若有即將到期者） */}
@@ -504,15 +494,15 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
                         {/* Card Bottom: 精煉操作工具列 */}
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
-                          {/* 外部連結與訂單號 */}
-                          <div className="flex items-center space-x-1">
+                          {/* 外部連結與訂單號（僅「已確定」才顯示訂單號，抉擇中專注比價） */}
+                          <div className="flex items-center space-x-1 flex-shrink-0">
                             {item.bookingUrl && (
                               <a
                                 href={item.bookingUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex-shrink-0"
                                 title={`前往 ${item.platform || '平台'} 查看訂單`}
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -524,17 +514,17 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 target="_blank"
                                 rel="noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex-shrink-0"
                                 title="在 Google Maps 查看評價與地圖"
                               >
                                 <MapPin className="w-3.5 h-3.5" />
                               </a>
                             )}
-                            {item.bookingRef && (
+                            {isConfirmed && item.bookingRef && (
                               <button
                                 type="button"
                                 onClick={(e) => handleCopyRef(item.bookingRef!, item.id, e)}
-                                className={`px-2 py-1 rounded-lg text-[11px] font-mono transition-colors flex items-center space-x-1 cursor-pointer ${
+                                className={`px-2 py-1 rounded-lg text-[11px] font-mono transition-colors flex items-center space-x-1 cursor-pointer whitespace-nowrap flex-shrink-0 ${
                                   copiedId === item.id
                                     ? 'bg-emerald-100 text-emerald-800 font-bold'
                                     : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
@@ -548,12 +538,12 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                           </div>
 
                           {/* 狀態切換 */}
-                          <div className="flex items-center space-x-1.5">
+                          <div className="flex items-center space-x-1.5 flex-shrink-0">
                             {isConfirmed && (
                               <button
                                 type="button"
                                 onClick={(e) => handleUndoConfirmation(item, e)}
-                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-slate-300 shadow-2xs active:scale-95"
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-slate-300 shadow-2xs active:scale-95 whitespace-nowrap flex-shrink-0"
                                 title="取消確定（恢復為抉擇中，同梯退訂房型亦將一併恢復）"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
@@ -566,7 +556,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 <button
                                   type="button"
                                   onClick={(e) => handleConfirmAccommodation(item, e)}
-                                  className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-200 shadow-2xs active:scale-95"
+                                  className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-200 shadow-2xs active:scale-95 whitespace-nowrap flex-shrink-0"
                                   title="確定此房型（同梯候補將自動轉為待退訂）"
                                 >
                                   <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -578,7 +568,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                     e.stopPropagation();
                                     onStatusChange(item.id, 'pending_cancel');
                                   }}
-                                  className="px-2 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg text-xs transition-colors cursor-pointer border border-slate-200"
+                                  className="px-2.5 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-lg text-xs transition-colors cursor-pointer border border-slate-200 whitespace-nowrap flex-shrink-0 flex items-center space-x-1"
                                   title="捨棄此房型（轉入待退訂）"
                                 >
                                   <X className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -595,7 +585,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                     e.stopPropagation();
                                     onStatusChange(item.id, 'cancelled');
                                   }}
-                                  className="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-rose-300 active:scale-95"
+                                  className="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-rose-300 active:scale-95 whitespace-nowrap flex-shrink-0"
                                   title="確認已在平台完成退訂（移入已退訂歸檔）"
                                 >
                                   <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -607,7 +597,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                     e.stopPropagation();
                                     onStatusChange(item.id, 'candidate');
                                   }}
-                                  className="p-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex items-center cursor-pointer border border-slate-200"
+                                  className="p-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex items-center cursor-pointer border border-slate-200 whitespace-nowrap flex-shrink-0"
                                   title="恢復為抉擇中"
                                 >
                                   <RotateCcw className="w-3.5 h-3.5" />
@@ -622,7 +612,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                   e.stopPropagation();
                                   onStatusChange(item.id, 'candidate');
                                 }}
-                                className="px-2 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200"
+                                className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200 whitespace-nowrap flex-shrink-0"
                                 title="重新恢復為抉擇中"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
@@ -640,6 +630,17 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
           })}
         </div>
       )}
+
+      {/* 5. 右下角固定懸浮「＋」按鈕 (FAB) */}
+      <button
+        type="button"
+        onClick={() => onOpenModal(null)}
+        className="fixed bottom-20 md:bottom-8 right-5 sm:right-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-xl hover:shadow-2xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 hover:scale-105 border border-slate-700/50"
+        title="新增預訂"
+        aria-label="新增預訂"
+      >
+        <Plus className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+      </button>
     </div>
   );
 };
