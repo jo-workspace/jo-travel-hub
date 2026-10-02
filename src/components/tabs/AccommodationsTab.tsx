@@ -227,38 +227,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto pb-20">
-      {/* 1. 頂部緊湊統計列 */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-2xs">
-        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto py-1 no-scrollbar">
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200 flex-shrink-0">
-            <BedDouble className="w-4 h-4 text-slate-700" />
-            <span className="text-xs text-slate-500">進行中</span>
-            <span className="font-bold text-slate-900 text-xs sm:text-sm">{stats.activeCount}</span>
-          </div>
-
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200 flex-shrink-0">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-xs text-amber-800">抉擇中</span>
-            <span className="font-bold text-amber-700 text-xs sm:text-sm">{stats.candidateCount}</span>
-          </div>
-
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200 flex-shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs text-emerald-800">已確定</span>
-            <span className="font-bold text-emerald-700 text-xs sm:text-sm">{stats.confirmedCount}</span>
-          </div>
-
-          {stats.pendingCancelCount > 0 && (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-50 rounded-xl border border-rose-200 animate-pulse flex-shrink-0">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-              <span className="text-xs text-rose-800 font-bold">待退訂</span>
-              <span className="font-bold text-rose-600 text-xs sm:text-sm">{stats.pendingCancelCount}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 2. 免費取消警示橫幅（若有即將到期者） */}
+      {/* 1. 免費取消警示橫幅（若有即將到期者） */}
       {stats.urgentItems.length > 0 && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 sm:p-4 text-slate-800 shadow-2xs">
           <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs sm:text-sm mb-1.5">
@@ -292,11 +261,11 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
         </div>
       )}
 
-      {/* 3. 狀態切換膠囊 */}
+      {/* 2. 狀態切換膠囊（數字一體化） */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
         <div className="flex items-center space-x-1.5">
           {[
-            { id: 'active', label: '進行中' },
+            { id: 'active', label: `進行中${stats.activeCount > 0 ? ` (${stats.activeCount})` : ''}` },
             { id: 'candidate', label: `抉擇中${stats.candidateCount > 0 ? ` (${stats.candidateCount})` : ''}` },
             { id: 'confirmed', label: `已確定${stats.confirmedCount > 0 ? ` (${stats.confirmedCount})` : ''}` },
             { id: 'pending_cancel', label: `待退訂${stats.pendingCancelCount > 0 ? ` (${stats.pendingCancelCount})` : ''}` },
