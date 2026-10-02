@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { PackingItem, ItineraryItem, ClimateGuide } from '@/types/trip';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { PackingItem, ItineraryItem, ClimateGuide, FlightItem, AccommodationItem } from '@/types/trip';
 import { Plus, Edit3, Copy, Download, CornerDownLeft, CloudSun, Trash2, CheckSquare, Square } from 'lucide-react';
-import { fetchWeatherForCity, getCityForDay, CityWeatherData } from '@/lib/weather';
+import { fetchWeatherForCity, getCityForDay, CityWeatherData, resolveDestinationCities } from '@/lib/weather';
 import { WeatherGuideModal, DayWeatherGuideItem } from '@/components/modals/WeatherGuideModal';
 
 interface PackingTabProps {
@@ -17,6 +17,8 @@ interface PackingTabProps {
   climateGuide?: ClimateGuide;
   onSaveClimateGuide?: (guide: ClimateGuide) => Promise<void>;
   itinerary?: ItineraryItem[];
+  flights?: FlightItem[];
+  accommodations?: AccommodationItem[];
   onTogglePacking: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
   onOpenImportModal?: () => void;
@@ -43,6 +45,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   climateGuide,
   onSaveClimateGuide,
   itinerary = [],
+  flights = [],
+  accommodations = [],
   onTogglePacking,
   onOpenModal,
   onOpenImportModal,
@@ -67,6 +71,20 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
+  // 目的地城市自動解析（排除出發港/轉機點）
+  const destinationCities = useMemo(() => {
+    return resolveDestinationCities({
+      tripTitle,
+      citySchedule,
+      flights,
+      accommodations,
+      itinerary,
+    });
+  }, [tripTitle, citySchedule, flights, accommodations, itinerary]);
+
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const effectiveSelectedCity = selectedCity || destinationCities[0] || '';
+
   // 遠期歷史氣候指南狀態 (AI 單次生成快取)
   const [currentClimateGuide, setCurrentClimateGuide] = useState<ClimateGuide | undefined>(climateGuide);
   const [isGeneratingClimate, setIsGeneratingClimate] = useState<boolean>(false);
@@ -76,11 +94,16 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   }, [climateGuide]);
 
   // 單次產生歷史氣候與穿搭指南
-  const handleGenerateClimateGuide = async () => {
+  const handleGenerateClimateGuide = async (cityOverride?: string) => {
     setIsGeneratingClimate(true);
     try {
-      const primaryCity = getCityForDay('Day 1', citySchedule, '主要城市') || tripTitle || '主要城市';
-      const cleanCity = primaryCity.replace(/[0-9\-_]/g, '').trim();
+      const targetCityName =
+        cityOverride ||
+        effectiveSelectedCity ||
+        getCityForDay('Day 1', citySchedule, '主要城市') ||
+        tripTitle ||
+        '主要城市';
+      const cleanCity = targetCityName.replace(/[0-9\-_]/g, '').trim();
 
       let targetMonth = '';
       if (startDate) {
@@ -102,9 +125,13 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
       const resData = await res.json();
       if (resData.success && resData.data) {
-        setCurrentClimateGuide(resData.data);
+        const updatedGuide: ClimateGuide = {
+          ...resData.data,
+          city: cleanCity,
+        };
+        setCurrentClimateGuide(updatedGuide);
         if (onSaveClimateGuide) {
-          await onSaveClimateGuide(resData.data);
+          await onSaveClimateGuide(updatedGuide);
         }
       } else {
         alert(resData.error || '無法取得氣候資料');
@@ -1101,7 +1128,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
         overallAdvice={overallAdvice}
         climateGuide={currentClimateGuide}
         isLongRange={!hasAnyWeather}
-        cityName={getCityForDay('Day 1', citySchedule, '') || tripTitle || ''}
+        cityName={effectiveSelectedCity || getCityForDay('Day 1', citySchedule, '') || tripTitle || ''}
+        destinationCities={destinationCities}
+        selectedCity={effectiveSelectedCity}
+        onSelectCity={setSelectedCity}
         travelDates={tripDates || startDate || ''}
         onGenerateClimateGuide={handleGenerateClimateGuide}
         isGeneratingClimate={isGeneratingClimate}

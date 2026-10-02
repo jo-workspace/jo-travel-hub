@@ -1062,6 +1062,8 @@ export default function TripPage({ params }: PageProps) {
                   climateGuide={tripData.climateGuide}
                   onSaveClimateGuide={handleSaveClimateGuide}
                   itinerary={tripData.itinerary}
+                  flights={tripData.flights}
+                  accommodations={tripData.accommodations}
                   onTogglePacking={handleTogglePacking}
                   onDeletePacking={handleDeletePacking}
                   onBatchDeletePacking={handleBatchDeletePacking}

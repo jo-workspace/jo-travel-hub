@@ -91,6 +91,7 @@ export interface AllTripData {
 }
 
 export interface ClimateGuide {
+  city?: string;        // 目的地城市名稱
   tempMin: number;      // 歷史平均最低溫 (°C)
   tempMax: number;      // 歷史平均最高溫 (°C)
   headline: string;     // 極簡氣候特徵（例：涼爽乾燥 · 溫差大）

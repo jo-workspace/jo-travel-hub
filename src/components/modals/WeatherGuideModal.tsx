@@ -29,8 +29,11 @@ interface WeatherGuideModalProps {
   climateGuide?: ClimateGuide;
   isLongRange?: boolean;
   cityName?: string;
+  destinationCities?: string[];
+  selectedCity?: string;
+  onSelectCity?: (city: string) => void;
   travelDates?: string;
-  onGenerateClimateGuide?: () => Promise<void>;
+  onGenerateClimateGuide?: (cityOverride?: string) => Promise<void>;
   isGeneratingClimate?: boolean;
 }
 
@@ -45,11 +48,17 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
   climateGuide,
   isLongRange = false,
   cityName = '',
+  destinationCities = [],
+  selectedCity = '',
+  onSelectCity,
   travelDates = '',
   onGenerateClimateGuide,
   isGeneratingClimate = false,
 }) => {
-  if (!isOpen) return null;
+  const targetCity = selectedCity || cityName || destinationCities[0] || '';
+  const hasMatchingGuide = Boolean(
+    climateGuide && (!climateGuide.city || !targetCity || climateGuide.city === targetCity)
+  );
 
   return (
     <div
@@ -82,7 +91,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-medium mt-0.5">
-                {cityName ? `${cityName} · ` : ''}
+                {targetCity ? `${targetCity} · ` : ''}
                 {travelDates ? `${travelDates} · ` : ''}打包與穿搭指南
               </p>
             </div>
@@ -95,10 +104,34 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
           </button>
         </div>
 
+        {/* 目的地城市切換膠囊（支援郵輪靠港或多城切換） */}
+        {destinationCities && destinationCities.length > 1 && (
+          <div className="flex items-center space-x-1.5 overflow-x-auto py-1 no-scrollbar flex-shrink-0">
+            {destinationCities.map((city) => {
+              const isSelected = targetCity === city;
+              return (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => onSelectCity?.(city)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1 ${
+                    isSelected
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span>{city}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* 內容區塊：依據天數切換長程歷史氣候或近程逐日預報 */}
         {isLongRange ? (
           <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 py-1">
-            {climateGuide ? (
+            {hasMatchingGuide && climateGuide ? (
               <div className="space-y-4">
                 {/* 氣候重點卡片 */}
                 <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-3xl shadow-sm border border-slate-700/60 space-y-3">
@@ -106,7 +139,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
                     <div>
                       <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center space-x-1 mb-1">
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>同期歷史氣溫</span>
+                        <span>{targetCity ? `${targetCity} · ` : ''}同期歷史氣溫</span>
                       </div>
                       <div className="text-3xl font-mono font-black text-white tracking-tight">
                         {climateGuide.tempMin}°C ~ {climateGuide.tempMax}°C
@@ -116,7 +149,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
                     {onGenerateClimateGuide && (
                       <button
                         type="button"
-                        onClick={onGenerateClimateGuide}
+                        onClick={() => onGenerateClimateGuide(targetCity)}
                         disabled={isGeneratingClimate}
                         className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/60 rounded-xl transition-all cursor-pointer disabled:opacity-50"
                         title="重新產生指南"
@@ -161,13 +194,13 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
                     出發前 14 天開放即時預報
                   </h4>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    現在可先由 Gemini AI 查詢目的地同期的歷史氣候與穿搭建議，方便提早準備行李。
+                    現在可先由 Gemini AI 查詢{targetCity ? `「${targetCity}」` : '目的地'}同期的歷史氣候與穿搭建議，方便提早準備行李。
                   </p>
                 </div>
                 {onGenerateClimateGuide && (
                   <button
                     type="button"
-                    onClick={onGenerateClimateGuide}
+                    onClick={() => onGenerateClimateGuide(targetCity)}
                     disabled={isGeneratingClimate}
                     className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer inline-flex items-center space-x-1.5 disabled:opacity-50"
                   >
@@ -179,7 +212,7 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 text-amber-400" />
-                        <span>產生歷史氣候與穿搭指南</span>
+                        <span>產生{targetCity ? `「${targetCity}」` : ''}歷史氣候與穿搭指南</span>
                       </>
                     )}
                   </button>

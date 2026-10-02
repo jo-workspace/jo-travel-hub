@@ -325,6 +325,94 @@ export function getUniqueCities(scheduleStr?: string): string[] {
   return Array.from(set);
 }
 
+/** 常見出發口岸與轉運站清單（當有其他目的地城市時自動排除） */
+export const DEPARTURE_HUBS = [
+  '基隆', '基隆港', '基隆市', '台北', '臺北', '台北車站', '桃園', '桃園機場', '松山機場',
+  '高雄港', '台中港', '小港機場', '出發', '出發地', '機場'
+];
+
+/**
+ * 智慧解析旅程的主要目的地城市清單（排除出發口岸）
+ */
+export function resolveDestinationCities(context: {
+  tripTitle?: string;
+  citySchedule?: string;
+  flights?: any[];
+  accommodations?: any[];
+  itinerary?: any[];
+  isTaiwanTrip?: boolean;
+}): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  const addCity = (c?: string) => {
+    if (!c) return;
+    const clean = c.trim().replace(/[0-9\-_]/g, '').trim();
+    if (!clean) return;
+    if (!seen.has(clean)) {
+      seen.add(clean);
+      result.push(clean);
+    }
+  };
+
+  // 1. 去程班機抵達地 (Outbound flight arrivalCity)
+  const outbound = context.flights?.find((f: any) => f.type === 'outbound');
+  if (outbound?.arrivalCity) {
+    addCity(outbound.arrivalCity);
+  }
+
+  // 2. 住宿城市 (Accommodation cityArea)
+  context.accommodations?.forEach((acc: any) => {
+    if (acc.cityArea) addCity(acc.cityArea);
+  });
+
+  // 3. 城市排程 (City schedule)
+  if (context.citySchedule) {
+    const schedCities = getUniqueCities(context.citySchedule);
+    schedCities.forEach(addCity);
+  }
+
+  // 4. 旅程標題中的主要知名目的地 (從標題提取)
+  const POPULAR_DESTINATIONS = [
+    '沖繩', '那霸', '名護', '石垣島', '石垣', '宮古島', '東京', '大阪', '京都', '福岡', '北海道', '札幌',
+    '名古屋', '廣島', '仙台', '曼谷', '首爾', '釜山', '濟州', '新加坡', '吉隆坡', '倫敦', '巴黎', '羅馬',
+    '洛杉磯', '紐約', '舊金山', '拉斯維加斯', '聖地牙哥', '夏威夷', '關島', '台南', '花蓮', '台東', '墾丁',
+    '宜蘭', '南投', '嘉義', '澎湖', '金門', '馬祖'
+  ];
+
+  if (context.tripTitle) {
+    for (const dest of POPULAR_DESTINATIONS) {
+      if (context.tripTitle.includes(dest)) {
+        addCity(dest);
+      }
+    }
+  }
+
+  // 5. 行程中非交通景點
+  if (context.itinerary && context.itinerary.length > 0) {
+    context.itinerary.forEach((item: any) => {
+      const isDay1 = (item.day || '').includes('1');
+      const isTransport = (item.category || item.type || '').includes('交通');
+      if (!isTransport || !isDay1) {
+        for (const dest of POPULAR_DESTINATIONS) {
+          if ((item.title || '').includes(dest) || (item.content || '').includes(dest)) {
+            addCity(dest);
+          }
+        }
+      }
+    });
+  }
+
+  // 6. 智慧過濾出發口岸：如果清單內有「非出發口岸」的城市，則將出發口岸（基隆、桃園機場等）剔除！
+  const nonHubs = result.filter((c) => !DEPARTURE_HUBS.some((hub) => c.includes(hub) || hub.includes(c)));
+  if (nonHubs.length > 0) {
+    return nonHubs;
+  }
+
+  // 若全部都是出發口岸或為空，回傳原始結果或預設
+  return result.length > 0 ? result : [context.tripTitle ? context.tripTitle.slice(0, 6) : '主要城市'];
+}
+
 /**
  * 將中央氣象署 (CWA) 的中文天氣現象字串轉換為相容的 WMO Code
  */
