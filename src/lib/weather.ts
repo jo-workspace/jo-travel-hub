@@ -414,6 +414,21 @@ export function resolveDestinationCities(context: {
 }
 
 /**
+ * 智慧解析旅程的主要單一目的地城市（排除出發口岸）
+ */
+export function resolvePrimaryDestination(context: {
+  tripTitle?: string;
+  citySchedule?: string;
+  flights?: any[];
+  accommodations?: any[];
+  itinerary?: any[];
+  isTaiwanTrip?: boolean;
+}): string {
+  const cities = resolveDestinationCities(context);
+  return cities[0] || (context.tripTitle ? context.tripTitle.slice(0, 6) : '主要城市');
+}
+
+/**
  * 將中央氣象署 (CWA) 的中文天氣現象字串轉換為相容的 WMO Code
  */
 export function cwaWeatherDescToCode(desc: string): number {

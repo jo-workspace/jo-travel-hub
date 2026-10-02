@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { PackingItem, ItineraryItem, ClimateGuide, FlightItem, AccommodationItem } from '@/types/trip';
 import { Plus, Edit3, Copy, Download, CornerDownLeft, CloudSun, Trash2, CheckSquare, Square } from 'lucide-react';
-import { fetchWeatherForCity, getCityForDay, CityWeatherData, resolveDestinationCities } from '@/lib/weather';
+import { fetchWeatherForCity, getCityForDay, CityWeatherData, resolvePrimaryDestination } from '@/lib/weather';
 import { WeatherGuideModal, DayWeatherGuideItem } from '@/components/modals/WeatherGuideModal';
 
 interface PackingTabProps {
@@ -71,9 +71,9 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
-  // 目的地城市自動解析（排除出發港/轉機點）
-  const destinationCities = useMemo(() => {
-    return resolveDestinationCities({
+  // 主要目的地城市自動解析（自動排除基隆港、桃園機場等出發口岸）
+  const primaryDestination = useMemo(() => {
+    return resolvePrimaryDestination({
       tripTitle,
       citySchedule,
       flights,
@@ -81,9 +81,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       itinerary,
     });
   }, [tripTitle, citySchedule, flights, accommodations, itinerary]);
-
-  const [selectedCity, setSelectedCity] = useState<string>('');
-  const effectiveSelectedCity = selectedCity || destinationCities[0] || '';
 
   // 遠期歷史氣候指南狀態 (AI 單次生成快取)
   const [currentClimateGuide, setCurrentClimateGuide] = useState<ClimateGuide | undefined>(climateGuide);
@@ -94,16 +91,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   }, [climateGuide]);
 
   // 單次產生歷史氣候與穿搭指南
-  const handleGenerateClimateGuide = async (cityOverride?: string) => {
+  const handleGenerateClimateGuide = async () => {
     setIsGeneratingClimate(true);
     try {
-      const targetCityName =
-        cityOverride ||
-        effectiveSelectedCity ||
-        getCityForDay('Day 1', citySchedule, '主要城市') ||
-        tripTitle ||
-        '主要城市';
-      const cleanCity = targetCityName.replace(/[0-9\-_]/g, '').trim();
+      const cleanCity = primaryDestination.replace(/[0-9\-_]/g, '').trim() || '主要城市';
 
       let targetMonth = '';
       if (startDate) {
@@ -164,7 +155,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     const loadGuides = async () => {
       const citySet = new Set<string>();
       days.forEach((d) => {
-        const city = getCityForDay(d, citySchedule);
+        const city = getCityForDay(d, citySchedule) || primaryDestination;
         if (city) citySet.add(city);
       });
 
@@ -180,7 +171,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
       let validWeatherCount = 0;
 
       days.forEach((dayLabel) => {
-        const cityName = getCityForDay(dayLabel, citySchedule, '主要城市');
+        const cityName = getCityForDay(dayLabel, citySchedule, primaryDestination);
         const cWeather = weatherCache[cityName.toLowerCase()];
 
         let dateDisplay = '';
@@ -276,7 +267,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     };
 
     loadGuides();
-  }, [itinerary, citySchedule, startDate]);
+  }, [itinerary, citySchedule, startDate, primaryDestination]);
 
   // Listen to window scroll to collapse header into single horizontal scroll row
   useEffect(() => {
@@ -1128,10 +1119,7 @@ export const PackingTab: React.FC<PackingTabProps> = ({
         overallAdvice={overallAdvice}
         climateGuide={currentClimateGuide}
         isLongRange={!hasAnyWeather}
-        cityName={effectiveSelectedCity || getCityForDay('Day 1', citySchedule, '') || tripTitle || ''}
-        destinationCities={destinationCities}
-        selectedCity={effectiveSelectedCity}
-        onSelectCity={setSelectedCity}
+        cityName={primaryDestination}
         travelDates={tripDates || startDate || ''}
         onGenerateClimateGuide={handleGenerateClimateGuide}
         isGeneratingClimate={isGeneratingClimate}
