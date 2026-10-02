@@ -1109,21 +1109,23 @@ export const PackingTab: React.FC<PackingTabProps> = ({
         )}
       </div>
 
-      <WeatherGuideModal
-        isOpen={weatherGuideOpen}
-        onClose={() => setWeatherGuideOpen(false)}
-        tripTitle={tripTitle}
-        items={dailyGuideItems}
-        overallMin={overallMin}
-        overallMax={overallMax}
-        overallAdvice={overallAdvice}
-        climateGuide={currentClimateGuide}
-        isLongRange={!hasAnyWeather}
-        cityName={primaryDestination}
-        travelDates={tripDates || startDate || ''}
-        onGenerateClimateGuide={handleGenerateClimateGuide}
-        isGeneratingClimate={isGeneratingClimate}
-      />
+      {weatherGuideOpen && (
+        <WeatherGuideModal
+          isOpen={weatherGuideOpen}
+          onClose={() => setWeatherGuideOpen(false)}
+          tripTitle={tripTitle}
+          items={dailyGuideItems}
+          overallMin={overallMin}
+          overallMax={overallMax}
+          overallAdvice={overallAdvice}
+          climateGuide={currentClimateGuide}
+          isLongRange={!hasAnyWeather}
+          cityName={primaryDestination}
+          travelDates={tripDates || startDate || ''}
+          onGenerateClimateGuide={handleGenerateClimateGuide}
+          isGeneratingClimate={isGeneratingClimate}
+        />
+      )}
     </div>
   );
 };
