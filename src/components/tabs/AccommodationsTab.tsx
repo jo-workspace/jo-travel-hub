@@ -10,7 +10,6 @@ import {
   Clock,
   ExternalLink,
   MapPin,
-  Pencil,
   Plus,
   Trash2,
   AlertTriangle,
@@ -54,9 +53,15 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   onOpenModal,
   showToast = (msg: string) => alert(msg),
 }) => {
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  // 分頁狀態：'active' (進行中), 'candidate' (抉擇中), 'confirmed' (已確定), 'pending_cancel' (待退訂), 'cancelled' (已退訂)
+  const [filterStatus, setFilterStatus] = useState<string>('active');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [showCancelled, setShowCancelled] = useState<boolean>(false);
+
+  // 記錄最近一次保留連動資料，供一鍵「取消確定」復原使用 { winnerId: string, rivalIds: string[] }
+  const [lastConfirmedRecord, setLastConfirmedRecord] = useState<{
+    winnerId: string;
+    rivalIds: string[];
+  } | null>(null);
 
   // 計算取消倒數資訊
   const getDeadlineStatus = (deadlineStr?: string) => {
@@ -84,7 +89,8 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   };
 
   // 複製訂單號
-  const handleCopyRef = async (ref: string, id: string) => {
+  const handleCopyRef = async (ref: string, id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(ref);
       setCopiedId(id);
@@ -95,8 +101,9 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
     }
   };
 
-  // 一鍵確認保留，並詢問是否將同區間其他候補轉為待退訂
-  const handleConfirmKeep = async (item: AccommodationItem) => {
+  // 一鍵確定房型：自動將同梯候補轉為「待退訂」，並儲存還原點
+  const handleConfirmAccommodation = async (item: AccommodationItem, e: React.MouseEvent) => {
+    e.stopPropagation();
     await onStatusChange(item.id, 'confirmed');
 
     // 尋找同入住日期的其他 candidate
@@ -108,16 +115,36 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
         Boolean(item.checkInDate)
     );
 
+    const rivalIds: string[] = [];
     if (rivals.length > 0) {
-      const rivalNames = rivals.map((r) => r.name).join('、');
-      if (confirm(`已保留「${item.name}」！\n是否一併將同期的候補房型（${rivalNames}）標記為「待去平台退訂」？`)) {
-        for (const rival of rivals) {
-          await onStatusChange(rival.id, 'pending_cancel');
-        }
-        showToast('已更新狀態，別忘了去平台取消訂單喔！');
+      for (const rival of rivals) {
+        await onStatusChange(rival.id, 'pending_cancel');
+        rivalIds.push(rival.id);
       }
+      showToast(`已確定「${item.name}」！其餘 ${rivals.length} 間候補已自動轉為待退訂`);
     } else {
-      showToast(`已將「${item.name}」設為保留`);
+      showToast(`已將「${item.name}」設為已確定`);
+    }
+
+    setLastConfirmedRecord({
+      winnerId: item.id,
+      rivalIds,
+    });
+  };
+
+  // 取消確定（誤觸還原機制）：將自身與同梯被轉待退訂的房型全部恢復為 candidate
+  const handleUndoConfirmation = async (item: AccommodationItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await onStatusChange(item.id, 'candidate');
+
+    if (lastConfirmedRecord && lastConfirmedRecord.winnerId === item.id) {
+      for (const rId of lastConfirmedRecord.rivalIds) {
+        await onStatusChange(rId, 'candidate');
+      }
+      setLastConfirmedRecord(null);
+      showToast(`已取消確定「${item.name}」，同梯房型已恢復為抉擇中`);
+    } else {
+      showToast(`已將「${item.name}」恢復為抉擇中`);
     }
   };
 
@@ -127,6 +154,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
     const confirmedCount = accommodations.filter((a) => a.status === 'confirmed').length;
     const pendingCancelCount = accommodations.filter((a) => a.status === 'pending_cancel').length;
     const cancelledCount = accommodations.filter((a) => a.status === 'cancelled').length;
+    const activeCount = candidateCount + confirmedCount + pendingCancelCount;
 
     // 即將在 3 天內截止的未退訂房型（排除已退訂）
     const urgentItems = accommodations.filter((a) => {
@@ -137,6 +165,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
     return {
       total: accommodations.length,
+      activeCount,
       candidateCount,
       confirmedCount,
       pendingCancelCount,
@@ -148,11 +177,11 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   // 分組邏輯：依「入住日期區間」分組呈現 PK
   const groupedAccommodations = useMemo(() => {
     let filtered = accommodations;
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter((a) => a.status === filterStatus);
-    } else if (!showCancelled) {
-      // 預設全部檢視隱藏已退訂
+    if (filterStatus === 'active') {
+      // 進行中：排除已退訂
       filtered = filtered.filter((a) => a.status !== 'cancelled');
+    } else {
+      filtered = filtered.filter((a) => a.status === filterStatus);
     }
 
     // 分組鍵：`checkInDate ~ checkOutDate` 或 `未定日期`
@@ -194,17 +223,17 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
       if (bKey === 'undated') return -1;
       return aKey.localeCompare(bKey);
     });
-  }, [accommodations, filterStatus, showCancelled]);
+  }, [accommodations, filterStatus]);
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto pb-20">
       {/* 1. 頂部緊湊統計 & 快捷工具列 */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto py-1">
+        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto py-1">
           <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200">
             <BedDouble className="w-4 h-4 text-slate-700" />
-            <span className="text-xs text-slate-500">總預訂</span>
-            <span className="font-bold text-slate-900 text-xs sm:text-sm">{stats.total}</span>
+            <span className="text-xs text-slate-500">進行中</span>
+            <span className="font-bold text-slate-900 text-xs sm:text-sm">{stats.activeCount}</span>
           </div>
 
           <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200">
@@ -215,7 +244,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
 
           <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs text-emerald-800">已保留</span>
+            <span className="text-xs text-emerald-800">已確定</span>
             <span className="font-bold text-emerald-700 text-xs sm:text-sm">{stats.confirmedCount}</span>
           </div>
 
@@ -229,11 +258,13 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={() => onOpenModal(null)}
-          className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs sm:text-sm transition-all duration-150 cursor-pointer shadow-xs active:scale-95"
+          className="p-2 sm:px-3 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all duration-150 cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+          title="新增預訂"
+          aria-label="新增預訂"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
-          <span>新增預訂</span>
         </button>
       </div>
 
@@ -272,14 +303,14 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
       )}
 
       {/* 3. 狀態切換膠囊 */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-1">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
         <div className="flex items-center space-x-1.5">
           {[
-            { id: 'all', label: '全部' },
-            { id: 'candidate', label: '抉擇中' },
-            { id: 'confirmed', label: '已保留' },
-            { id: 'pending_cancel', label: '待退訂' },
-            { id: 'cancelled', label: '已退訂' },
+            { id: 'active', label: '進行中' },
+            { id: 'candidate', label: `抉擇中${stats.candidateCount > 0 ? ` (${stats.candidateCount})` : ''}` },
+            { id: 'confirmed', label: `已確定${stats.confirmedCount > 0 ? ` (${stats.confirmedCount})` : ''}` },
+            { id: 'pending_cancel', label: `待退訂${stats.pendingCancelCount > 0 ? ` (${stats.pendingCancelCount})` : ''}` },
+            { id: 'cancelled', label: `已退訂${stats.cancelledCount > 0 ? ` (${stats.cancelledCount})` : ''}` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -294,32 +325,29 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
             </button>
           ))}
         </div>
-
-        {filterStatus === 'all' && stats.cancelledCount > 0 && (
-          <button
-            onClick={() => setShowCancelled(!showCancelled)}
-            className="text-[11px] text-slate-500 hover:text-slate-800 px-2 py-1 rounded-lg hover:bg-slate-200 transition-colors flex items-center space-x-1 flex-shrink-0 cursor-pointer"
-          >
-            <span>{showCancelled ? '隱藏已退訂' : `顯示已退訂 (${stats.cancelledCount})`}</span>
-          </button>
-        )}
       </div>
 
       {/* 4. 房型 PK 與分組清單 */}
       {groupedAccommodations.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-12 text-center shadow-2xs">
           <Building2 className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-          <h4 className="text-slate-800 font-bold text-base mb-1">尚未建立住宿預訂</h4>
+          <h4 className="text-slate-800 font-bold text-base mb-1">
+            {filterStatus === 'cancelled' ? '目前沒有已退訂的房型紀錄' : '尚未建立住宿預訂'}
+          </h4>
           <p className="text-slate-500 text-xs max-w-sm mx-auto mb-5">
-            將您與旅伴在各平台預訂的免費取消房型記錄在此，隨時掌握截止倒數與同梯比價！
+            {filterStatus === 'cancelled'
+              ? '已在平台取消的歷史房型紀錄會封存在這裡供您核對查閱。'
+              : '將您與旅伴在各平台預訂的免費取消房型記錄在此，隨時掌握截止倒數與同梯比價！'}
           </p>
-          <button
-            onClick={() => onOpenModal(null)}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-xs inline-flex items-center space-x-1.5"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>新增第一間預訂</span>
-          </button>
+          {filterStatus !== 'cancelled' && (
+            <button
+              onClick={() => onOpenModal(null)}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-xs inline-flex items-center space-x-1.5"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>新增第一間預訂</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -373,14 +401,15 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                     return (
                       <div
                         key={item.id}
-                        className={`rounded-2xl p-4 transition-all duration-200 border relative flex flex-col justify-between ${
+                        onClick={() => onOpenModal(item)}
+                        className={`rounded-2xl p-4 transition-all duration-200 border relative flex flex-col justify-between cursor-pointer hover:border-slate-300 active:scale-[0.995] ${
                           isConfirmed
                             ? 'bg-emerald-50/40 border-emerald-300 shadow-xs'
                             : isPendingCancel
                             ? 'bg-rose-50/40 border-rose-300 shadow-xs'
                             : isCancelled
                             ? 'bg-slate-100/60 border-slate-200 opacity-60'
-                            : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-xs'
+                            : 'bg-white border-slate-200/90 shadow-xs'
                         }`}
                       >
                         {/* Card Body */}
@@ -391,7 +420,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                               {/* 狀態標籤（僅非 candidate 時提示，不喧賓奪主） */}
                               {isConfirmed && (
                                 <span className="inline-block text-[10px] px-2 py-0.5 rounded-md font-black bg-emerald-100 text-emerald-800 border border-emerald-300 mb-1">
-                                  ✓ 已保留
+                                  ✓ 已確定
                                 </span>
                               )}
                               {isPendingCancel && (
@@ -482,8 +511,9 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 href={item.bookingUrl}
                                 target="_blank"
                                 rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
                                 className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-                                title="開啟平台預訂頁面"
+                                title={`前往 ${item.platform || '平台'} 查看訂單`}
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </a>
@@ -493,8 +523,9 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 href={item.mapUrl}
                                 target="_blank"
                                 rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
                                 className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-                                title="開啟地圖導航"
+                                title="在 Google Maps 查看評價與地圖"
                               >
                                 <MapPin className="w-3.5 h-3.5" />
                               </a>
@@ -502,7 +533,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                             {item.bookingRef && (
                               <button
                                 type="button"
-                                onClick={() => handleCopyRef(item.bookingRef!, item.id)}
+                                onClick={(e) => handleCopyRef(item.bookingRef!, item.id, e)}
                                 className={`px-2 py-1 rounded-lg text-[11px] font-mono transition-colors flex items-center space-x-1 cursor-pointer ${
                                   copiedId === item.id
                                     ? 'bg-emerald-100 text-emerald-800 font-bold'
@@ -516,53 +547,88 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                             )}
                           </div>
 
-                          {/* 狀態切換與編輯 */}
+                          {/* 狀態切換 */}
                           <div className="flex items-center space-x-1.5">
-                            {!isConfirmed && (
+                            {isConfirmed && (
                               <button
                                 type="button"
-                                onClick={() => handleConfirmKeep(item)}
-                                className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-200 shadow-2xs active:scale-95"
-                                title="保留此房型"
-                              >
-                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                <span>保留</span>
-                              </button>
-                            )}
-
-                            {!isCancelled ? (
-                              <button
-                                type="button"
-                                onClick={() => onStatusChange(item.id, isPendingCancel ? 'cancelled' : 'pending_cancel')}
-                                className={`px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer flex items-center space-x-1 ${
-                                  isPendingCancel
-                                    ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold border border-rose-300'
-                                    : 'bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200'
-                                }`}
-                                title={isPendingCancel ? '確認已在平台完成退訂' : '捨棄此候補'}
-                              >
-                                <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                                <span>{isPendingCancel ? '已退訂' : '捨棄'}</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => onStatusChange(item.id, 'candidate')}
-                                className="p-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200"
-                                title="恢復為抉擇中"
+                                onClick={(e) => handleUndoConfirmation(item, e)}
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-slate-300 shadow-2xs active:scale-95"
+                                title="取消確定（恢復為抉擇中，同梯退訂房型亦將一併恢復）"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
+                                <span>取消確定</span>
                               </button>
                             )}
 
-                            <button
-                              type="button"
-                              onClick={() => onOpenModal(item)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="編輯"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
+                            {item.status === 'candidate' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleConfirmAccommodation(item, e)}
+                                  className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-200 shadow-2xs active:scale-95"
+                                  title="確定此房型（同梯候補將自動轉為待退訂）"
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>確定</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onStatusChange(item.id, 'pending_cancel');
+                                  }}
+                                  className="px-2 py-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg text-xs transition-colors cursor-pointer border border-slate-200"
+                                  title="捨棄此房型（轉入待退訂）"
+                                >
+                                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>捨棄</span>
+                                </button>
+                              </>
+                            )}
+
+                            {isPendingCancel && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onStatusChange(item.id, 'cancelled');
+                                  }}
+                                  className="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-rose-300 active:scale-95"
+                                  title="確認已在平台完成退訂（移入已退訂歸檔）"
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>已在平台退訂</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onStatusChange(item.id, 'candidate');
+                                  }}
+                                  className="p-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex items-center cursor-pointer border border-slate-200"
+                                  title="恢復為抉擇中"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+
+                            {isCancelled && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onStatusChange(item.id, 'candidate');
+                                }}
+                                className="px-2 py-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200"
+                                title="重新恢復為抉擇中"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span>恢復</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
