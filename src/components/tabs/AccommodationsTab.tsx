@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AccommodationItem, AccommodationStatus } from '@/types/trip';
+import { computeTwdAmount } from '@/components/tabs/ExpensesTab';
 import {
   Building2,
   Calendar,
@@ -68,16 +69,18 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
 
+    const formattedTime = deadlineStr.replace('T', ' ');
+
     if (diffMs < 0) {
-      return { status: 'expired', label: '已過期', color: 'text-rose-700 bg-rose-50 border-rose-200' };
+      return { status: 'expired', label: `已過免費取消期限 (${formattedTime})`, color: 'text-rose-700 bg-rose-50 border-rose-200' };
     }
     if (diffHours <= 24) {
-      return { status: 'critical', label: `即將截止 (${diffHours}小時後)`, color: 'text-rose-700 bg-rose-100 border-rose-300 animate-pulse' };
+      return { status: 'critical', label: `即將截止！剩 ${diffHours} 小時 (${formattedTime})`, color: 'text-rose-700 bg-rose-100 border-rose-300 animate-pulse font-bold' };
     }
     if (diffDays <= 3) {
-      return { status: 'warning', label: `剩餘 ${diffDays} 天截止`, color: 'text-amber-800 bg-amber-50 border-amber-300 font-bold' };
+      return { status: 'warning', label: `剩 ${diffDays} 天截止 (${formattedTime})`, color: 'text-amber-800 bg-amber-50 border-amber-300 font-bold' };
     }
-    return { status: 'safe', label: `截止: ${deadlineStr.replace('T', ' ')}`, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+    return { status: 'safe', label: `${formattedTime} 前可免費取消`, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
   };
 
   // 複製訂單號
@@ -340,8 +343,8 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                   </div>
 
                   {hasMultipleCandidates && (
-                    <span className="text-[11px] text-amber-700 font-bold flex items-center space-x-1">
-                      <span>🥊 {group.items.filter((i) => i.status === 'candidate').length} 間比價中</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 font-bold">
+                      {group.items.filter((i) => i.status === 'candidate').length} 間候選
                     </span>
                   )}
                 </div>
@@ -354,14 +357,17 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                     const isPendingCancel = item.status === 'pending_cancel';
                     const isCancelled = item.status === 'cancelled';
 
-                    // 估算台幣金額
+                    // 正確計算台幣金額（自動依據 JPY 等逆向匯率正確除算）
                     let twdEstimate: number | null = null;
                     if (item.price !== undefined && item.currency) {
-                      if (item.currency.toUpperCase() === 'TWD') {
-                        twdEstimate = item.price;
-                      } else if (fxRate > 0) {
-                        twdEstimate = Math.round(item.price * fxRate);
-                      }
+                      twdEstimate = Math.round(
+                        computeTwdAmount(
+                          item.price,
+                          item.currency,
+                          fxRate,
+                          foreignCurrency || item.currency
+                        )
+                      );
                     }
 
                     return (
@@ -369,116 +375,115 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                         key={item.id}
                         className={`rounded-2xl p-4 transition-all duration-200 border relative flex flex-col justify-between ${
                           isConfirmed
-                            ? 'bg-emerald-50/50 border-emerald-300 shadow-xs'
+                            ? 'bg-emerald-50/40 border-emerald-300 shadow-xs'
                             : isPendingCancel
-                            ? 'bg-rose-50/50 border-rose-300 shadow-xs'
+                            ? 'bg-rose-50/40 border-rose-300 shadow-xs'
                             : isCancelled
-                            ? 'bg-slate-100/70 border-slate-200 opacity-60'
+                            ? 'bg-slate-100/60 border-slate-200 opacity-60'
                             : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-xs'
                         }`}
                       >
-                        {/* Card Top: Tags & Status */}
+                        {/* Card Body */}
                         <div>
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                              {/* Platform Badge */}
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                                {item.platform || 'Agoda'}
-                              </span>
-
-                              {/* Booker Badge */}
-                              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-sky-50 text-sky-900 border border-sky-200 flex items-center space-x-1">
-                                <User className="w-2.5 h-2.5" />
-                                <span>{item.booker || 'Jo'}</span>
-                              </span>
-
-                              {/* Status Tag */}
+                          {/* Card Header: 飯店名稱 (第一焦點) ＋ 價格 */}
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="min-w-0 flex-1">
+                              {/* 狀態標籤（僅非 candidate 時提示，不喧賓奪主） */}
                               {isConfirmed && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <span className="inline-block text-[10px] px-2 py-0.5 rounded-md font-black bg-emerald-100 text-emerald-800 border border-emerald-300 mb-1">
                                   ✓ 已保留
                                 </span>
                               )}
                               {isPendingCancel && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                <span className="inline-block text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-100 text-rose-800 border border-rose-300 mb-1">
                                   ⚠️ 待去平台退訂
                                 </span>
                               )}
                               {isCancelled && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-slate-200 text-slate-600 border border-slate-300">
+                                <span className="inline-block text-[10px] px-2 py-0.5 rounded-md font-medium bg-slate-200 text-slate-600 border border-slate-300 mb-1">
                                   ✕ 已退訂
                                 </span>
                               )}
+
+                              <h4 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight leading-snug">
+                                {item.name}
+                              </h4>
+
+                              {/* 次要資訊：區域 · 平台 · 訂購人 */}
+                              <div className="flex items-center space-x-1.5 text-xs text-slate-500 mt-1 flex-wrap">
+                                {item.cityArea && (
+                                  <span className="flex items-center space-x-0.5 text-slate-600 font-medium">
+                                    <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                    <span>{item.cityArea}</span>
+                                  </span>
+                                )}
+                                {item.cityArea && <span className="text-slate-300">·</span>}
+                                <span className="text-slate-500 font-medium">{item.platform || 'Agoda'}</span>
+                                {item.booker && (
+                                  <>
+                                    <span className="text-slate-300">·</span>
+                                    <span className="text-slate-500">{item.booker} 訂</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Price */}
+                            {/* 價格區塊 */}
                             {item.price !== undefined && (
                               <div className="text-right flex-shrink-0">
-                                <span className="text-sm sm:text-base font-extrabold text-slate-900 font-mono">
-                                  {item.currency} {item.price.toLocaleString()}
-                                </span>
+                                <div className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight leading-none">
+                                  <span className="text-xs font-bold text-slate-500 mr-1">{item.currency}</span>
+                                  {item.price.toLocaleString()}
+                                </div>
                                 {twdEstimate && item.currency?.toUpperCase() !== 'TWD' && (
-                                  <div className="text-[10px] text-slate-500 font-mono">
+                                  <div className="text-[11px] text-slate-500 font-mono mt-1">
                                     ≈ NT$ {twdEstimate.toLocaleString()}
+                                  </div>
+                                )}
+                                {group.nights && group.nights > 1 && (
+                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                    均 {item.currency} {Math.round(item.price / group.nights).toLocaleString()}/晚
                                   </div>
                                 )}
                               </div>
                             )}
                           </div>
 
-                          {/* Hotel Name & Area */}
-                          <div className="mb-2">
-                            <h4 className="font-bold text-sm sm:text-base text-slate-900 tracking-tight leading-snug">
-                              {item.name}
-                            </h4>
-                            {item.cityArea && (
-                              <div className="flex items-center space-x-1 text-slate-500 text-xs mt-0.5">
-                                <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                <span>{item.cityArea}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Room Type */}
+                          {/* 房型（通透無厚重輸入框） */}
                           {item.roomType && (
-                            <div className="text-xs text-slate-700 bg-slate-100/80 px-2.5 py-1.5 rounded-xl border border-slate-200 mb-2.5">
-                              {item.roomType}
+                            <div className="flex items-center space-x-1.5 text-xs text-slate-700 my-2">
+                              <BedDouble className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                              <span className="font-medium">{item.roomType}</span>
                             </div>
                           )}
 
-                          {/* Free Cancellation Deadline */}
+                          {/* 免費取消截止日（單一精煉，無重複字串） */}
                           {deadline && !isCancelled && (
-                            <div className={`text-xs px-2.5 py-1.5 rounded-xl border flex items-center justify-between mb-2.5 ${deadline.color}`}>
-                              <div className="flex items-center space-x-1.5 font-semibold">
-                                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
-                                <span>{deadline.label}</span>
-                              </div>
-                              {item.freeCancellationDeadline && (
-                                <span className="text-[10px] opacity-80 font-mono">
-                                  {item.freeCancellationDeadline.replace('T', ' ')}
-                                </span>
-                              )}
+                            <div className={`text-xs px-2.5 py-1.5 rounded-xl border flex items-center space-x-1.5 mb-2 ${deadline.color}`}>
+                              <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span className="font-semibold">{deadline.label}</span>
                             </div>
                           )}
 
-                          {/* Note */}
+                          {/* 備註 */}
                           {item.note && (
-                            <p className="text-xs text-slate-600 mb-2 line-clamp-2">
+                            <p className="text-xs text-slate-500 my-1.5 line-clamp-2 leading-relaxed">
                               {item.note}
                             </p>
                           )}
                         </div>
 
-                        {/* Card Bottom: Quick Links & Actions */}
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
-                          {/* Links (Order / Map / Ref) */}
-                          <div className="flex items-center space-x-1.5">
+                        {/* Card Bottom: 精煉操作工具列 */}
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-2">
+                          {/* 外部連結與訂單號 */}
+                          <div className="flex items-center space-x-1">
                             {item.bookingUrl && (
                               <a
                                 href={item.bookingUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
-                                title="開啟平台訂單"
+                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                                title="開啟平台預訂頁面"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </a>
@@ -488,7 +493,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 href={item.mapUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
+                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
                                 title="開啟地圖導航"
                               >
                                 <MapPin className="w-3.5 h-3.5" />
@@ -498,30 +503,30 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleCopyRef(item.bookingRef!, item.id)}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-colors flex items-center space-x-1 ${
+                                className={`px-2 py-1 rounded-lg text-[11px] font-mono transition-colors flex items-center space-x-1 cursor-pointer ${
                                   copiedId === item.id
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+                                    ? 'bg-emerald-100 text-emerald-800 font-bold'
+                                    : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
                                 }`}
-                                title="複製訂單號"
+                                title={`複製訂單號：${item.bookingRef}`}
                               >
                                 <Copy className="w-3 h-3" />
-                                <span>{item.bookingRef}</span>
+                                <span>{copiedId === item.id ? '已複製' : item.bookingRef}</span>
                               </button>
                             )}
                           </div>
 
-                          {/* State Actions & Edit */}
-                          <div className="flex items-center space-x-1">
+                          {/* 狀態切換與編輯 */}
+                          <div className="flex items-center space-x-1.5">
                             {!isConfirmed && (
                               <button
                                 type="button"
                                 onClick={() => handleConfirmKeep(item)}
-                                className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-300"
-                                title="保留此間"
+                                className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-200 shadow-2xs active:scale-95"
+                                title="保留此房型"
                               >
-                                <Check className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">保留</span>
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>保留</span>
                               </button>
                             )}
 
@@ -529,21 +534,21 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onStatusChange(item.id, isPendingCancel ? 'cancelled' : 'pending_cancel')}
-                                className={`px-2 py-1 rounded-lg text-xs transition-colors cursor-pointer flex items-center space-x-1 ${
+                                className={`px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer flex items-center space-x-1 ${
                                   isPendingCancel
                                     ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold border border-rose-300'
-                                    : 'bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200'
+                                    : 'bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200'
                                 }`}
-                                title={isPendingCancel ? '確認已在平台完成退訂' : '標記為待退訂'}
+                                title={isPendingCancel ? '確認已在平台完成退訂' : '捨棄此候補'}
                               >
-                                <X className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">{isPendingCancel ? '已退訂' : '捨棄'}</span>
+                                <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>{isPendingCancel ? '已退訂' : '捨棄'}</span>
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => onStatusChange(item.id, 'candidate')}
-                                className="px-2 py-1 rounded-lg text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200"
+                                className="p-1.5 rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors flex items-center space-x-1 cursor-pointer border border-slate-200"
                                 title="恢復為抉擇中"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
@@ -553,7 +558,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                             <button
                               type="button"
                               onClick={() => onOpenModal(item)}
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer border border-slate-200"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                               title="編輯"
                             >
                               <Pencil className="w-3.5 h-3.5" />
