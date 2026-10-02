@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem, AccommodationItem, AccommodationStatus, FlightItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ExpenseItem, ShoppingItem, CouponItem, AccommodationItem, AccommodationStatus, FlightItem, ClimateGuide } from '@/types/trip';
 import { TripConfig, TRIPS } from '@/config/trips';
 
 
@@ -360,6 +360,35 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       }
     }
 
+    // 解析跨裝置同步的遠期歷史氣候指南 (climateGuide)
+    let climateGuide: ClimateGuide | undefined = undefined;
+    const climateMatch = rawTripNote.match(/<!--CLIMATE_GUIDE_START-->([\s\S]*?)<!--CLIMATE_GUIDE_END-->/);
+    if (climateMatch && climateMatch[1].trim()) {
+      const inner = climateMatch[1].trim();
+      try {
+        const decoded = decodeURIComponent(atob(inner));
+        climateGuide = JSON.parse(decoded);
+      } catch {
+        try {
+          climateGuide = JSON.parse(decodeURIComponent(inner));
+        } catch {
+          try {
+            climateGuide = JSON.parse(inner);
+          } catch (err) {
+            console.warn('Failed to parse climateGuide from trip_note:', err);
+          }
+        }
+      }
+    }
+    if (!climateGuide) {
+      try {
+        const local = typeof window !== 'undefined' ? localStorage.getItem(`climate_guide_${tripId}`) : null;
+        if (local) climateGuide = JSON.parse(local);
+      } catch (err) {
+        console.warn('Failed to parse climateGuide from localStorage:', err);
+      }
+    }
+
     // 解析跨裝置同步的住宿預訂與比價 (accommodations)
     let accommodations: AccommodationItem[] = [];
     if (accommodationsRes?.data && accommodationsRes.data.length > 0) {
@@ -480,6 +509,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
       .replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '')
       .replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '')
+      .replace(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/g, '')
       .trim();
 
     const foreignCurrency = settingsData?.foreign_currency !== undefined && settingsData?.foreign_currency !== null ? settingsData.foreign_currency : '';
@@ -527,6 +557,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       coupons,
       accommodations,
       flights,
+      climateGuide,
     };
   } catch (err) {
     console.error('getAllData Supabase error:', err);
@@ -666,6 +697,12 @@ export async function updateTripSettings(
   const existingFlightsMatch = existingRow?.trip_note?.match(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/);
   if (existingFlightsMatch) {
     finalTripNote = `${finalTripNote.replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '').trim()}\n${existingFlightsMatch[0]}`;
+  }
+
+  // 保留原始 CLIMATE_GUIDE 隱藏標籤
+  const existingClimateGuideMatch = existingRow?.trip_note?.match(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/);
+  if (existingClimateGuideMatch) {
+    finalTripNote = `${finalTripNote.replace(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/g, '').trim()}\n${existingClimateGuideMatch[0]}`;
   }
 
 
@@ -810,6 +847,54 @@ export async function updateTripCoupons(tripId: string, coupons: CouponItem[]): 
     } catch (e) {
       console.error('Failed to encode coupons:', e);
     }
+  }
+
+  if (existingRow) {
+    await supabase
+      .from('trip_settings')
+      .update({ trip_note: rawTripNote })
+      .eq('trip_id', tripId);
+  } else {
+    await supabase
+      .from('trip_settings')
+      .insert({
+        trip_id: tripId,
+        trip_note: rawTripNote,
+      });
+  }
+}
+
+/** 更新遠期歷史氣候指南 (包含本地離線快取與雲端同步) */
+export async function updateTripClimateGuide(tripId: string, guide: ClimateGuide): Promise<void> {
+  // 1. 本地立即儲存快取（離線秒開）
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`climate_guide_${tripId}`, JSON.stringify(guide));
+    } catch (e) {
+      console.warn('localStorage climate guide save warning:', e);
+    }
+  }
+
+  // 2. 查詢現有 trip_settings
+  const { data: list } = await supabase
+    .from('trip_settings')
+    .select('*')
+    .eq('trip_id', tripId)
+    .limit(1);
+
+  const existingRow = list?.[0] || null;
+  let rawTripNote = existingRow?.trip_note || '';
+
+  // 移除既有的 CLIMATE_GUIDE 標籤
+  rawTripNote = rawTripNote.replace(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/g, '').trim();
+
+  // 編碼存入
+  try {
+    const jsonStr = JSON.stringify(guide);
+    const encoded = btoa(encodeURIComponent(jsonStr));
+    rawTripNote = `${rawTripNote}\n<!--CLIMATE_GUIDE_START-->${encoded}<!--CLIMATE_GUIDE_END-->`;
+  } catch (e) {
+    console.error('Failed to encode climate guide:', e);
   }
 
   if (existingRow) {

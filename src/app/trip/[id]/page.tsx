@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
-import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem, AccommodationItem, AccommodationStatus, FlightItem, FlightType } from '@/types/trip';
+import { AllTripData, ItineraryItem, TodoItem, PackingItem, ShoppingItem, ExpenseItem, CouponItem, AccommodationItem, AccommodationStatus, FlightItem, FlightType, ClimateGuide } from '@/types/trip';
 import { TabType, Sidebar } from '@/components/Sidebar';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
@@ -57,6 +57,7 @@ import {
   updateAccommodationStatus,
   saveFlightData,
   deleteFlightData,
+  updateTripClimateGuide,
 } from '@/lib/supabase-client';
 
 import Link from 'next/link';
@@ -928,6 +929,19 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleSaveClimateGuide = async (guide: ClimateGuide) => {
+    try {
+      setTripData((prev) => ({
+        ...prev,
+        climateGuide: guide,
+      }));
+      await updateTripClimateGuide(tripId, guide);
+      showToast('已更新歷史氣候與穿搭指南！');
+    } catch (err: any) {
+      console.warn('Failed to save climate guide:', err);
+    }
+  };
+
   return (
 
 
@@ -1043,6 +1057,10 @@ export default function TripPage({ params }: PageProps) {
                   citySchedule={tripData.citySchedule}
                   startDate={tripData.startDate}
                   tripTitle={tripData.tripTitle || tripConfig.title}
+                  tripDates={tripData.tripDates || tripConfig?.dates || ''}
+                  tripId={tripId}
+                  climateGuide={tripData.climateGuide}
+                  onSaveClimateGuide={handleSaveClimateGuide}
                   itinerary={tripData.itinerary}
                   onTogglePacking={handleTogglePacking}
                   onDeletePacking={handleDeletePacking}

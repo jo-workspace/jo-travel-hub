@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { PackingItem, ItineraryItem } from '@/types/trip';
+import { PackingItem, ItineraryItem, ClimateGuide } from '@/types/trip';
 import { Plus, Edit3, Copy, Download, CornerDownLeft, CloudSun, Trash2, CheckSquare, Square } from 'lucide-react';
 import { fetchWeatherForCity, getCityForDay, CityWeatherData } from '@/lib/weather';
 import { WeatherGuideModal, DayWeatherGuideItem } from '@/components/modals/WeatherGuideModal';
@@ -12,6 +12,10 @@ interface PackingTabProps {
   citySchedule?: string;
   startDate?: string;
   tripTitle?: string;
+  tripDates?: string;
+  tripId?: string;
+  climateGuide?: ClimateGuide;
+  onSaveClimateGuide?: (guide: ClimateGuide) => Promise<void>;
   itinerary?: ItineraryItem[];
   onTogglePacking: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: PackingItem, defaultPerson?: string, defaultCategory?: string, defaultLocation?: string) => void;
@@ -34,6 +38,10 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   citySchedule,
   startDate,
   tripTitle,
+  tripDates,
+  tripId,
+  climateGuide,
+  onSaveClimateGuide,
   itinerary = [],
   onTogglePacking,
   onOpenModal,
@@ -58,6 +66,56 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [weatherGuideOpen, setWeatherGuideOpen] = useState(false);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+
+  // 遠期歷史氣候指南狀態 (AI 單次生成快取)
+  const [currentClimateGuide, setCurrentClimateGuide] = useState<ClimateGuide | undefined>(climateGuide);
+  const [isGeneratingClimate, setIsGeneratingClimate] = useState<boolean>(false);
+
+  useEffect(() => {
+    setCurrentClimateGuide(climateGuide);
+  }, [climateGuide]);
+
+  // 單次產生歷史氣候與穿搭指南
+  const handleGenerateClimateGuide = async () => {
+    setIsGeneratingClimate(true);
+    try {
+      const primaryCity = getCityForDay('Day 1', citySchedule, '主要城市') || tripTitle || '主要城市';
+      const cleanCity = primaryCity.replace(/[0-9\-_]/g, '').trim();
+
+      let targetMonth = '';
+      if (startDate) {
+        const m = new Date(startDate).getMonth() + 1;
+        targetMonth = `${m}月`;
+      } else if (tripDates) {
+        targetMonth = tripDates;
+      }
+
+      const res = await fetch('/api/climate-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          city: cleanCity,
+          dates: tripDates || startDate || '',
+          month: targetMonth,
+        }),
+      });
+
+      const resData = await res.json();
+      if (resData.success && resData.data) {
+        setCurrentClimateGuide(resData.data);
+        if (onSaveClimateGuide) {
+          await onSaveClimateGuide(resData.data);
+        }
+      } else {
+        alert(resData.error || '無法取得氣候資料');
+      }
+    } catch (err: any) {
+      console.error('Failed to generate climate guide:', err);
+      alert('產生氣候指南時發生錯誤');
+    } finally {
+      setIsGeneratingClimate(false);
+    }
+  };
 
   // 精準依照行程天數與出發日期計算逐日穿著與全景氣溫
   const [dailyGuideItems, setDailyGuideItems] = useState<DayWeatherGuideItem[]>([]);
@@ -473,18 +531,11 @@ export const PackingTab: React.FC<PackingTabProps> = ({
                 </button>
                 <button
                   type="button"
-                  disabled={!hasAnyWeather}
-                  onClick={() => {
-                    if (hasAnyWeather) setWeatherGuideOpen(true);
-                  }}
-                  className={`p-1 rounded-lg transition-all flex items-center justify-center ${
-                    hasAnyWeather
-                      ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 cursor-pointer'
-                      : 'opacity-40 cursor-not-allowed text-slate-300'
-                  }`}
-                  title={hasAnyWeather ? '行程天氣穿搭指南' : '出發前 14 天開放預報'}
+                  onClick={() => setWeatherGuideOpen(true)}
+                  className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                  title={hasAnyWeather ? '行程即時天氣預報' : '歷史氣候與穿搭指南'}
                 >
-                  <CloudSun className={`w-3.5 h-3.5 ${hasAnyWeather ? 'text-amber-500' : 'text-slate-400'}`} />
+                  <CloudSun className={`w-3.5 h-3.5 ${hasAnyWeather || currentClimateGuide ? 'text-amber-500' : 'text-slate-400'}`} />
                 </button>
                 {onOpenImportModal && (
                   <button
@@ -545,18 +596,11 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
                   <button
                     type="button"
-                    disabled={!hasAnyWeather}
-                    onClick={() => {
-                      if (hasAnyWeather) setWeatherGuideOpen(true);
-                    }}
-                    className={`p-1.5 rounded-xl transition-all flex items-center justify-center shadow-2xs ${
-                      hasAnyWeather
-                        ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 cursor-pointer'
-                        : 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-50 border border-slate-200/40'
-                    }`}
-                    title={hasAnyWeather ? '行程天氣穿搭指南' : '出發前 14 天開放預報'}
+                    onClick={() => setWeatherGuideOpen(true)}
+                    className="p-1.5 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60"
+                    title={hasAnyWeather ? '行程即時天氣預報' : '歷史氣候與穿搭指南'}
                   >
-                    <CloudSun className={`w-4 h-4 ${hasAnyWeather ? 'text-amber-500' : 'text-slate-400'}`} />
+                    <CloudSun className={`w-4 h-4 ${hasAnyWeather || currentClimateGuide ? 'text-amber-500' : 'text-slate-400'}`} />
                   </button>
 
                   {onOpenImportModal && (
@@ -1055,6 +1099,12 @@ export const PackingTab: React.FC<PackingTabProps> = ({
         overallMin={overallMin}
         overallMax={overallMax}
         overallAdvice={overallAdvice}
+        climateGuide={currentClimateGuide}
+        isLongRange={!hasAnyWeather}
+        cityName={getCityForDay('Day 1', citySchedule, '') || tripTitle || ''}
+        travelDates={tripDates || startDate || ''}
+        onGenerateClimateGuide={handleGenerateClimateGuide}
+        isGeneratingClimate={isGeneratingClimate}
       />
     </div>
   );

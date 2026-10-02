@@ -87,6 +87,15 @@ export interface AllTripData {
   coupons?: CouponItem[]; // 優惠券與票券截圖清單
   accommodations?: AccommodationItem[]; // 住宿預訂與比價清單
   flights?: FlightItem[]; // 班機資訊（去程、回程、報到與行李狀態）
+  climateGuide?: ClimateGuide; // 遠期歷史氣候指南（AI 單次生成快取）
+}
+
+export interface ClimateGuide {
+  tempMin: number;      // 歷史平均最低溫 (°C)
+  tempMax: number;      // 歷史平均最高溫 (°C)
+  headline: string;     // 極簡氣候特徵（例：涼爽乾燥 · 溫差大）
+  advice: string;       // 穿搭與行李建議（1~2 句精煉文字）
+  generatedAt: number;  // 產生日戳 (Epoch ms)
 }
 
 export type FlightType = 'outbound' | 'inbound' | 'transit';
