@@ -58,6 +58,8 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
     )
   );
 
+  const currencyPresets = Array.from(new Set([defaultCurrency || 'TWD', 'JPY', 'TWD'])).filter(Boolean);
+
   useEffect(() => {
     if (item) {
       setName(item.name || '');
@@ -285,39 +287,45 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
 
           {/* 訂房者 & 狀態 */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">訂房者</label>
-              <div className="flex items-center space-x-1 mb-1.5 flex-wrap gap-y-1">
-                {companionList.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setBooker(c)}
-                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${
-                      booker === c
-                        ? 'bg-sky-400/20 border-sky-400 text-sky-300 font-bold'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
+            <div className="min-w-0">
+              <div className="flex items-center justify-between mb-1.5 min-h-[24px]">
+                <label className="font-semibold text-slate-300">訂房者</label>
+                {companionList.length > 0 && (
+                  <div className="flex items-center space-x-1">
+                    {companionList.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setBooker(c)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                          booker === c
+                            ? 'bg-sky-400/20 border-sky-400 text-sky-300 font-bold'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <input
                 type="text"
                 value={booker}
                 onChange={(e) => setBooker(e.target.value)}
                 placeholder="訂房者姓名"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 min-h-[40px]"
               />
             </div>
 
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">目前狀態</label>
+            <div className="min-w-0">
+              <div className="flex items-center mb-1.5 min-h-[24px]">
+                <label className="font-semibold text-slate-300">目前狀態</label>
+              </div>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as AccommodationStatus)}
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400"
+                className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400 min-h-[40px]"
               >
                 <option value="candidate">抉擇中 (PK候補)</option>
                 <option value="confirmed">✓ 已保留 (確定入住)</option>
@@ -328,26 +336,46 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
           </div>
 
           {/* 費用與幣別 */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="block font-semibold text-slate-300 mb-1">總金額</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center mb-1.5 min-h-[24px]">
+                <label className="font-semibold text-slate-300">總金額</label>
+              </div>
               <input
                 type="number"
                 step="any"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="總房價"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono"
+                className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono min-h-[40px]"
               />
             </div>
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">幣別</label>
+            <div className="min-w-0">
+              <div className="flex items-center justify-between mb-1.5 min-h-[24px]">
+                <label className="font-semibold text-slate-300">幣別</label>
+                <div className="flex items-center space-x-1">
+                  {currencyPresets.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCurrency(c)}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                        currency === c
+                          ? 'bg-amber-400/20 border-amber-400 text-amber-300 font-bold'
+                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <input
                 type="text"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                 placeholder="JPY / TWD"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono text-center uppercase"
+                className="w-full min-w-0 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono uppercase min-h-[40px]"
               />
             </div>
           </div>
