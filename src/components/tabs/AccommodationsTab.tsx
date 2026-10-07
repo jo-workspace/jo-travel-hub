@@ -37,6 +37,7 @@ interface AccommodationsTabProps {
   onSave: (item: Partial<AccommodationItem>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onStatusChange: (id: string, status: AccommodationStatus) => Promise<void>;
+  onBatchStatusChange?: (updates: Array<{ id: string; status: AccommodationStatus }>) => Promise<void>;
   onOpenModal: (item?: AccommodationItem | null, defaultDate?: string) => void;
   showToast?: (msg: string) => void;
 }
@@ -53,6 +54,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   onSave,
   onDelete,
   onStatusChange,
+  onBatchStatusChange,
   onOpenModal,
   showToast = (msg: string) => alert(msg),
 }) => {
@@ -104,10 +106,9 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
     }
   };
 
-  // 一鍵確定房型：自動將同梯候補轉為「待退訂」，並儲存還原點
+  // 一鍵確定房型：自動將同梯候補轉為「待退訂」，並原子化儲存防彈回
   const handleConfirmAccommodation = async (item: AccommodationItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    await onStatusChange(item.id, 'confirmed');
 
     // 尋找同入住日期的其他 candidate
     const rivals = accommodations.filter(
@@ -118,13 +119,24 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
         Boolean(item.checkInDate)
     );
 
-    const rivalIds: string[] = [];
-    if (rivals.length > 0) {
-      for (const rival of rivals) {
-        await onStatusChange(rival.id, 'pending_cancel');
-        rivalIds.push(rival.id);
+    const rivalIds = rivals.map((r) => r.id);
+
+    if (onBatchStatusChange) {
+      // 採用原子批次更新，避免競態條件（Race Condition）
+      const updates = [
+        { id: item.id, status: 'confirmed' as AccommodationStatus },
+        ...rivalIds.map((rId) => ({ id: rId, status: 'pending_cancel' as AccommodationStatus })),
+      ];
+      await onBatchStatusChange(updates);
+    } else {
+      await onStatusChange(item.id, 'confirmed');
+      for (const rId of rivalIds) {
+        await onStatusChange(rId, 'pending_cancel');
       }
-      showToast(`已確定「${item.name}」！其餘 ${rivals.length} 間候補已自動轉為待退訂`);
+    }
+
+    if (rivalIds.length > 0) {
+      showToast(`已確定「${item.name}」！其餘 ${rivalIds.length} 間候補已自動轉為待退訂`);
     } else {
       showToast(`已將「${item.name}」設為已確定`);
     }
@@ -138,16 +150,28 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   // 取消確定（誤觸還原機制）：將自身與同梯被轉待退訂的房型全部恢復為 candidate
   const handleUndoConfirmation = async (item: AccommodationItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    await onStatusChange(item.id, 'candidate');
 
-    if (lastConfirmedRecord && lastConfirmedRecord.winnerId === item.id) {
-      for (const rId of lastConfirmedRecord.rivalIds) {
-        await onStatusChange(rId, 'candidate');
-      }
+    const rivalIds = lastConfirmedRecord?.winnerId === item.id ? lastConfirmedRecord.rivalIds : [];
+
+    if (onBatchStatusChange && rivalIds.length > 0) {
+      const updates = [
+        { id: item.id, status: 'candidate' as AccommodationStatus },
+        ...rivalIds.map((rId) => ({ id: rId, status: 'candidate' as AccommodationStatus })),
+      ];
+      await onBatchStatusChange(updates);
       setLastConfirmedRecord(null);
       showToast(`已取消確定「${item.name}」，同梯房型已恢復為抉擇中`);
     } else {
-      showToast(`已將「${item.name}」恢復為抉擇中`);
+      await onStatusChange(item.id, 'candidate');
+      if (lastConfirmedRecord && lastConfirmedRecord.winnerId === item.id) {
+        for (const rId of lastConfirmedRecord.rivalIds) {
+          await onStatusChange(rId, 'candidate');
+        }
+        setLastConfirmedRecord(null);
+        showToast(`已取消確定「${item.name}」，同梯房型已恢復為抉擇中`);
+      } else {
+        showToast(`已將「${item.name}」恢復為抉擇中`);
+      }
     }
   };
 

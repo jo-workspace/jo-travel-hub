@@ -1964,6 +1964,37 @@ export async function deleteAccommodationData(
   return updatedList;
 }
 
+/** 批次更新住宿狀態 (解決確定時同梯候補轉待退訂的多重異步 race condition) */
+export async function batchUpdateAccommodationStatuses(
+  updates: Array<{ id: string; status: AccommodationStatus }>,
+  tripId = 'la-2026',
+  currentList: AccommodationItem[] = []
+): Promise<AccommodationItem[]> {
+  const updateMap = new Map<string, AccommodationStatus>();
+  updates.forEach((u) => updateMap.set(u.id, u.status));
+
+  const updatedList = currentList.map((item) => {
+    if (updateMap.has(item.id)) {
+      return { ...item, status: updateMap.get(item.id)! };
+    }
+    return item;
+  });
+
+  // 1. 離線快取寫入
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('localStorage accommodations batch save error:', e);
+    }
+  }
+
+  // 2. 持久化寫入 trip_note 隱藏標籤
+  await syncAccommodationsToNote(tripId, updatedList);
+
+  return updatedList;
+}
+
 /** 更新住宿狀態 (candidate / confirmed / pending_cancel / cancelled) */
 export async function updateAccommodationStatus(
   id: string,

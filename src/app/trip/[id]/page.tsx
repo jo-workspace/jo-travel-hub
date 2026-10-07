@@ -55,6 +55,7 @@ import {
   saveAccommodationData,
   deleteAccommodationData,
   updateAccommodationStatus,
+  batchUpdateAccommodationStatuses,
   saveFlightData,
   deleteFlightData,
   updateTripClimateGuide,
@@ -918,6 +919,20 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleBatchAccommodationStatusChange = async (
+    updates: Array<{ id: string; status: AccommodationStatus }>
+  ) => {
+    try {
+      const updated = await batchUpdateAccommodationStatuses(updates, tripId, tripData.accommodations || []);
+      setTripData((prev) => ({
+        ...prev,
+        accommodations: updated,
+      }));
+    } catch (err: any) {
+      showToast(`批次狀態更新失敗: ${err.message}`);
+    }
+  };
+
   const handleOpenFlightModal = (flight?: FlightItem | null, defaultType?: 'outbound' | 'inbound') => {
     setActiveFlightItem(flight || null);
     setDefaultFlightType(defaultType || (flight?.type as FlightType) || 'outbound');
@@ -1077,6 +1092,7 @@ export default function TripPage({ params }: PageProps) {
                   onSave={handleSaveAccommodation}
                   onDelete={handleDeleteAccommodation}
                   onStatusChange={handleAccommodationStatusChange}
+                  onBatchStatusChange={handleBatchAccommodationStatusChange}
                   onOpenModal={(item, defaultDate) => handleOpenAccommodationModal(item, defaultDate)}
                   showToast={showToast}
                 />
