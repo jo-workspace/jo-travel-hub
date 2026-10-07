@@ -60,6 +60,7 @@ import {
   updateTripClimateGuide,
   updateTripSettings,
 } from '@/lib/supabase-client';
+import { computeTripDaySequence } from '@/lib/tripDate';
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -399,6 +400,18 @@ export default function TripPage({ params }: PageProps) {
     });
     return Array.from(set);
   }, [tripData.shopping]);
+
+  // 全旅程所有完整天數序列 (結合 startDate、航班回程日、tripDates 與行程最大天數)
+  const allTripDaySequence = useMemo(() => {
+    const inboundFlight = tripData.flights?.find((f) => f.type === 'inbound');
+    const existingDays = Array.from(new Set(tripData.itinerary.map((i) => i.day))).filter(Boolean);
+    return computeTripDaySequence({
+      startDate: tripData.startDate,
+      tripDates: tripData.tripDates || tripConfig?.dates,
+      inboundDate: inboundFlight?.departureDate || inboundFlight?.arrivalDate,
+      existingDays,
+    });
+  }, [tripData.flights, tripData.startDate, tripData.tripDates, tripConfig?.dates, tripData.itinerary]);
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -1052,11 +1065,11 @@ export default function TripPage({ params }: PageProps) {
                   timezone={tripData.timezone}
                   companions={tripData.companions}
                   startDate={tripData.startDate}
-                  itineraryDays={Array.from(new Set(tripData.itinerary.map((i) => i.day))).filter(Boolean)}
+                  itineraryDays={allTripDaySequence}
                   onSave={handleSaveAccommodation}
                   onDelete={handleDeleteAccommodation}
                   onStatusChange={handleAccommodationStatusChange}
-                  onOpenModal={(item) => handleOpenAccommodationModal(item)}
+                  onOpenModal={(item, defaultDate) => handleOpenAccommodationModal(item, defaultDate)}
                   showToast={showToast}
                 />
               )}

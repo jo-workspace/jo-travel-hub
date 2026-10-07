@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { ItineraryItem, FlightItem, AccommodationItem } from '@/types/trip';
-import { getTodayDayLabel } from '@/lib/tripDate';
+import { getTodayDayLabel, isDateInAccommodationRange, getYmdForTripDay } from '@/lib/tripDate';
 import {
   MapPin,
   ExternalLink,
@@ -1097,7 +1097,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
             {/* 每天結尾：極簡住宿錨點 (Inline Accommodation Anchor) */}
             {(() => {
-              const dayIsoDate = startDate ? getIsoDateForDay(startDate, day) : '';
+              const dayIsoDate = startDate ? (getYmdForTripDay(startDate, day) || getIsoDateForDay(startDate, day)) : '';
               const isLastDay = day === days[days.length - 1];
 
               if (!onOpenAccommodationModal) return null;
@@ -1109,10 +1109,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
               const confirmedAcc = activeAccs.find((a) => {
                 if (a.status !== 'confirmed') return false;
                 if (!dayIsoDate) return false;
-                if (a.checkInDate && a.checkOutDate) {
-                  return a.checkInDate <= dayIsoDate && dayIsoDate < a.checkOutDate;
-                }
-                return a.checkInDate === dayIsoDate;
+                return isDateInAccommodationRange(dayIsoDate, a.checkInDate, a.checkOutDate);
               });
 
               // 其次尋找候選
@@ -1120,10 +1117,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 ? activeAccs.find((a) => {
                     if (a.status !== 'candidate' && a.status !== 'pending_cancel') return false;
                     if (!dayIsoDate) return false;
-                    if (a.checkInDate && a.checkOutDate) {
-                      return a.checkInDate <= dayIsoDate && dayIsoDate < a.checkOutDate;
-                    }
-                    return a.checkInDate === dayIsoDate;
+                    return isDateInAccommodationRange(dayIsoDate, a.checkInDate, a.checkOutDate);
                   })
                 : null;
 

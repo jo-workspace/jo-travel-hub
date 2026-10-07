@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { AccommodationItem, AccommodationStatus } from '@/types/trip';
 import { computeTwdAmount } from '@/components/tabs/ExpensesTab';
+import { normalizeDateToYMD, parseYMD, isDateInAccommodationRange } from '@/lib/tripDate';
 import {
   Building2,
   Calendar,
@@ -36,7 +37,7 @@ interface AccommodationsTabProps {
   onSave: (item: Partial<AccommodationItem>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onStatusChange: (id: string, status: AccommodationStatus) => Promise<void>;
-  onOpenModal: (item?: AccommodationItem | null) => void;
+  onOpenModal: (item?: AccommodationItem | null, defaultDate?: string) => void;
   showToast?: (msg: string) => void;
 }
 
@@ -237,32 +238,27 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
       return numA - numB;
     });
 
+    const startMs = parseYMD(startDate);
+    if (startMs === null) return [];
+
     const activeAccs = accommodations.filter((a) => a.status !== 'cancelled');
     const missing: Array<{ dayLabel: string; dateStr: string; dateLabel: string }> = [];
 
     for (let i = 0; i < sortedDays.length - 1; i++) {
       const dayLabel = sortedDays[i];
       const dayNum = parseInt(dayLabel.replace(/[^0-9]/g, ''), 10);
-      if (isNaN(dayNum)) continue;
+      if (isNaN(dayNum) || dayNum <= 0) continue;
 
-      const start = new Date(startDate);
-      if (isNaN(start.getTime())) continue;
-
-      const target = new Date(start);
-      target.setDate(target.getDate() + dayNum - 1);
-      const y = target.getFullYear();
-      const m = String(target.getMonth() + 1).padStart(2, '0');
-      const d = String(target.getDate()).padStart(2, '0');
+      const targetDate = new Date(startMs + (dayNum - 1) * 86400000);
+      const y = targetDate.getUTCFullYear();
+      const m = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(targetDate.getUTCDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${d}`;
-      const dateLabel = `${target.getMonth() + 1}/${target.getDate()}`;
+      const dateLabel = `${targetDate.getUTCMonth() + 1}/${targetDate.getUTCDate()}`;
 
-      const isCovered = activeAccs.some((a) => {
-        if (!a.checkInDate) return false;
-        if (a.checkInDate && a.checkOutDate) {
-          return a.checkInDate <= dateStr && dateStr < a.checkOutDate;
-        }
-        return a.checkInDate === dateStr;
-      });
+      const isCovered = activeAccs.some((a) =>
+        isDateInAccommodationRange(dateStr, a.checkInDate, a.checkOutDate)
+      );
 
       if (!isCovered) {
         missing.push({ dayLabel, dateStr, dateLabel });
@@ -651,7 +647,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                   <button
                     key={m.dateStr}
                     type="button"
-                    onClick={() => onOpenModal(null)}
+                    onClick={() => onOpenModal(null, m.dateStr)}
                     className="w-full py-2.5 px-3.5 rounded-2xl border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-100/70 transition-all text-xs text-slate-500 flex items-center justify-between cursor-pointer group active:scale-[0.99]"
                     title={`新增 ${m.dateLabel} 住宿`}
                   >
