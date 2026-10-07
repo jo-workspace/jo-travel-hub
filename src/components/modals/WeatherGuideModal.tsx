@@ -61,11 +61,11 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-scale-up border border-slate-100 max-h-[85vh] flex flex-col"
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 pb-8 sm:pb-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl space-y-4 animate-scale-up border border-slate-100 max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
