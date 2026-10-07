@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
+import { TripNoteModal } from '@/components/modals/TripNoteModal';
 import { FlightCard, isFlightFinished } from '@/components/FlightCard';
 import { formatTimeOnBlur } from '@/lib/timeUtils';
 import {
@@ -58,6 +59,7 @@ interface ItineraryTabProps {
   onOpenLightbox: (imageUrl: string) => void;
   onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
   onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
+  onSaveTripNote?: (note: string) => Promise<void>;
 }
 
 import { ItineraryCategoryIcon, cleanCategoryName } from '@/lib/itineraryCategories';
@@ -198,8 +200,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   onOpenModal,
   onSwapItemTimes,
   onBatchUpdateTimes,
+  onSaveTripNote,
 }) => {
-
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [weatherMap, setWeatherMap] = useState<Record<string, CityWeatherData>>({});
   const [inspectingWeather, setInspectingWeather] = useState<{
     isOpen: boolean;
@@ -370,9 +373,8 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         />
       )}
 
-      {/* Trip Note Alert Banner with Resource Links */}
-      {tripNote && (() => {
-
+      {/* Trip Note Alert Banner with Resource Links & Direct Click-to-Edit */}
+      {tripNote ? (() => {
         const rawLines = tripNote.replace(/<br\s*\/?>/gi, '\n').split('\n');
         const textLines: string[] = [];
         const links: Array<{ title: string; url: string }> = [];
@@ -432,10 +434,32 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         const cleanText = textLines.join('\n');
 
         return (
-          <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5">
-            <div className="text-xs font-bold uppercase text-amber-400 flex items-center space-x-1.5">
-              <span>📢</span>
-              <span>重要備註</span>
+          <div
+            onClick={() => onSaveTripNote && setIsNoteModalOpen(true)}
+            className={`group bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5 transition-all ${
+              onSaveTripNote ? 'cursor-pointer hover:bg-slate-850 hover:shadow-md' : ''
+            }`}
+            title={onSaveTripNote ? '點擊編輯重要備註' : undefined}
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold uppercase text-amber-400 flex items-center space-x-1.5">
+                <span>📢</span>
+                <span>重要備註</span>
+              </div>
+              {onSaveTripNote && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsNoteModalOpen(true);
+                  }}
+                  className="px-2 py-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all cursor-pointer flex items-center space-x-1 text-[11px] font-bold"
+                  title="編輯重要備註"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                  <span>編輯</span>
+                </button>
+              )}
             </div>
 
             {cleanText && (
@@ -463,13 +487,17 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
             {/* 實用資源與即時監控外部連結膠囊 */}
             {links.length > 0 && (
-              <div className="pt-2 border-t border-slate-800 flex items-center flex-wrap gap-2">
+              <div
+                className="pt-2 border-t border-slate-800 flex items-center flex-wrap gap-2"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {links.map((link, idx) => (
                   <a
                     key={idx}
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700/90 text-amber-300 hover:text-amber-200 border border-slate-700/80 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
                   >
                     <span>{link.title}</span>
@@ -480,7 +508,19 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
             )}
           </div>
         );
-      })()}
+      })() : onSaveTripNote ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setIsNoteModalOpen(true)}
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200/80 px-3 py-1.5 rounded-xl transition-all cursor-pointer inline-flex items-center space-x-1.5 shadow-2xs active:scale-95"
+            title="新增行程重要備註與須知公告"
+          >
+            <span>📢</span>
+            <span>新增重要備註</span>
+          </button>
+        </div>
+      ) : null}
 
       {/* Day Filter, Add Button & View Mode Switch Bar */}
       <div className="flex items-center justify-between gap-2 py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">
@@ -1122,6 +1162,16 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         weatherData={inspectingWeather.weatherData}
         dayWeather={inspectingWeather.dayWeather}
       />
+
+      {/* 重要備註編輯彈窗 */}
+      {onSaveTripNote && (
+        <TripNoteModal
+          isOpen={isNoteModalOpen}
+          initialNote={tripNote || ''}
+          onClose={() => setIsNoteModalOpen(false)}
+          onSave={onSaveTripNote}
+        />
+      )}
     </div>
   );
 };

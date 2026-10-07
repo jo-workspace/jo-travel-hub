@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Settings2, Calendar, DollarSign, FileText, LogOut, Upload, Image as ImageIcon, Trash2, Archive, Plane } from 'lucide-react';
+import { X, Settings2, Calendar, DollarSign, LogOut, Upload, Image as ImageIcon, Trash2, Archive, Plane } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
 import { computeAutoTripStatus } from '@/lib/tripDate';
 
@@ -57,7 +57,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [start, setStart] = useState('');
   const [rate, setRate] = useState('');
   const [budget, setBudget] = useState('');
-  const [note, setNote] = useState('');
   const [currency, setCurrency] = useState('');
   const [hasWill, setHasWill] = useState(true);
   const [otherCompanions, setOtherCompanions] = useState('');
@@ -87,7 +86,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // 若無外幣，則匯率不填入 32.5 預設值
       setRate(initCurr && fxRate ? String(fxRate) : (fxRate && fxRate !== 1 && fxRate !== 32.5 ? String(fxRate) : ''));
       setBudget(budgetTwd ? String(budgetTwd) : '');
-      setNote(tripNote || '');
       const tokens = (companions || '').split(/[\n,，]+/).map((p) => p.trim()).filter(Boolean);
       setHasWill(tokens.includes('Will'));
       setOtherCompanions(tokens.filter((p) => p !== 'Jo' && p !== 'Will').join(', '));
@@ -162,7 +160,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         startDate: start.trim(),
         fxRate: finalFxRate,
         budgetTwd: budget ? parseInt(budget, 10) : 0,
-        tripNote: note,
+        tripNote: tripNote || '',
         foreignCurrency: trimmedCurrency,
         companions: finalCompanions,
         timezone: tz.trim() || 'Asia/Taipei',
@@ -396,22 +394,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="border-t border-slate-100" />
 
 
-            {/* 備註 */}
-            <div className="space-y-2.5">
-              <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                <FileText className="w-3.5 h-3.5" />
-                <span>備註</span>
-              </div>
-              <div>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={"例：\n**8/30 李政厚搖頭娃娃 (1:05 PM)**\n[野火空氣品質](https://fire.airnow.gov)\n[加州即時路況](https://quickmap.dot.ca.gov)"}
-                  rows={5}
-                  className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all resize-none leading-relaxed"
-                />
-              </div>
-            </div>
+
 
             {/* Error */}
             {error && (

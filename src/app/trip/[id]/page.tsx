@@ -58,6 +58,7 @@ import {
   saveFlightData,
   deleteFlightData,
   updateTripClimateGuide,
+  updateTripSettings,
 } from '@/lib/supabase-client';
 
 import Link from 'next/link';
@@ -942,6 +943,22 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleSaveTripNote = async (newNote: string) => {
+    setTripData((prev) => ({
+      ...prev,
+      tripNote: newNote,
+    }));
+    try {
+      showToast('正在儲存重要備註...');
+      await updateTripSettings(tripId, { tripNote: newNote });
+      showToast('重要備註已儲存！');
+      fetchData(false);
+    } catch (err: any) {
+      showToast(`儲存失敗: ${err.message}`);
+      fetchData(false);
+    }
+  };
+
   return (
 
 
@@ -1005,7 +1022,7 @@ export default function TripPage({ params }: PageProps) {
                   showToast={showToast}
                   onToggleVisited={handleToggleVisited}
                   onToggleIgnored={handleToggleIgnored}
-
+                  onSaveTripNote={handleSaveTripNote}
                   onOpenModal={(item, initialDay) => {
                     setActiveItineraryItem(item || null);
                     if (initialDay) setDefaultItineraryDay(initialDay);
