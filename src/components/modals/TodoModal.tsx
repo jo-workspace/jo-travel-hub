@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { TodoItem } from '@/types/trip';
-import { TODO_CATEGORY_PRESETS } from '@/lib/todoCategories';
 import { X, Trash2, Calendar } from 'lucide-react';
 
 interface TodoModalProps {
@@ -26,28 +25,17 @@ export const TodoModal: React.FC<TodoModalProps> = ({
 }) => {
   const [task, setTask] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [category, setCategory] = useState('預約票券');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // 合併預設分類與歷史分類（去重）
-  const allCategoryPresets = Array.from(
-    new Set([
-      ...TODO_CATEGORY_PRESETS,
-      ...existingCategories.map((c) => c.trim()).filter((c) => c && c !== '全部'),
-    ])
-  );
 
   useEffect(() => {
     if (item) {
       setTask(item.task || '');
       setDueDate(item.dueDate || '');
-      setCategory(item.category || '預約票券');
       setNote(item.note || '');
     } else {
       setTask('');
       setDueDate('');
-      setCategory('預約票券');
       setNote('');
     }
   }, [item, isOpen]);
@@ -80,7 +68,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
         rowIndex: item?.rowIndex || 0,
         task: task.trim(),
         dueDate: dueDate.trim() || undefined,
-        category: category.trim() || '其他',
+        category: item?.category || '其他',
         note: note.trim(),
         isDone: item?.isDone || false,
       });
@@ -205,33 +193,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
             </div>
           </div>
 
-          {/* 第三格：分類 (極簡直覺標籤) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">分類</label>
-            <div className="flex items-center flex-wrap gap-1.5 mb-2">
-              {allCategoryPresets.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setCategory(preset)}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none font-bold ${
-                    category === preset
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="或輸入自訂分類..."
-              className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-            />
-          </div>
+          {/* 備註 */}
 
           {/* 第四格：備註 */}
           <div>

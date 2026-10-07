@@ -101,7 +101,8 @@ export function computeTripDaySequence(options: {
     const e = parseYMD(normInbound);
     if (s !== null && e !== null && e >= s) {
       const daysFromDates = Math.round((e - s) / 86400000) + 1;
-      if (daysFromDates > totalDays) {
+      // 容錯防護：一般休假旅遊天數極限在 60 天以內，若超過 60 天代表年份設定不一致（例如 2026 出發 vs 2027 回程手誤）
+      if (daysFromDates > 0 && daysFromDates <= 60 && daysFromDates > totalDays) {
         totalDays = daysFromDates;
       }
     }
@@ -115,7 +116,7 @@ export function computeTripDaySequence(options: {
       const endMs = parseYMD(matches[1]);
       if (startMs !== null && endMs !== null && endMs >= startMs) {
         const daysFromRange = Math.round((endMs - startMs) / 86400000) + 1;
-        if (daysFromRange > totalDays) {
+        if (daysFromRange > 0 && daysFromRange <= 60 && daysFromRange > totalDays) {
           totalDays = daysFromRange;
         }
       }
