@@ -280,15 +280,6 @@ export const WeatherGuideModal: React.FC<WeatherGuideModalProps> = ({
           </>
         )}
 
-        {/* Footer */}
-        <div className="border-t border-slate-100 pt-3 flex items-center justify-end flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
-          >
-            了解，開始打包
-          </button>
-        </div>
       </div>
     </div>
   );
