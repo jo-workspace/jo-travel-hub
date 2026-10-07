@@ -11,6 +11,7 @@ interface AccommodationModalProps {
   companions?: string;
   defaultCurrency?: string;
   tripStartDate?: string;
+  defaultCheckInDate?: string;
   onClose: () => void;
   onSave: (data: Partial<AccommodationItem>) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
@@ -24,6 +25,7 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
   companions = 'Jo, Will',
   defaultCurrency = 'TWD',
   tripStartDate = '',
+  defaultCheckInDate = '',
   onClose,
   onSave,
   onDelete,
@@ -81,10 +83,22 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
       setMapUrl(item.mapUrl || '');
       setNote(item.note || '');
     } else {
+      const initialIn = defaultCheckInDate || tripStartDate || '';
+      let initialOut = '';
+      if (initialIn) {
+        const d = new Date(initialIn);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() + 1);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          initialOut = `${y}-${m}-${day}`;
+        }
+      }
       setName('');
       setCityArea('');
-      setCheckInDate(tripStartDate || '');
-      setCheckOutDate('');
+      setCheckInDate(initialIn);
+      setCheckOutDate(initialOut);
       setPlatform('Agoda');
       setBooker(companionList[0] || 'Jo');
       setPrice('');
@@ -98,7 +112,7 @@ export const AccommodationModal: React.FC<AccommodationModalProps> = ({
       setMapUrl('');
       setNote('');
     }
-  }, [item, isOpen, companions, defaultCurrency, tripStartDate]);
+  }, [item, isOpen, companions, defaultCurrency, tripStartDate, defaultCheckInDate]);
 
   if (!isOpen) return null;
 

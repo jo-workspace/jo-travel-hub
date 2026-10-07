@@ -227,6 +227,7 @@ export default function TripPage({ params }: PageProps) {
 
   const [accommodationModalOpen, setAccommodationModalOpen] = useState(false);
   const [activeAccommodationItem, setActiveAccommodationItem] = useState<AccommodationItem | null>(null);
+  const [defaultAccommodationDate, setDefaultAccommodationDate] = useState<string>('');
 
   const [flightModalOpen, setFlightModalOpen] = useState(false);
   const [activeFlightItem, setActiveFlightItem] = useState<FlightItem | null>(null);
@@ -959,6 +960,12 @@ export default function TripPage({ params }: PageProps) {
     }
   };
 
+  const handleOpenAccommodationModal = (item?: AccommodationItem | null, defaultDate?: string) => {
+    setActiveAccommodationItem(item || null);
+    setDefaultAccommodationDate(defaultDate || '');
+    setAccommodationModalOpen(true);
+  };
+
   return (
 
 
@@ -1018,7 +1025,9 @@ export default function TripPage({ params }: PageProps) {
                   citySchedule={tripData.citySchedule}
                   isTaiwanTrip={tripData.isTaiwanTrip}
                   flights={tripData.flights || []}
+                  accommodations={tripData.accommodations || []}
                   onOpenFlightModal={handleOpenFlightModal}
+                  onOpenAccommodationModal={handleOpenAccommodationModal}
                   showToast={showToast}
                   onToggleVisited={handleToggleVisited}
                   onToggleIgnored={handleToggleIgnored}
@@ -1043,13 +1052,11 @@ export default function TripPage({ params }: PageProps) {
                   timezone={tripData.timezone}
                   companions={tripData.companions}
                   startDate={tripData.startDate}
+                  itineraryDays={Array.from(new Set(tripData.itinerary.map((i) => i.day))).filter(Boolean)}
                   onSave={handleSaveAccommodation}
                   onDelete={handleDeleteAccommodation}
                   onStatusChange={handleAccommodationStatusChange}
-                  onOpenModal={(item) => {
-                    setActiveAccommodationItem(item || null);
-                    setAccommodationModalOpen(true);
-                  }}
+                  onOpenModal={(item) => handleOpenAccommodationModal(item)}
                   showToast={showToast}
                 />
               )}
@@ -1163,6 +1170,7 @@ export default function TripPage({ params }: PageProps) {
         companions={tripData.companions}
         defaultCurrency={tripData.foreignCurrency || 'TWD'}
         tripStartDate={tripData.startDate}
+        defaultCheckInDate={defaultAccommodationDate}
         onClose={() => setAccommodationModalOpen(false)}
         onSave={handleSaveAccommodation}
         onDelete={handleDeleteAccommodation}

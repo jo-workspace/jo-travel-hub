@@ -32,6 +32,7 @@ interface AccommodationsTabProps {
   timezone?: string;
   companions?: string;
   startDate?: string;
+  itineraryDays?: string[];
   onSave: (item: Partial<AccommodationItem>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onStatusChange: (id: string, status: AccommodationStatus) => Promise<void>;
@@ -47,6 +48,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   timezone = 'Asia/Taipei',
   companions = 'Jo, Will',
   startDate = '',
+  itineraryDays = [],
   onSave,
   onDelete,
   onStatusChange,
@@ -224,6 +226,51 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
       return aKey.localeCompare(bKey);
     });
   }, [accommodations, filterStatus]);
+
+  // 推算尚未安排住宿的過夜夜晚（排除最後一天）
+  const missingNights = useMemo(() => {
+    if (!startDate || !itineraryDays || itineraryDays.length <= 1) return [];
+
+    const sortedDays = [...itineraryDays].sort((a, b) => {
+      const numA = parseInt(a.replace(/[^0-9]/g, '')) || 999;
+      const numB = parseInt(b.replace(/[^0-9]/g, '')) || 999;
+      return numA - numB;
+    });
+
+    const activeAccs = accommodations.filter((a) => a.status !== 'cancelled');
+    const missing: Array<{ dayLabel: string; dateStr: string; dateLabel: string }> = [];
+
+    for (let i = 0; i < sortedDays.length - 1; i++) {
+      const dayLabel = sortedDays[i];
+      const dayNum = parseInt(dayLabel.replace(/[^0-9]/g, ''), 10);
+      if (isNaN(dayNum)) continue;
+
+      const start = new Date(startDate);
+      if (isNaN(start.getTime())) continue;
+
+      const target = new Date(start);
+      target.setDate(target.getDate() + dayNum - 1);
+      const y = target.getFullYear();
+      const m = String(target.getMonth() + 1).padStart(2, '0');
+      const d = String(target.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const dateLabel = `${target.getMonth() + 1}/${target.getDate()}`;
+
+      const isCovered = activeAccs.some((a) => {
+        if (!a.checkInDate) return false;
+        if (a.checkInDate && a.checkOutDate) {
+          return a.checkInDate <= dateStr && dateStr < a.checkOutDate;
+        }
+        return a.checkInDate === dateStr;
+      });
+
+      if (!isCovered) {
+        missing.push({ dayLabel, dateStr, dateLabel });
+      }
+    }
+
+    return missing;
+  }, [startDate, itineraryDays, accommodations]);
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto pb-20">
@@ -597,6 +644,36 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
               </div>
             );
           })}
+
+          {/* 待安排夜晚就地插槽 (Inline Empty Slots for Missing Nights) */}
+          {(filterStatus === 'active' || filterStatus === 'confirmed') && missingNights.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                待安排夜晚 ({missingNights.length})
+              </div>
+              <div className="grid gap-2">
+                {missingNights.map((m) => (
+                  <button
+                    key={m.dateStr}
+                    type="button"
+                    onClick={() => onOpenModal(null)}
+                    className="w-full py-2.5 px-3.5 rounded-2xl border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-100/70 transition-all text-xs text-slate-500 flex items-center justify-between cursor-pointer group active:scale-[0.99]"
+                    title={`新增 ${m.dateLabel} 住宿`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <BedDouble className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 flex-shrink-0" />
+                      <span className="font-semibold text-slate-700">{m.dateLabel} ({m.dayLabel})</span>
+                      <span className="text-[11px] text-slate-400">尚未安排</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 flex items-center space-x-1">
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>安排</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
