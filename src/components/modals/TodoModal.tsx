@@ -146,16 +146,16 @@ export const TodoModal: React.FC<TodoModalProps> = ({
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                <span>截止日期 (Deadline)</span>
+                <span>截止日期</span>
               </label>
               {dueDate && (
                 <button
                   type="button"
                   onClick={() => setDueDate('')}
-                  className="text-[11px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer flex items-center space-x-0.5"
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  title="清除日期"
                 >
-                  <X className="w-3 h-3" />
-                  <span>清除</span>
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -235,7 +235,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
 
           {/* 第四格：備註 */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">備註 (選填)</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">備註</label>
             <textarea
               rows={2}
               value={note}
@@ -252,10 +252,10 @@ export const TodoModal: React.FC<TodoModalProps> = ({
                 type="button"
                 onClick={handleDelete}
                 disabled={isSubmitting}
-                className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center space-x-1 cursor-pointer"
+                className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                title="刪除待辦"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>刪除</span>
               </button>
             )}
 

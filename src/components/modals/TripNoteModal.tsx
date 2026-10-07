@@ -54,7 +54,7 @@ export const TripNoteModal: React.FC<TripNoteModalProps> = ({
           <div className="flex items-center space-x-2">
             <span className="text-lg">📢</span>
             <h3 className="text-base font-extrabold text-slate-900">
-              編輯重要備註
+              重要備註
             </h3>
           </div>
           <button
@@ -67,7 +67,7 @@ export const TripNoteModal: React.FC<TripNoteModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-3">
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-600">
               備註內容 / 須知公告
@@ -76,20 +76,12 @@ export const TripNoteModal: React.FC<TripNoteModalProps> = ({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={"例：\n**8/30 李政厚搖頭娃娃日 (1:05 PM)**\n[野火空氣品質](https://fire.airnow.gov)\n[加州即時路況](https://quickmap.dot.ca.gov)"}
-              rows={6}
+              rows={9}
               className="w-full min-w-0 bg-slate-50 border border-slate-200 text-[16px] sm:text-sm px-3.5 py-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium resize-none leading-relaxed"
               autoFocus
             />
-          </div>
-
-          <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/60 text-xs text-amber-900 space-y-1">
-            <div className="font-bold flex items-center space-x-1">
-              <span>💡</span>
-              <span>排版小技巧</span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-amber-800">
-              • 重點標註使用 <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono font-bold">**文字**</code> 可突顯粗體黃字。<br />
-              • 實用網址使用 <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono font-bold">[名稱](網址)</code> 可自動生成快速開啟按鈕。
+            <p className="text-[11px] text-slate-400 font-medium pl-1">
+              支援 <span className="font-mono text-slate-600">**粗體重點**</span> 與 <span className="font-mono text-slate-600">[標題](網址)</span>
             </p>
           </div>
 
@@ -116,7 +108,7 @@ export const TripNoteModal: React.FC<TripNoteModalProps> = ({
               ) : (
                 <>
                   <Check className="w-4 h-4 stroke-[3]" />
-                  <span>儲存備註</span>
+                  <span>儲存</span>
                 </>
               )}
             </button>
