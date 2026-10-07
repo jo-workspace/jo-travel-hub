@@ -401,13 +401,21 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set);
   }, [tripData.shopping]);
 
-  // 全旅程所有完整天數序列 (結合 startDate、航班回程日、tripDates 與行程最大天數)
+  // 旅程真實起始日：去程航班日期為最高真實度，若無則採用設定的 startDate
+  const effectiveStartDate = useMemo(() => {
+    const outboundFlight = tripData.flights?.find((f) => f.type === 'outbound');
+    return outboundFlight?.departureDate || tripData.startDate || '';
+  }, [tripData.flights, tripData.startDate]);
+
+  // 全旅程所有完整天數序列 (結合航班去程/回程日、startDate、tripDates 與行程最大天數)
   const allTripDaySequence = useMemo(() => {
+    const outboundFlight = tripData.flights?.find((f) => f.type === 'outbound');
     const inboundFlight = tripData.flights?.find((f) => f.type === 'inbound');
     const existingDays = Array.from(new Set(tripData.itinerary.map((i) => i.day))).filter(Boolean);
     return computeTripDaySequence({
       startDate: tripData.startDate,
       tripDates: tripData.tripDates || tripConfig?.dates,
+      outboundDate: outboundFlight?.departureDate,
       inboundDate: inboundFlight?.departureDate || inboundFlight?.arrivalDate,
       existingDays,
     });
@@ -1033,7 +1041,7 @@ export default function TripPage({ params }: PageProps) {
                   data={tripData.itinerary}
                   tripNote={tripData.tripNote}
                   hideVisited={hideVisited}
-                  startDate={tripData.startDate}
+                  startDate={effectiveStartDate}
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
                   isTaiwanTrip={tripData.isTaiwanTrip}
@@ -1064,7 +1072,7 @@ export default function TripPage({ params }: PageProps) {
                   foreignCurrency={tripData.foreignCurrency}
                   timezone={tripData.timezone}
                   companions={tripData.companions}
-                  startDate={tripData.startDate}
+                  startDate={effectiveStartDate}
                   itineraryDays={allTripDaySequence}
                   onSave={handleSaveAccommodation}
                   onDelete={handleDeleteAccommodation}

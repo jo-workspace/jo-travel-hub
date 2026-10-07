@@ -73,14 +73,15 @@ export function parseYMD(value: string): number | null {
   return Date.UTC(Number(y), Number(m) - 1, Number(d));
 }
 
-/** 依據起始日、回程航班或日期區間，計算整趟旅程的天數序列 (例：['Day 1', 'Day 2', ..., 'Day 10']) */
+/** 依據出發航班日、起始日、回程航班或日期區間，計算整趟旅程的天數序列 (例：['Day 1', 'Day 2', ..., 'Day 10']) */
 export function computeTripDaySequence(options: {
   startDate?: string;
   tripDates?: string;
+  outboundDate?: string;
   inboundDate?: string;
   existingDays?: string[];
 }): string[] {
-  const { startDate, tripDates, inboundDate, existingDays = [] } = options;
+  const { startDate, tripDates, outboundDate, inboundDate, existingDays = [] } = options;
 
   let totalDays = 0;
 
@@ -92,23 +93,40 @@ export function computeTripDaySequence(options: {
     }
   }
 
-  // 2. 由 startDate + inboundDate 推算天數 (回程日當天是最後一天，天數 = diff + 1)
-  const normStart = normalizeDateToYMD(startDate);
+  // 2. 核心校驗：若有去程與回程航班，以機票出發/回程日作為最高真實度基準（絕對不會發生跨年年份手誤）
+  const normOutbound = normalizeDateToYMD(outboundDate);
   const normInbound = normalizeDateToYMD(inboundDate);
 
-  if (normStart && normInbound) {
-    const s = parseYMD(normStart);
+  if (normOutbound && normInbound) {
+    const s = parseYMD(normOutbound);
     const e = parseYMD(normInbound);
     if (s !== null && e !== null && e >= s) {
-      const daysFromDates = Math.round((e - s) / 86400000) + 1;
-      // 容錯防護：一般休假旅遊天數極限在 60 天以內，若超過 60 天代表年份設定不一致（例如 2026 出發 vs 2027 回程手誤）
-      if (daysFromDates > 0 && daysFromDates <= 60 && daysFromDates > totalDays) {
-        totalDays = daysFromDates;
+      const daysFromFlights = Math.round((e - s) / 86400000) + 1;
+      if (daysFromFlights > totalDays) {
+        totalDays = daysFromFlights;
+      }
+    }
+  } else {
+    // 3. 若無去程航班，但有回程航班 + 旅程設定的 startDate
+    const effectiveStart = normOutbound || normalizeDateToYMD(startDate);
+    if (effectiveStart && normInbound) {
+      const s = parseYMD(effectiveStart);
+      const e = parseYMD(normInbound);
+      if (s !== null && e !== null && e >= s) {
+        // 校驗：若回程與起始年份不同且天數極其異常，檢查是否為年份不同步
+        const [sy] = effectiveStart.split('-');
+        const [ey] = normInbound.split('-');
+        if (sy === ey) {
+          const daysFromDates = Math.round((e - s) / 86400000) + 1;
+          if (daysFromDates > totalDays) {
+            totalDays = daysFromDates;
+          }
+        }
       }
     }
   }
 
-  // 3. 由 tripDates 字串推算 (例："2026/02/19 - 2026/02/28" 或 "2026/02/19 ~ 2026/02/28")
+  // 4. 由 tripDates 字串推算 (例："2027/02/19 - 2027/02/28" 或 "2027/02/19 ~ 2027/02/28")
   if (tripDates) {
     const matches = tripDates.match(/(\d{4}[./-]\d{1,2}[./-]\d{1,2})/g);
     if (matches && matches.length >= 2) {
@@ -116,7 +134,7 @@ export function computeTripDaySequence(options: {
       const endMs = parseYMD(matches[1]);
       if (startMs !== null && endMs !== null && endMs >= startMs) {
         const daysFromRange = Math.round((endMs - startMs) / 86400000) + 1;
-        if (daysFromRange > 0 && daysFromRange <= 60 && daysFromRange > totalDays) {
+        if (daysFromRange > totalDays) {
           totalDays = daysFromRange;
         }
       }
