@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { ItineraryItem } from '@/types/trip';
-import { X, Trash2, ChevronDown } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import {
   ITINERARY_CORE_PRESETS,
-  TRAVEL_ICON_PICKER_LIST,
   cleanCategoryName,
   matchCategoryIconKey,
   ItineraryCategoryIcon,
@@ -38,8 +37,6 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
   const [time, setTime] = useState('');
   const [categoryName, setCategoryName] = useState('景點');
   const [selectedIconKey, setSelectedIconKey] = useState('map-pin');
-  const [isManualIcon, setIsManualIcon] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [links, setLinks] = useState('');
@@ -68,7 +65,6 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
       const clean = cleanCategoryName(item.type || '景點');
       setCategoryName(clean);
       setSelectedIconKey(matchCategoryIconKey(clean));
-      setIsManualIcon(false);
       setTitle(item.title || '');
       setContent(item.content || '');
       setLinks(item.links || '');
@@ -77,12 +73,10 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
       setTime('');
       setCategoryName('景點');
       setSelectedIconKey('map-pin');
-      setIsManualIcon(false);
       setTitle('');
       setContent('');
       setLinks('');
     }
-    setShowIconPicker(false);
   }, [item, isOpen, defaultDay]);
 
   if (!isOpen) return null;
@@ -149,9 +143,26 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* 1. 名稱 (必填置頂，AutoFocus) */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              名稱 <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="景點或餐廳名稱"
+              required
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+            />
+          </div>
+
+          {/* 2. 天數與時間 (50% / 50% 並排) */}
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
-              <label className="block text-xs font-bold text-slate-500 mb-1">天數</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">天數</label>
               <input
                 type="text"
                 value={day}
@@ -162,7 +173,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
               />
             </div>
             <div className="min-w-0">
-              <label className="block text-xs font-bold text-slate-500 mb-1">時間</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">時間</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -170,91 +181,15 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 onBlur={(e) => setTime(formatTimeOnBlur(e.target.value))}
-                placeholder="09:00 (留空為口袋名單)"
+                placeholder="09:00 (留空為口袋)"
                 className="w-full min-w-0 appearance-none min-h-[38px] bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
               />
             </div>
           </div>
 
+          {/* 3. 類別 (極簡單選膠囊標籤) */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">類別</label>
-            <div className="flex items-center space-x-2 mb-2">
-              {/* SVG 向量圖示切換按鈕 */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowIconPicker((prev) => !prev)}
-                  className="h-10 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer select-none"
-                  title="更換向量圖示"
-                >
-                  <ItineraryCategoryIcon
-                    iconKey={selectedIconKey}
-                    className="w-4 h-4 text-slate-700"
-                  />
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                </button>
-
-                {/* SVG 向量圖示快捷選擇盤 */}
-                {showIconPicker && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-20"
-                      onClick={() => setShowIconPicker(false)}
-                    />
-                    <div className="absolute left-0 top-full mt-1.5 z-30 w-64 bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xl animate-scale-up">
-                      <div className="text-[11px] font-bold text-slate-400 px-1 mb-1.5">
-                        選擇旅遊圖示
-                      </div>
-                      <div className="grid grid-cols-5 gap-1 max-h-48 overflow-y-auto p-0.5">
-                        {TRAVEL_ICON_PICKER_LIST.map((tIcon) => {
-                          const isCurrent = selectedIconKey === tIcon.key;
-                          const IconComp = tIcon.Icon;
-                          return (
-                            <button
-                              key={tIcon.key}
-                              type="button"
-                              onClick={() => {
-                                setSelectedIconKey(tIcon.key);
-                                setIsManualIcon(true);
-                                setShowIconPicker(false);
-                              }}
-                              className={`w-10 h-10 flex flex-col items-center justify-center rounded-xl transition-all hover:bg-slate-100 cursor-pointer ${
-                                isCurrent
-                                  ? 'bg-slate-100 ring-2 ring-slate-900 text-slate-900'
-                                  : 'text-slate-600'
-                              }`}
-                              title={tIcon.label}
-                            >
-                              <IconComp className="w-4 h-4" />
-                              <span className="text-[9px] mt-0.5 font-medium leading-none">
-                                {tIcon.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* 類別文字輸入框 */}
-              <input
-                type="text"
-                value={categoryName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setCategoryName(val);
-                  if (!isManualIcon) {
-                    setSelectedIconKey(matchCategoryIconKey(val));
-                  }
-                }}
-                placeholder="自訂或點選下方分類"
-                className="flex-1 bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold h-10"
-              />
-            </div>
-
-            {/* 預設分類標籤與自訂分類 */}
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">類別</label>
             <div className="flex items-center flex-wrap gap-1.5">
               {ITINERARY_CORE_PRESETS.map((preset) => {
                 const isSelected = categoryName === preset.name;
@@ -265,13 +200,11 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                     onClick={() => {
                       setCategoryName(preset.name);
                       setSelectedIconKey(preset.iconKey);
-                      setIsManualIcon(false);
-                      setShowIconPicker(false);
                     }}
-                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer select-none font-bold flex items-center space-x-1.5 ${
+                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer select-none font-bold flex items-center space-x-1.5 active:scale-95 ${
                       isSelected
                         ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
                     }`}
                   >
                     <ItineraryCategoryIcon
@@ -283,7 +216,7 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                 );
               })}
 
-              {/* 當前旅程曾用過的乾淨自訂分類（如：郵輪） */}
+              {/* 旅程曾用過的合法自訂分類 */}
               {customPresets.map((customName) => {
                 const isSelected = categoryName === customName;
                 const iconKey = matchCategoryIconKey(customName);
@@ -294,13 +227,11 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
                     onClick={() => {
                       setCategoryName(customName);
                       setSelectedIconKey(iconKey);
-                      setIsManualIcon(false);
-                      setShowIconPicker(false);
                     }}
-                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer select-none font-bold flex items-center space-x-1.5 ${
+                    className={`text-xs px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer select-none font-bold flex items-center space-x-1.5 active:scale-95 ${
                       isSelected
                         ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
                     }`}
                   >
                     <ItineraryCategoryIcon
@@ -314,37 +245,27 @@ export const ItineraryModal: React.FC<ItineraryModalProps> = ({
             </div>
           </div>
 
+          {/* 4. 備註 */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">名稱</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="景點或餐廳名稱"
-              required
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">備註</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">備註</label>
             <textarea
-              rows={3}
+              rows={2}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="相關備註..."
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              placeholder="補充說明、搭乘指引、訂位資訊等..."
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium leading-relaxed"
             />
           </div>
 
+          {/* 5. 地圖連結 */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">地圖連結</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">地圖連結</label>
             <input
               type="url"
               value={links}
               onChange={(e) => setLinks(e.target.value)}
               placeholder="https://maps.app.goo.gl/..."
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
             />
           </div>
 
