@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TodoItem } from '@/types/trip';
 import { linkifyText } from '@/lib/linkify';
-import { Plus, Edit3, Calendar } from 'lucide-react';
+import { Plus, Edit3, Calendar, CheckSquare } from 'lucide-react';
 
 interface TodoTabProps {
   data: TodoItem[];
@@ -75,110 +75,170 @@ export const TodoTab: React.FC<TodoTabProps> = ({
   onToggleTodo,
   onOpenModal,
 }) => {
-  // 排序優先序（純 Checklist）：
-  // 1. 未完成優先於已完成
-  // 2. 未完成項目中：有 deadline（即將到期者）排在最前
-  // 3. 原始順序 (rowIndex)
-  const sortedData = [...data].sort((a, b) => {
-    // 未完成優先
-    if (a.isDone !== b.isDone) {
-      return a.isDone ? 1 : -1;
-    }
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+      today.getDate()
+    ).padStart(2, '0')}`;
+  }, []);
 
-    // 未完成項目中，有截止日期者優先排序（先到期先做）
-    if (!a.isDone && !b.isDone) {
-      if (a.dueDate && b.dueDate) {
-        const dateCompare = a.dueDate.localeCompare(b.dueDate);
-        if (dateCompare !== 0) return dateCompare;
-      } else if (a.dueDate) {
-        return -1;
-      } else if (b.dueDate) {
-        return 1;
+  // 依照截止日期 (End Date) 與緊迫程度動態小分組，組內嚴格依照 End Date 升冪排序
+  const groups = useMemo(() => {
+    const curTime = new Date(todayStr + 'T00:00:00').getTime();
+
+    const overdue: TodoItem[] = [];
+    const upcoming: TodoItem[] = [];
+    const later: TodoItem[] = [];
+    const nodate: TodoItem[] = [];
+    const completed: TodoItem[] = [];
+
+    data.forEach((item) => {
+      if (item.isDone) {
+        if (!hideDone) {
+          completed.push(item);
+        }
+        return;
       }
-    }
 
-    return (a.rowIndex || 0) - (b.rowIndex || 0);
-  });
+      if (!item.dueDate) {
+        nodate.push(item);
+        return;
+      }
 
-  const filteredItems = sortedData.filter((item) => {
-    if (hideDone && item.isDone) return false;
-    return true;
-  });
+      const dueTime = new Date(item.dueDate + 'T00:00:00').getTime();
+      const diffDays = Math.round((dueTime - curTime) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        overdue.push(item);
+      } else if (diffDays <= 7) {
+        upcoming.push(item);
+      } else {
+        later.push(item);
+      }
+    });
+
+    // 排序演算法：
+    // overdue: 依 dueDate 升冪（越早逾期的越前，先到先催）
+    overdue.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || (a.rowIndex || 0) - (b.rowIndex || 0));
+
+    // upcoming: 依 dueDate 升冪（先到期先做）
+    upcoming.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || (a.rowIndex || 0) - (b.rowIndex || 0));
+
+    // later: 依 dueDate 升冪
+    later.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || (a.rowIndex || 0) - (b.rowIndex || 0));
+
+    // nodate: 依建立順序 rowIndex
+    nodate.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
+
+    // completed: 依 rowIndex
+    completed.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
+
+    return [
+      { key: 'overdue', title: '已逾期', badgeClass: 'text-rose-600', icon: '🚨', items: overdue },
+      { key: 'upcoming', title: '7 天內截止', badgeClass: 'text-amber-700', icon: '🔥', items: upcoming },
+      { key: 'later', title: '稍後', badgeClass: 'text-slate-600', icon: '🗓️', items: later },
+      { key: 'nodate', title: '無期限', badgeClass: 'text-slate-500', icon: '📌', items: nodate },
+      { key: 'completed', title: '已完成', badgeClass: 'text-slate-400', icon: '✓', items: completed },
+    ].filter((g) => g.items.length > 0);
+  }, [data, hideDone, todayStr]);
+
+  const totalVisibleCount = groups.reduce((acc, g) => acc + g.items.length, 0);
 
   return (
-    <div className="space-y-3 pb-20">
-      {/* Top Add Button */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-          待辦 ({filteredItems.length})
-        </h2>
-        <button
-          onClick={() => onOpenModal()}
-          className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>新增</span>
-        </button>
-      </div>
-
-      {/* Empty State or Flat Checklist */}
-      {filteredItems.length === 0 ? (
-        <div className="text-center py-16 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100">
-          尚無待辦事項 ✨
+    <div className="space-y-4 pb-20">
+      {/* Empty State or Grouped Checklist */}
+      {totalVisibleCount === 0 ? (
+        <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center shadow-2xs">
+          <CheckSquare className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+          <h4 className="text-slate-800 font-bold text-sm mb-3">尚無待辦事項 ✨</h4>
+          <button
+            onClick={() => onOpenModal()}
+            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-xs inline-flex items-center space-x-1"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>新增待辦</span>
+          </button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredItems.map((item) => {
-            const dueBadge = getDueDateBadge(item.dueDate, item.isDone);
+        <div className="space-y-6">
+          {groups.map((group) => (
+            <div key={group.key} className="space-y-2.5">
+              {/* Group Section Header */}
+              <div className="flex items-center space-x-1.5 px-1 pt-1">
+                <span className="text-sm">{group.icon}</span>
+                <h3 className={`text-xs font-black uppercase tracking-wider ${group.badgeClass}`}>
+                  <span>{group.title}</span>
+                  <span className="ml-1 opacity-75 font-mono">({group.items.length})</span>
+                </h3>
+              </div>
 
-            return (
-              <div
-                key={item.id || item.rowIndex}
-                className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
-                  item.isDone
-                    ? 'border-slate-100 opacity-40 bg-slate-50'
-                    : 'border-slate-100 shadow-2xs hover:shadow-xs'
-                }`}
-              >
-                <div className="flex-1 pr-4 min-w-0">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3
-                      className={`text-base font-extrabold text-slate-900 leading-tight ${
-                        item.isDone ? 'line-through text-slate-400' : ''
+              {/* Items List */}
+              <div className="space-y-2">
+                {group.items.map((item) => {
+                  const dueBadge = getDueDateBadge(item.dueDate, item.isDone);
+
+                  return (
+                    <div
+                      key={item.id || item.rowIndex}
+                      className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
+                        item.isDone
+                          ? 'border-slate-100 opacity-40 bg-slate-50'
+                          : 'border-slate-100 shadow-2xs hover:shadow-xs'
                       }`}
                     >
-                      <span>{item.task}</span>
-                    </h3>
-                    {dueBadge}
-                  </div>
+                      <div className="flex-1 pr-4 min-w-0">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <h3
+                            className={`text-base font-extrabold text-slate-900 leading-tight ${
+                              item.isDone ? 'line-through text-slate-400' : ''
+                            }`}
+                          >
+                            <span>{item.task}</span>
+                          </h3>
+                          {dueBadge}
+                        </div>
 
-                  {item.note && (
-                    <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
-                      {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
+                        {item.note && (
+                          <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
+                            {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <button
+                          onClick={() => onOpenModal(item)}
+                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                          title="編輯"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <input
+                          type="checkbox"
+                          checked={item.isDone}
+                          onChange={() => onToggleTodo(item.rowIndex, item.isDone, item.id)}
+                          className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <button
-                    onClick={() => onOpenModal(item)}
-                    className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                    title="編輯"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="checkbox"
-                    checked={item.isDone}
-                    onChange={() => onToggleTodo(item.rowIndex, item.isDone, item.id)}
-                    className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
-                  />
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
+
+      {/* 右下角固定懸浮「＋」按鈕 (FAB) - 統一住宿頁面樣式與位置 */}
+      <button
+        type="button"
+        onClick={() => onOpenModal()}
+        className="fixed bottom-20 md:bottom-8 right-5 sm:right-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-xl hover:shadow-2xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 hover:scale-105 border border-slate-700/50"
+        title="新增待辦"
+        aria-label="新增待辦"
+      >
+        <Plus className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+      </button>
     </div>
   );
 };
