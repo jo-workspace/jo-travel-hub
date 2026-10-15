@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { TodoItem } from '@/types/trip';
 import { linkifyText } from '@/lib/linkify';
+import { normalizeDateToYMD, parseYMD } from '@/lib/tripDate';
 import { Plus, Edit3, Calendar, CheckSquare } from 'lucide-react';
 
 interface TodoTabProps {
@@ -16,15 +17,20 @@ interface TodoTabProps {
 function getDueDateBadge(dueDate?: string, isDone?: boolean) {
   if (!dueDate || isDone) return null;
 
+  const dueNorm = normalizeDateToYMD(dueDate);
+  if (!dueNorm) return null;
+
   // 使用本地日期計算差距天數 (消除時區偏差)
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
     today.getDate()
   ).padStart(2, '0')}`;
 
-  const due = new Date(dueDate + 'T00:00:00');
-  const cur = new Date(todayStr + 'T00:00:00');
-  const diffDays = Math.round((due.getTime() - cur.getTime()) / (1000 * 60 * 60 * 24));
+  const todayMs = parseYMD(todayStr);
+  const dueMs = parseYMD(dueNorm);
+  if (todayMs === null || dueMs === null) return null;
+
+  const diffDays = Math.round((dueMs - todayMs) / 86400000);
 
   if (diffDays < 0) {
     return (
@@ -59,8 +65,9 @@ function getDueDateBadge(dueDate?: string, isDone?: boolean) {
     );
   }
 
-  // 4 天以上顯示簡短月/日
-  const formattedDate = dueDate.length >= 10 ? `${parseInt(dueDate.slice(5, 7), 10)}/${parseInt(dueDate.slice(8, 10), 10)}` : dueDate;
+  // 4 天以上顯示簡短月/日 (例如 8/28)
+  const parts = dueNorm.split('-');
+  const formattedDate = parts.length === 3 ? `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}` : dueNorm;
   return (
     <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
       <Calendar className="w-3 h-3 text-slate-400" />
@@ -75,17 +82,16 @@ export const TodoTab: React.FC<TodoTabProps> = ({
   onToggleTodo,
   onOpenModal,
 }) => {
-  const todayStr = useMemo(() => {
+  const todayMs = useMemo(() => {
     const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
       today.getDate()
     ).padStart(2, '0')}`;
+    return parseYMD(todayStr) ?? Date.now();
   }, []);
 
-  // 依照截止日期 (End Date) 與緊迫程度動態小分組，組內嚴格依照 End Date 升冪排序
+  // 依照截止日期 (DueDate) 與緊迫程度動態小分組，組內嚴格依照 Date 毫秒數升冪排序
   const groups = useMemo(() => {
-    const curTime = new Date(todayStr + 'T00:00:00').getTime();
-
     const overdue: TodoItem[] = [];
     const upcoming: TodoItem[] = [];
     const later: TodoItem[] = [];
@@ -100,13 +106,15 @@ export const TodoTab: React.FC<TodoTabProps> = ({
         return;
       }
 
-      if (!item.dueDate) {
+      const dueNorm = normalizeDateToYMD(item.dueDate);
+      const dueMs = dueNorm ? parseYMD(dueNorm) : null;
+
+      if (!dueNorm || dueMs === null) {
         nodate.push(item);
         return;
       }
 
-      const dueTime = new Date(item.dueDate + 'T00:00:00').getTime();
-      const diffDays = Math.round((dueTime - curTime) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.round((dueMs - todayMs) / 86400000);
 
       if (diffDays < 0) {
         overdue.push(item);
@@ -117,30 +125,27 @@ export const TodoTab: React.FC<TodoTabProps> = ({
       }
     });
 
-    // 排序演算法：
-    // overdue: 依 dueDate 升冪（越早逾期的越前，先到先催）
-    overdue.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || (a.rowIndex || 0) - (b.rowIndex || 0));
+    // 嚴格升冪排序演算法 (依截止日毫秒數由近到遠升冪，若同日依建立順序 rowIndex)
+    const compareDueAsc = (a: TodoItem, b: TodoItem) => {
+      const msA = parseYMD(normalizeDateToYMD(a.dueDate) || '') ?? Infinity;
+      const msB = parseYMD(normalizeDateToYMD(b.dueDate) || '') ?? Infinity;
+      return msA - msB || (a.rowIndex || 0) - (b.rowIndex || 0);
+    };
 
-    // upcoming: 依 dueDate 升冪（先到期先做）
-    upcoming.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || (a.rowIndex || 0) - (b.rowIndex || 0));
-
-    // later: 依 dueDate 升冪
-    later.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '') || (a.rowIndex || 0) - (b.rowIndex || 0));
-
-    // nodate: 依建立順序 rowIndex
+    overdue.sort(compareDueAsc);
+    upcoming.sort(compareDueAsc);
+    later.sort(compareDueAsc);
     nodate.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
-
-    // completed: 依 rowIndex
     completed.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
 
     return [
       { key: 'overdue', title: '已逾期', badgeClass: 'text-rose-600', icon: '🚨', items: overdue },
-      { key: 'upcoming', title: '7 天內截止', badgeClass: 'text-amber-700', icon: '🔥', items: upcoming },
-      { key: 'later', title: '稍後', badgeClass: 'text-slate-600', icon: '🗓️', items: later },
+      { key: 'upcoming', title: '7 天內', badgeClass: 'text-amber-700', icon: '🔥', items: upcoming },
+      { key: 'later', title: '更久之後', badgeClass: 'text-slate-600', icon: '🗓️', items: later },
       { key: 'nodate', title: '無期限', badgeClass: 'text-slate-500', icon: '📌', items: nodate },
       { key: 'completed', title: '已完成', badgeClass: 'text-slate-400', icon: '✓', items: completed },
     ].filter((g) => g.items.length > 0);
-  }, [data, hideDone, todayStr]);
+  }, [data, hideDone, todayMs]);
 
   const totalVisibleCount = groups.reduce((acc, g) => acc + g.items.length, 0);
 
