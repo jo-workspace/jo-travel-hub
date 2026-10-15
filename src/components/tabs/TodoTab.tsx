@@ -210,9 +210,11 @@ export const TodoTab: React.FC<TodoTabProps> = ({
 
               {/* Items List or Layback Chill Empty Message */}
               {group.items.length === 0 && group.key === 'upcoming' ? (
-                <div className="bg-emerald-50/50 border border-dashed border-emerald-200/80 rounded-2xl p-4 text-center text-xs font-semibold text-emerald-800/90 flex items-center justify-center space-x-2 shadow-2xs">
-                  <span className="text-sm">🌴</span>
-                  <span>近期無須操心，放輕鬆 Lay back & chill ✨</span>
+                <div className="bg-gradient-to-b from-emerald-50/70 to-teal-50/40 border border-dashed border-emerald-200/90 rounded-3xl py-7 px-5 text-center flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-2.5 shadow-2xs transition-all">
+                  <span className="text-2xl select-none">🌴</span>
+                  <span className="text-xs sm:text-sm font-bold text-emerald-800/90 tracking-wide">
+                    近期無須操心，放輕鬆 Lay back & chill ✨
+                  </span>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -224,12 +226,12 @@ export const TodoTab: React.FC<TodoTabProps> = ({
                   return (
                     <div
                       key={item.id || item.rowIndex}
-                      className={`rounded-2xl p-4 flex justify-between items-start transition-all duration-200 border ${
+                      className={`flex justify-between items-start transition-all duration-200 border ${
                         item.isDone
-                          ? 'border-slate-100 opacity-40 bg-slate-50'
+                          ? 'rounded-2xl p-4 border-slate-100 opacity-40 bg-slate-50'
                           : isLater
-                          ? 'bg-slate-50/80 border-slate-200/70 shadow-none hover:bg-slate-100/60'
-                          : 'bg-white border-slate-100 shadow-2xs hover:shadow-xs'
+                          ? 'rounded-xl px-3.5 py-2.5 sm:py-3 bg-slate-50/60 border-slate-200/50 shadow-none hover:bg-slate-100/50'
+                          : 'rounded-2xl p-4 bg-white border-slate-100 shadow-2xs hover:shadow-xs'
                       }`}
                     >
                       <div className="flex-1 pr-4 min-w-0">
@@ -239,7 +241,7 @@ export const TodoTab: React.FC<TodoTabProps> = ({
                               item.isDone
                                 ? 'line-through text-slate-400 font-extrabold'
                                 : isLater
-                                ? 'text-slate-700 font-bold'
+                                ? 'text-slate-700 font-medium'
                                 : 'text-slate-900 font-extrabold'
                             }`}
                           >
@@ -250,8 +252,10 @@ export const TodoTab: React.FC<TodoTabProps> = ({
 
                         {cleanNote && (
                           <div
-                            className={`text-sm font-medium mt-1.5 leading-relaxed whitespace-pre-line ${
-                              isLater ? 'text-slate-500' : 'text-slate-600'
+                            className={`mt-1 leading-relaxed whitespace-pre-line ${
+                              isLater
+                                ? 'text-xs text-slate-400 font-normal'
+                                : 'text-sm text-slate-600 font-medium'
                             }`}
                           >
                             {cleanNote}
