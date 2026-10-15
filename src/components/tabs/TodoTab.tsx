@@ -4,13 +4,38 @@ import React, { useMemo } from 'react';
 import { TodoItem } from '@/types/trip';
 import { linkifyText } from '@/lib/linkify';
 import { normalizeDateToYMD, parseYMD } from '@/lib/tripDate';
-import { Plus, Edit3, Calendar, CheckSquare } from 'lucide-react';
+import { Plus, Edit3, Calendar, CheckSquare, Link2, ExternalLink } from 'lucide-react';
 
 interface TodoTabProps {
   data: TodoItem[];
   hideDone: boolean;
   onToggleTodo: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: TodoItem) => void;
+}
+
+/** 解析備註文字，抽離出結構化網址標籤並保留純文字 */
+function parseNoteAndLinks(rawNote?: string): { text: string; links: Array<{ url: string; title: string }> } {
+  if (!rawNote) return { text: '', links: [] };
+
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const links: Array<{ url: string; title: string }> = [];
+  const cleanText = rawNote
+    .replace(urlRegex, (url) => {
+      const cleanUrl = url.replace(/[.,;:!?)\]}'"]+$/, '');
+      let title = '相關連結';
+      try {
+        const parsed = new URL(cleanUrl);
+        title = parsed.hostname.replace(/^www\./, '');
+      } catch {
+        title = '外部連結';
+      }
+      links.push({ url: cleanUrl, title });
+      return '';
+    })
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return { text: cleanText, links };
 }
 
 /** 依據截止日期計算徽章樣式與文字 */
@@ -181,21 +206,29 @@ export const TodoTab: React.FC<TodoTabProps> = ({
               <div className="space-y-2">
                 {group.items.map((item) => {
                   const dueBadge = getDueDateBadge(item.dueDate, item.isDone);
+                  const isLater = group.key === 'later';
+                  const { text: cleanNote, links } = parseNoteAndLinks(item.note);
 
                   return (
                     <div
                       key={item.id || item.rowIndex}
-                      className={`bg-white border rounded-2xl p-4 flex justify-between items-center transition-all duration-200 ${
+                      className={`rounded-2xl p-4 flex justify-between items-start transition-all duration-200 border ${
                         item.isDone
                           ? 'border-slate-100 opacity-40 bg-slate-50'
-                          : 'border-slate-100 shadow-2xs hover:shadow-xs'
+                          : isLater
+                          ? 'bg-slate-50/80 border-slate-200/70 shadow-none hover:bg-slate-100/60'
+                          : 'bg-white border-slate-100 shadow-2xs hover:shadow-xs'
                       }`}
                     >
                       <div className="flex-1 pr-4 min-w-0">
                         <div className="flex items-center flex-wrap gap-2">
                           <h3
-                            className={`text-base font-extrabold text-slate-900 leading-tight ${
-                              item.isDone ? 'line-through text-slate-400' : ''
+                            className={`text-base leading-tight ${
+                              item.isDone
+                                ? 'line-through text-slate-400 font-extrabold'
+                                : isLater
+                                ? 'text-slate-700 font-bold'
+                                : 'text-slate-900 font-extrabold'
                             }`}
                           >
                             <span>{item.task}</span>
@@ -203,14 +236,39 @@ export const TodoTab: React.FC<TodoTabProps> = ({
                           {dueBadge}
                         </div>
 
-                        {item.note && (
-                          <div className="text-sm text-slate-500 font-medium mt-1.5 leading-relaxed whitespace-pre-line">
-                            {linkifyText(item.note.replace(/<br\s*\/?>/gi, '\n'))}
+                        {cleanNote && (
+                          <div
+                            className={`text-sm font-medium mt-1.5 leading-relaxed whitespace-pre-line ${
+                              isLater ? 'text-slate-500' : 'text-slate-600'
+                            }`}
+                          >
+                            {cleanNote}
+                          </div>
+                        )}
+
+                        {/* 連結自動縮為精緻膠囊標籤 (Pill Tag) */}
+                        {links.length > 0 && (
+                          <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                            {links.map((link, idx) => (
+                              <a
+                                key={idx}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-sky-700 hover:text-sky-800 rounded-lg text-xs font-semibold transition-all active:scale-95 border border-slate-200/80 shadow-2xs group/link max-w-full cursor-pointer"
+                                title={link.url}
+                              >
+                                <Link2 className="w-3 h-3 text-sky-500 flex-shrink-0" />
+                                <span className="truncate max-w-[140px] sm:max-w-[200px]">{link.title}</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover/link:text-sky-600 flex-shrink-0" />
+                              </a>
+                            ))}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex items-center space-x-2 flex-shrink-0">
+                      <div className="flex items-center space-x-2 flex-shrink-0 mt-0.5">
                         <button
                           onClick={() => onOpenModal(item)}
                           className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TodoItem } from '@/types/trip';
-import { X, Trash2, Calendar } from 'lucide-react';
+import { X, Trash2, Calendar, Link2 } from 'lucide-react';
 
 interface TodoModalProps {
   isOpen: boolean;
@@ -26,17 +26,36 @@ export const TodoModal: React.FC<TodoModalProps> = ({
   const [task, setTask] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [note, setNote] = useState('');
+  const [link1, setLink1] = useState('');
+  const [link2, setLink2] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (item) {
       setTask(item.task || '');
       setDueDate(item.dueDate || '');
-      setNote(item.note || '');
+
+      // 自動從 note 中抽離 URL 至專屬連結欄位，保持 note 純文字清爽
+      const rawNote = item.note || '';
+      const urlRegex = /https?:\/\/[^\s]+/g;
+      const extractedUrls: string[] = [];
+      const cleanNote = rawNote
+        .replace(urlRegex, (url) => {
+          extractedUrls.push(url.replace(/[.,;:!?)\]}'"]+$/, ''));
+          return '';
+        })
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      setNote(cleanNote);
+      setLink1(extractedUrls[0] || '');
+      setLink2(extractedUrls[1] || '');
     } else {
       setTask('');
       setDueDate('');
       setNote('');
+      setLink1('');
+      setLink2('');
     }
   }, [item, isOpen]);
 
@@ -63,13 +82,16 @@ export const TodoModal: React.FC<TodoModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const validLinks = [link1.trim(), link2.trim()].filter(Boolean);
+      const combinedNote = [note.trim(), ...validLinks].filter(Boolean).join('\n');
+
       await onSave({
         id: item?.id,
         rowIndex: item?.rowIndex || 0,
         task: task.trim(),
         dueDate: dueDate.trim() || undefined,
         category: item?.category || '其他',
-        note: note.trim(),
+        note: combinedNote,
         isDone: item?.isDone || false,
       });
       onClose();
@@ -193,17 +215,39 @@ export const TodoModal: React.FC<TodoModalProps> = ({
             </div>
           </div>
 
-          {/* 備註 */}
+          {/* 第三格：相關連結 (1-2 個格子，避免網址佔用備註空間) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+              <Link2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>相關連結 (選填，最多 2 個)</span>
+            </label>
+            <div className="space-y-1.5">
+              <input
+                type="url"
+                value={link1}
+                onChange={(e) => setLink1(e.target.value)}
+                placeholder="https://... (例：預約網址、租車官網)"
+                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
+              />
+              <input
+                type="url"
+                value={link2}
+                onChange={(e) => setLink2(e.target.value)}
+                placeholder="https://... (備用連結或電子憑證)"
+                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
+              />
+            </div>
+          </div>
 
           {/* 第四格：備註 */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">備註</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">備註說明 (選填)</label>
             <textarea
               rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="補充說明、預約編號、連結等..."
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium"
+              placeholder="輸入事項說明、預約編號、重要提醒..."
+              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium resize-none"
             />
           </div>
 
