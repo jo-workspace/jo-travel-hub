@@ -1,34 +1,24 @@
-# 待辦清單「更久之後」柔和沉降樣式與連結標籤化實作計畫
+# 待辦清單「7天內無待辦」放鬆鼓勵提示實作計畫
 
 ## 1. 需求理解與摘要 (Requirement Summary)
-- **視覺降載 (方案 1 - Muted Soft Card)**：
-  - 「🗓️ 更久之後」的項目改採「柔和微灰沉降樣式」（`bg-slate-50/80 border-slate-200/70 shadow-none`，標題使用 `font-bold text-slate-700`），避免強烈反灰與「已完成」混淆，但在視覺層次上自然退居次要，讓旅人心理無緊迫感。
-  - 對比「🔥 7 天內」與「🚨 已逾期」維持鮮明純白亮卡（`bg-white shadow-2xs` 搭配 `font-extrabold text-slate-900`），焦點分明。
-- **連結體驗優化 (Link Tagging & Dedicated Inputs)**：
-  1. **前端自動縮成標籤**：待辦項目中的網址不再顯示又長又醜的完整 URL，而是自動提煉為精緻的膠囊標籤（顯示網域名稱，如 `toyotarentacar.com`、`klook.com`，搭配外連圖示），點擊獨立另開分頁。
-  2. **編輯彈窗提供 1-2 個獨立連結欄位**：
-     - 在 `TodoModal` 中增加「🔗 連結 1 (選填)」與「🔗 連結 2 (選填)」獨立輸入格。
-     - 編輯時自動從備註中抽出網址放入連結格，備註 textarea 只保留純文字，編輯時絕不被長連結佔滿空間。
-     - 儲存時將純備註與連結合併儲存，零資料庫遷移風險，100% 向下相容。
+- **使用者需求**：當近 7 天內沒有任何待辦事項時，希望呈現一句輕鬆溫暖的鼓勵詞（例如「近期無須操心，放輕鬆 Lay back 之類的」），降低行前焦慮感。
+- **設計價值 (Emotional UX & Peace of Mind)**：
+  - 自由行前旅人常擔心「是不是漏了什麼事情沒做？」。
+  - 當「🔥 7 天內」沒有事項時，不再只是單純讓分組消失，而是呈現一個極簡透氣的綠色微卡片：`🌴 近期無須操心，放輕鬆 Lay back & chill ✨`。
+  - 明確告訴使用者：**當前進度在掌控之中，這週完全沒有需要急迫處理的事項，安心休息！**
 
 ---
 
 ## 2. 實作步驟 (Implementation Steps)
 
-### 步驟 1：修改 `src/components/modals/TodoModal.tsx`
-- 引入 `link1` 與 `link2` state。
-- 在 `useEffect` 載入項目時，自動用 Regex 抽取 note 中的網址並填入 `link1`, `link2`，note textarea 只呈現純文字。
-- 在表單中加入「相關連結」區塊（提供 2 個乾淨 URL 輸入框）。
-- 提交時自動組合純文字與網址儲存。
+### 步驟 1：修改 `src/components/tabs/TodoTab.tsx`
+- 在 `groups` 邏輯中，若有進行中的待辦事項（`hasActiveTodos`），「🔥 7 天內」分組將持續保留，即使 `upcoming.length === 0` 也不隱藏。
+- 當 `group.key === 'upcoming'` 且 `group.items.length === 0` 時，渲染溫暖的舒壓微卡片：
+  - 樣式：淡綠微透邊框（`bg-emerald-50/40 border-dashed border-emerald-200/70 text-emerald-800/80`），視覺舒壓放鬆。
+  - 文案：`🌴 近期無須操心，放輕鬆 Lay back & chill ✨`。
 
-### 步驟 2：修改 `src/components/tabs/TodoTab.tsx`
-- 實作 `parseNoteAndLinks` 工具函數，自動分離備註純文字與網址清單。
-- 網址呈現為簡短的膠囊標籤（Domain Pill Tag），點擊 `e.stopPropagation()` 獨立開啟外部連結。
-- 為 `group.key === 'later'` 套用柔和沉降樣式（微灰底、微調字重、淡化陰影）。
+### 步驟 2：建置驗證 (Verification)
+- 執行 `npm run build` 確認編譯通過。
 
-### 步驟 3：驗證與建置 (Verification)
-- 執行 `npm run build` 確認 TypeScript 與 Turbopack 0 錯誤。
-- 確認 Desktop 與 iPhone 響應式與防誤觸。
-
-### 步驟 4：Git 自動提交與推送 (Git Commit & Push)
-- 遵循規範執行 `git add`、`git commit` 以及 `git push origin main`。
+### 步驟 3：Git 自動提交與推送 (Git Commit & Push)
+- 遵循規範自動執行 `git add`、`git commit` 以及 `git push origin main`。

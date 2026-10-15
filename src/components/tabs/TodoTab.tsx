@@ -163,21 +163,27 @@ export const TodoTab: React.FC<TodoTabProps> = ({
     nodate.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
     completed.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
 
+    const hasActiveTodos = overdue.length > 0 || later.length > 0 || nodate.length > 0;
+
     return [
       { key: 'overdue', title: '已逾期', badgeClass: 'text-rose-600', icon: '🚨', items: overdue },
       { key: 'upcoming', title: '7 天內', badgeClass: 'text-amber-700', icon: '🔥', items: upcoming },
       { key: 'later', title: '更久之後', badgeClass: 'text-slate-600', icon: '🗓️', items: later },
       { key: 'nodate', title: '無期限', badgeClass: 'text-slate-500', icon: '📌', items: nodate },
       { key: 'completed', title: '已完成', badgeClass: 'text-slate-400', icon: '✓', items: completed },
-    ].filter((g) => g.items.length > 0);
+    ].filter((g) => {
+      // 7 天內若目前為 0 件，但其他分組有待辦時，保留此分組以呈現放鬆鼓勵提示
+      if (g.key === 'upcoming' && g.items.length === 0) {
+        return hasActiveTodos;
+      }
+      return g.items.length > 0;
+    });
   }, [data, hideDone, todayMs]);
-
-  const totalVisibleCount = groups.reduce((acc, g) => acc + g.items.length, 0);
 
   return (
     <div className="space-y-4 pb-20">
       {/* Empty State or Grouped Checklist */}
-      {totalVisibleCount === 0 ? (
+      {groups.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center shadow-2xs">
           <CheckSquare className="w-10 h-10 text-slate-400 mx-auto mb-2" />
           <h4 className="text-slate-800 font-bold text-sm mb-3">尚無待辦事項 ✨</h4>
@@ -202,8 +208,14 @@ export const TodoTab: React.FC<TodoTabProps> = ({
                 </h3>
               </div>
 
-              {/* Items List */}
-              <div className="space-y-2">
+              {/* Items List or Layback Chill Empty Message */}
+              {group.items.length === 0 && group.key === 'upcoming' ? (
+                <div className="bg-emerald-50/50 border border-dashed border-emerald-200/80 rounded-2xl p-4 text-center text-xs font-semibold text-emerald-800/90 flex items-center justify-center space-x-2 shadow-2xs">
+                  <span className="text-sm">🌴</span>
+                  <span>近期無須操心，放輕鬆 Lay back & chill ✨</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
                 {group.items.map((item) => {
                   const dueBadge = getDueDateBadge(item.dueDate, item.isDone);
                   const isLater = group.key === 'later';
@@ -287,8 +299,9 @@ export const TodoTab: React.FC<TodoTabProps> = ({
                   );
                 })}
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+        ))}
         </div>
       )}
 
