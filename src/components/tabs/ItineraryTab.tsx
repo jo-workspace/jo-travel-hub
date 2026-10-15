@@ -1122,19 +1122,74 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 : null;
 
               if (confirmedAcc) {
+                const isCheckInDay = Boolean(dayIsoDate && confirmedAcc.checkInDate && dayIsoDate === confirmedAcc.checkInDate);
+                const mapQuery = `${confirmedAcc.name} ${confirmedAcc.cityArea || ''}`.trim();
+                const mapUrl = confirmedAcc.mapUrl?.trim()
+                  ? confirmedAcc.mapUrl.trim()
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+                const subInfo = [confirmedAcc.cityArea, confirmedAcc.roomType].filter(Boolean).join(' · ');
+
                 return (
-                  <button
-                    type="button"
+                  <div
                     onClick={() => onOpenAccommodationModal(confirmedAcc)}
-                    className="w-full mt-2 py-2 px-3 rounded-xl bg-slate-100/70 hover:bg-slate-150/80 transition-all text-xs font-semibold text-slate-700 flex items-center justify-between cursor-pointer group active:scale-[0.99]"
-                    title="查看住宿詳情"
+                    className="w-full mt-2.5 bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all duration-200 shadow-2xs hover:shadow-xs cursor-pointer group active:scale-[0.995]"
+                    title="點擊查看或編輯住宿"
                   >
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <BedDouble className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                      <span className="truncate">{confirmedAcc.name}</span>
+                    <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-2">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-600">
+                        <BedDouble className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5">
+                          <span className="text-sm font-extrabold text-slate-900 truncate">
+                            {confirmedAcc.name}
+                          </span>
+                          {isCheckInDay ? (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded-md font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60 flex-shrink-0">
+                              Check-in
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded-md font-medium bg-slate-100 text-slate-600 border border-slate-200/60 flex-shrink-0">
+                              連住
+                            </span>
+                          )}
+                          <a
+                            href={mapUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center text-sky-600 hover:text-sky-700 p-0.5 rounded transition-transform active:scale-90 ml-0.5 flex-shrink-0"
+                            title="開啟 Google 地圖"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </a>
+                        </div>
+                        {subInfo && (
+                          <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                            {subInfo}
+                          </div>
+                        )}
+                        {confirmedAcc.note && (
+                          <div className="text-[11px] text-slate-400 font-normal truncate mt-0.5">
+                            {confirmedAcc.note}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
-                  </button>
+                    <div className="flex items-center space-x-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenAccommodationModal(confirmedAcc);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                        title="編輯住宿"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 );
               }
 
