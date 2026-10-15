@@ -1131,9 +1131,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
                 return (
                   <div
-                    onClick={() => onOpenAccommodationModal(confirmedAcc)}
-                    className="w-full mt-2.5 bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between transition-all duration-200 shadow-2xs hover:shadow-xs cursor-pointer group active:scale-[0.995]"
-                    title="點擊查看或編輯住宿"
+                    className="w-full mt-2.5 bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between shadow-2xs transition-all duration-200"
                   >
                     <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-2">
                       <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0 text-indigo-600">
@@ -1157,7 +1155,6 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                             href={mapUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center text-sky-600 hover:text-sky-700 p-0.5 rounded transition-transform active:scale-90 ml-0.5 flex-shrink-0"
                             title="開啟 Google 地圖"
                           >
@@ -1179,10 +1176,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                     <div className="flex items-center space-x-1 flex-shrink-0">
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenAccommodationModal(confirmedAcc);
-                        }}
+                        onClick={() => onOpenAccommodationModal(confirmedAcc)}
                         className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
                         title="編輯住宿"
                       >
