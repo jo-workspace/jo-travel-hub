@@ -62,12 +62,6 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('active');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // 記錄最近一次保留連動資料，供一鍵「取消確定」復原使用 { winnerId: string, rivalIds: string[] }
-  const [lastConfirmedRecord, setLastConfirmedRecord] = useState<{
-    winnerId: string;
-    rivalIds: string[];
-  } | null>(null);
-
   // 計算取消倒數資訊
   const getDeadlineStatus = (deadlineStr?: string) => {
     if (!deadlineStr) return null;
@@ -106,73 +100,18 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
     }
   };
 
-  // 一鍵確定房型：自動將同梯候補轉為「待退訂」，並原子化儲存防彈回
+  // 一鍵確定房型：僅標記該房型為「已確定」，不強制連動淘汰其他候選，賦予多房預訂彈性
   const handleConfirmAccommodation = async (item: AccommodationItem, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    // 尋找同入住日期的其他 candidate
-    const rivals = accommodations.filter(
-      (x) =>
-        x.id !== item.id &&
-        x.status === 'candidate' &&
-        x.checkInDate === item.checkInDate &&
-        Boolean(item.checkInDate)
-    );
-
-    const rivalIds = rivals.map((r) => r.id);
-
-    if (onBatchStatusChange) {
-      // 採用原子批次更新，避免競態條件（Race Condition）
-      const updates = [
-        { id: item.id, status: 'confirmed' as AccommodationStatus },
-        ...rivalIds.map((rId) => ({ id: rId, status: 'pending_cancel' as AccommodationStatus })),
-      ];
-      await onBatchStatusChange(updates);
-    } else {
-      await onStatusChange(item.id, 'confirmed');
-      for (const rId of rivalIds) {
-        await onStatusChange(rId, 'pending_cancel');
-      }
-    }
-
-    if (rivalIds.length > 0) {
-      showToast(`已確定「${item.name}」！其餘 ${rivalIds.length} 間候補已自動轉為待退訂`);
-    } else {
-      showToast(`已將「${item.name}」設為已確定`);
-    }
-
-    setLastConfirmedRecord({
-      winnerId: item.id,
-      rivalIds,
-    });
+    await onStatusChange(item.id, 'confirmed');
+    showToast(`已將「${item.name}」設為已確定`);
   };
 
-  // 取消確定（誤觸還原機制）：將自身與同梯被轉待退訂的房型全部恢復為 candidate
+  // 取消確定（恢復為抉擇中）
   const handleUndoConfirmation = async (item: AccommodationItem, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    const rivalIds = lastConfirmedRecord?.winnerId === item.id ? lastConfirmedRecord.rivalIds : [];
-
-    if (onBatchStatusChange && rivalIds.length > 0) {
-      const updates = [
-        { id: item.id, status: 'candidate' as AccommodationStatus },
-        ...rivalIds.map((rId) => ({ id: rId, status: 'candidate' as AccommodationStatus })),
-      ];
-      await onBatchStatusChange(updates);
-      setLastConfirmedRecord(null);
-      showToast(`已取消確定「${item.name}」，同梯房型已恢復為抉擇中`);
-    } else {
-      await onStatusChange(item.id, 'candidate');
-      if (lastConfirmedRecord && lastConfirmedRecord.winnerId === item.id) {
-        for (const rId of lastConfirmedRecord.rivalIds) {
-          await onStatusChange(rId, 'candidate');
-        }
-        setLastConfirmedRecord(null);
-        showToast(`已取消確定「${item.name}」，同梯房型已恢復為抉擇中`);
-      } else {
-        showToast(`已將「${item.name}」恢復為抉擇中`);
-      }
-    }
+    await onStatusChange(item.id, 'candidate');
+    showToast(`已將「${item.name}」恢復為抉擇中`);
   };
 
   // 統計指標
@@ -575,7 +514,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                 type="button"
                                 onClick={(e) => handleUndoConfirmation(item, e)}
                                 className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-slate-300 shadow-2xs active:scale-95 whitespace-nowrap flex-shrink-0"
-                                title="取消確定（恢復為抉擇中，同梯退訂房型亦將一併恢復）"
+                                title="取消確定（恢復為抉擇中）"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
                                 <span>取消確定</span>
@@ -588,7 +527,7 @@ export const AccommodationsTab: React.FC<AccommodationsTabProps> = ({
                                   type="button"
                                   onClick={(e) => handleConfirmAccommodation(item, e)}
                                   className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer border border-emerald-200 shadow-2xs active:scale-95 whitespace-nowrap flex-shrink-0"
-                                  title="確定此房型（同梯候補將自動轉為待退訂）"
+                                  title="確定此房型"
                                 >
                                   <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                                   <span>確定</span>
