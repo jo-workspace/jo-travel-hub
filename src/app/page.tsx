@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { TripConfig } from '@/config/trips';
 import { getTripsList, createTrip } from '@/lib/supabase-client';
 import { Compass, ArrowRight, Plus, MapPin, X, Sparkles, ChevronDown, Archive } from 'lucide-react';
+import HubSpaceSwitcherModal from '@/components/HubSpaceSwitcherModal';
 
 export default function HomePage() {
   const [tripList, setTripList] = useState<TripConfig[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [dates, setDates] = useState('');
   const [description, setDescription] = useState('');
@@ -66,18 +68,25 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-900 text-white selection:bg-amber-400 selection:text-slate-950 flex flex-col">
       {/* Top Navbar */}
-      <header className="border-b border-slate-800 bg-slate-950/60 backdrop-blur-md px-6 py-4">
+      <header className="border-b border-slate-800 bg-slate-950/60 backdrop-blur-md px-6 py-4 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-2xl bg-white text-slate-950 font-black text-lg flex items-center justify-center shadow-md p-1">
-              <img src="/hub-logo.png" alt="Jo Travel Hub" className="w-7 h-7 object-contain" />
+          <button
+            onClick={() => setIsSwitcherOpen(true)}
+            className="flex items-center space-x-3 text-left cursor-pointer group focus:outline-none"
+            title="切換生活空間"
+          >
+            <div className="w-9 h-9 rounded-2xl bg-white text-slate-950 font-black text-lg flex items-center justify-center shadow-md p-1 group-hover:scale-105 transition-transform shrink-0">
+              <img src="/hub-logo.png" alt="Travel Hub" className="w-7 h-7 object-contain" />
             </div>
             <div>
-              <h1 className="text-lg font-black tracking-tight text-white leading-none">
-                Jo Travel Hub
-              </h1>
+              <div className="flex items-center space-x-1.5">
+                <h1 className="text-lg font-black tracking-tight text-white leading-none group-hover:text-blue-300 transition-colors">
+                  Travel Hub
+                </h1>
+                <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-transform group-hover:translate-y-0.5" />
+              </div>
             </div>
-          </div>
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all shadow-md cursor-pointer"
@@ -327,6 +336,13 @@ export default function HomePage() {
       <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-500 font-medium">
         Jo Travel Hub &copy; 2026. All rights reserved.
       </footer>
+
+      {/* 工作空間切換選單 */}
+      <HubSpaceSwitcherModal
+        isOpen={isSwitcherOpen}
+        onClose={() => setIsSwitcherOpen(false)}
+        currentSpace="travel"
+      />
     </div>
   );
 }

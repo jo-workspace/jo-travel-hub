@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { RefreshCw, Settings, Eye, EyeOff, Plane, Share2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { RefreshCw, Settings, Eye, EyeOff, Plane, Share2, ChevronDown } from 'lucide-react';
+import HubSpaceSwitcherModal from './HubSpaceSwitcherModal';
 
 interface HeaderProps {
   hideVisited: boolean;
@@ -24,33 +25,41 @@ export const Header: React.FC<HeaderProps> = ({
   tripTitle = '旅程總覽',
   customIcon,
 }) => {
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+
   // 算乾淨的 Badge 符號：若包含英文則取前兩個英文字母（如 LA），中文則用 Plane 圖示
   const englishMatches = tripTitle.match(/[A-Za-z]+/g);
   const badgeText = englishMatches ? englishMatches.join('').substring(0, 2).toUpperCase() : null;
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 md:px-8">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Title */}
-        <div className="flex items-center space-x-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs flex-shrink-0 select-none overflow-hidden">
-            {customIcon ? (
-              <img src={customIcon} alt="Icon" className="w-full h-full object-cover" />
-            ) : badgeText ? (
-              badgeText
-            ) : (
-              <Plane className="w-4 h-4 text-white" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight leading-none truncate">
-              {tripTitle}
-            </h1>
-          </div>
-        </div>
+    <>
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 md:px-8">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          {/* Title & Hub Switcher */}
+          <button
+            onClick={() => setIsSwitcherOpen(true)}
+            className="flex items-center space-x-2.5 min-w-0 text-left cursor-pointer group focus:outline-none"
+            title="切換生活空間"
+          >
+            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs flex-shrink-0 select-none overflow-hidden group-hover:scale-105 transition-transform">
+              {customIcon ? (
+                <img src={customIcon} alt="Icon" className="w-full h-full object-cover" />
+              ) : badgeText ? (
+                badgeText
+              ) : (
+                <Plane className="w-4 h-4 text-white" />
+              )}
+            </div>
+            <div className="min-w-0 flex items-center space-x-1">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight leading-none truncate group-hover:text-blue-600 transition-colors">
+                {tripTitle}
+              </h1>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-800 transition-transform group-hover:translate-y-0.5 shrink-0" />
+            </div>
+          </button>
 
-        {/* Action Controls */}
-        <div className="flex items-center space-x-1.5 md:space-x-2 flex-shrink-0 ml-2">
+          {/* Action Controls */}
+          <div className="flex items-center space-x-1.5 md:space-x-2 flex-shrink-0 ml-2">
           {/* Hide Visited / Done Toggle */}
           <button
             onClick={onToggleHideVisited}
@@ -96,5 +105,12 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
     </header>
-  );
+
+    <HubSpaceSwitcherModal
+      isOpen={isSwitcherOpen}
+      onClose={() => setIsSwitcherOpen(false)}
+      currentSpace="travel"
+    />
+  </>
+);
 };
