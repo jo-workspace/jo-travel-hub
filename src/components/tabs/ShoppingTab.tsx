@@ -150,7 +150,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
   const hasForeignCurrency = Boolean(foreignCurrency && foreignCurrency.toUpperCase() !== 'TWD');
   const activeCurrencyCode = hasForeignCurrency ? foreignCurrency.toUpperCase() : 'TWD';
   const members = companionsList && companionsList.length > 0 ? companionsList : ['Jo', 'Will'];
-  const [selectedStore, setSelectedStore] = useState(ALL_STORES);
+  const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const [selectedPerson, setSelectedPerson] = useState(ALL_PEOPLE);
   const [couponsExpanded, setCouponsExpanded] = useState(true);
 
@@ -159,14 +159,25 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
     new Set(data.flatMap((item) => parseRecipientTags(item.forWhom, members).map((t) => t.name)))
   ).sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true, sensitivity: 'base' }));
 
-  const isAllStores = selectedStore === ALL_STORES;
+  const isAllStores = selectedStores.length === 0;
   const isAllPeople = selectedPerson === ALL_PEOPLE;
+
+  const handleToggleStoreFilter = (storeName: string) => {
+    if (storeName === ALL_STORES) {
+      setSelectedStores([]);
+      return;
+    }
+    setSelectedStores((prev) =>
+      prev.includes(storeName) ? prev.filter((s) => s !== storeName) : [...prev, storeName]
+    );
+  };
 
   const filteredItems = data
     .filter((item) => {
       const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
       if (hideDone && (item.isDone || isIgnored)) return false;
-      const matchStore = isAllStores || splitTokens(item.store).includes(selectedStore);
+      const itemStores = splitTokens(item.store);
+      const matchStore = isAllStores || itemStores.some((s) => selectedStores.includes(s));
       const recipientNames = parseRecipientTags(item.forWhom, members).map((t) => t.name);
       const matchPerson = isAllPeople || recipientNames.includes(selectedPerson);
       return matchStore && matchPerson;
@@ -381,21 +392,44 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       </div>
 
       <div className="space-y-2">
-        {/* 1st Layer: Store Filter + Add Button */}
+        {/* 1st Layer: Store Multi-select Filter + Add Button */}
         <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-1">
           <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-            {[ALL_STORES, ...storeList].map((store) => (
-              <button
-                key={store}
-                onClick={() => setSelectedStore(store)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${selectedStore === store ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
-              >
-                {store === ALL_STORES ? '全部' : store}
-              </button>
-            ))}
+            <button
+              onClick={() => handleToggleStoreFilter(ALL_STORES)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                isAllStores
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              全部
+            </button>
+            {storeList.map((store) => {
+              const isSelected = selectedStores.includes(store);
+              return (
+                <button
+                  key={store}
+                  onClick={() => handleToggleStoreFilter(store)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    isSelected
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {store}
+                </button>
+              );
+            })}
           </div>
           <button
-            onClick={() => onOpenModal(undefined, isAllStores ? undefined : selectedStore, isAllPeople ? undefined : selectedPerson)}
+            onClick={() =>
+              onOpenModal(
+                undefined,
+                selectedStores.length > 0 ? selectedStores.join(', ') : undefined,
+                isAllPeople ? undefined : selectedPerson
+              )
+            }
             className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -433,7 +467,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
       <div className="space-y-2.5">
         {filteredItems.map((item) => {
           const stores = splitTokens(item.store);
-          const displayStores = isAllStores ? stores : stores.filter((s) => s !== selectedStore);
+          const displayStores = stores;
           const recipientTags = parseRecipientTags(item.forWhom, members);
           const isOutOfStock = item.purchaseStatus === 'out_of_stock';
           const isIgnored = item.isIgnored || item.purchaseStatus === 'ignored';
@@ -466,11 +500,21 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                   <div className="flex-1 min-w-0">
                     {/* Store & Multi-Recipient Capsules */}
                     <div className="flex flex-wrap items-center gap-1 mb-1">
-                      {displayStores.map((store, idx) => (
-                        <span key={`${store}-${idx}`} className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                          {store}
-                        </span>
-                      ))}
+                      {displayStores.map((store, idx) => {
+                        const isHighlighted = selectedStores.includes(store);
+                        return (
+                          <span
+                            key={`${store}-${idx}`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border ${
+                              isHighlighted
+                                ? 'bg-slate-900 text-white border-slate-900'
+                                : 'text-slate-500 bg-slate-100 border-slate-200/50'
+                            }`}
+                          >
+                            {store}
+                          </span>
+                        );
+                      })}
                       {recipientTags.map((tag, idx) => (
                         <span
                           key={`${tag.name}-${idx}`}

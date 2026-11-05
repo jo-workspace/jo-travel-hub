@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingItem } from '@/types/trip';
 import { parseRecipientTags, serializeRecipientTags, inferOwnerFromName, RecipientTag } from '@/components/tabs/ShoppingTab';
-import { X, Trash2, Plus, User, HandCoins } from 'lucide-react';
+import { X, Trash2, Plus } from 'lucide-react';
 
 interface ShoppingModalProps {
   isOpen: boolean;
@@ -18,6 +18,18 @@ interface ShoppingModalProps {
   onDelete: (rowIndex: number, id?: string) => Promise<void>;
 }
 
+export const parseStoreTokens = (storeStr?: string): string[] => {
+  if (!storeStr) return [];
+  return Array.from(
+    new Set(
+      storeStr
+        .split(/[\n,、+/]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+  );
+};
+
 export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   isOpen,
   item,
@@ -30,7 +42,8 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
   onSave,
   onDelete,
 }) => {
-  const [store, setStore] = useState('');
+  const [storeTags, setStoreTags] = useState<string[]>([]);
+  const [customStore, setCustomStore] = useState('');
   const [recipientTags, setRecipientTags] = useState<RecipientTag[]>([{ name: 'Jo', isProxy: false, quantity: 1, owner: 'Jo' }]);
   const [isProxy, setIsProxy] = useState(false);
   const [customPerson, setCustomPerson] = useState('');
@@ -64,7 +77,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
 
   useEffect(() => {
     if (item) {
-      setStore(item.store || '');
+      setStoreTags(parseStoreTokens(item.store));
       const parsed = parseRecipientTags(item.forWhom || defaultForWhom || 'Jo', splitCompanions);
       const sanitized = parsed.map((t) => ({
         ...t,
@@ -77,8 +90,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setImage(item.image || '');
       setUrl(item.url || '');
       setNote(item.note || '');
+      setCustomStore('');
     } else {
-      setStore(defaultStore || '');
+      setStoreTags(parseStoreTokens(defaultStore));
       const parsed = parseRecipientTags(defaultForWhom || 'Jo', splitCompanions);
       const sanitized = parsed.map((t) => ({
         ...t,
@@ -91,12 +105,32 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       setImage('');
       setUrl('');
       setNote('');
+      setCustomStore('');
     }
   }, [item, isOpen, defaultStore, defaultForWhom, splitCompanions.join(',')]);
 
   if (!isOpen) return null;
 
   const totalQuantity = recipientTags.reduce((sum, t) => sum + t.quantity, 0) || 1;
+
+  const handleToggleStore = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setStoreTags((prev) =>
+      prev.includes(trimmed) ? prev.filter((s) => s !== trimmed) : [...prev, trimmed]
+    );
+  };
+
+  const handleAddCustomStore = (input: string) => {
+    const tokens = parseStoreTokens(input);
+    if (tokens.length === 0) return;
+    setStoreTags((prev) => Array.from(new Set([...prev, ...tokens])));
+    setCustomStore('');
+  };
+
+  const handleRemoveStoreTag = (index: number) => {
+    setStoreTags((prev) => prev.filter((_, idx) => idx !== index));
+  };
 
   const handleAddPerson = (name: string) => {
     const trimmed = name.trim();
@@ -138,6 +172,14 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
     e.preventDefault();
     if (!itemName.trim()) return;
 
+    // 若有自訂店家尚未按 Enter 或 +，自動納入
+    let effectiveStores = [...storeTags];
+    if (customStore.trim()) {
+      const pending = parseStoreTokens(customStore.trim());
+      effectiveStores = Array.from(new Set([...effectiveStores, ...pending]));
+    }
+    const finalStore = effectiveStores.join(', ');
+
     const baseTags = recipientTags.length > 0 ? recipientTags : [{ name: 'Jo', isProxy: false, quantity: 1, owner: 'Jo' }];
     const normalizedTags = baseTags.map((t) => ({
       ...t,
@@ -151,7 +193,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
       await onSave({
         id: item?.id,
         rowIndex: item?.rowIndex || 0,
-        store: store.trim(),
+        store: finalStore,
         forWhom: finalForWhom,
         item: itemName.trim(),
         quantity: String(totalQuantity),
@@ -203,38 +245,116 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          {/* Store Input */}
+          {/* 1. Item Name & Single Price (第一格核心，符合規範) */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2 min-w-0">
+              <label className="block text-xs font-bold text-slate-500 mb-1">商品名稱</label>
+              <input
+                type="text"
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                placeholder="輸入商品名稱..."
+                required
+                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              />
+            </div>
+            <div className="min-w-0">
+              <label className="block text-xs font-bold text-slate-500 mb-1">預估單價</label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="單價..."
+                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              />
+            </div>
+          </div>
+
+          {/* 2. Store Multi-select (店家多選標籤與快捷切換) */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">店家</label>
-            <input
-              type="text"
-              value={store}
-              onChange={(e) => setStore(e.target.value)}
-              placeholder="輸入或點選下方店家..."
-              required
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold mb-2"
-            />
-            {storePresets.length > 0 && (
-              <div className="inline-flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
-                {storePresets.map((s) => (
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-500">店家（可多選）</label>
+              {storeTags.length > 0 && (
+                <span className="text-[11px] font-bold font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                  已選 {storeTags.length} 間
+                </span>
+              )}
+            </div>
+
+            {/* Selected Store Pills */}
+            {storeTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2 min-h-[30px] items-center">
+                {storeTags.map((s, idx) => (
+                  <div
+                    key={`${s}-${idx}`}
+                    className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-xl text-xs font-bold bg-slate-900 text-white shadow-2xs transition-all"
+                  >
+                    <span>{s}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveStoreTag(idx)}
+                      className="text-slate-400 hover:text-white cursor-pointer p-0.5 rounded-full hover:bg-slate-800 transition-colors"
+                      title="移除店家"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Store Presets & Custom Input */}
+            <div className="inline-flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl w-full">
+              {storePresets.map((s) => {
+                const isSelected = storeTags.includes(s);
+                return (
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setStore(s)}
+                    onClick={() => handleToggleStore(s)}
                     className={`text-xs px-3 py-1 rounded-lg transition-all cursor-pointer select-none font-bold ${
-                      store === s
+                      isSelected
                         ? 'bg-slate-900 text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                   >
                     {s}
                   </button>
-                ))}
+                );
+              })}
+
+              {/* Custom Store Input */}
+              <div className="flex items-center gap-1 pl-1">
+                <input
+                  type="text"
+                  value={customStore}
+                  onChange={(e) => setCustomStore(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCustomStore(customStore);
+                    }
+                  }}
+                  placeholder="+ 自訂店家..."
+                  className="bg-white text-xs px-2.5 py-1 rounded-lg outline-none w-24 focus:w-32 focus:ring-1 focus:ring-slate-900 transition-all font-medium border border-slate-200/60"
+                />
+                {customStore.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleAddCustomStore(customStore)}
+                    className="p-1 bg-slate-900 text-white rounded-lg text-xs cursor-pointer"
+                    title="新增店家"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Multi-Recipient Tag Manager (Clean structure matching store) */}
+          {/* 3. Multi-Recipient Tag Manager (對象標籤管理) */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-slate-500">對象</label>
@@ -302,7 +422,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             )}
 
             {/* Recipient Segmented Control & Custom Input */}
-            <div className="inline-flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl">
+            <div className="inline-flex items-center flex-wrap gap-1 bg-slate-100 p-1 rounded-xl w-full">
               {personPresets.map((p) => {
                 const existing = recipientTags.find((t) => t.name === p);
                 return (
@@ -350,36 +470,9 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             </div>
           </div>
 
-          {/* Item Name & Single Price */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="block text-xs font-bold text-slate-500 mb-1">商品</label>
-              <input
-                type="text"
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-                placeholder="商品名稱..."
-                required
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">單價</label>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="例如 5000"
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
-              />
-            </div>
-          </div>
-
-          {/* URLs: 雙欄合併 + 底線風格 */}
+          {/* 4. URLs: 雙欄合併 + 底線風格 */}
           <div className="grid grid-cols-2 gap-3 pt-1">
-            <div>
+            <div className="min-w-0">
               <label className="block text-[11px] font-bold text-slate-500 mb-0.5">圖片網址</label>
               <input
                 type="url"
@@ -389,7 +482,7 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
                 className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-slate-900 rounded-none px-0.5 py-1 text-xs outline-none transition-colors placeholder:text-slate-400 font-mono"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-[11px] font-bold text-slate-500 mb-0.5">連結網址</label>
               <input
                 type="url"
@@ -401,8 +494,8 @@ export const ShoppingModal: React.FC<ShoppingModalProps> = ({
             </div>
           </div>
 
-          {/* 備註: 底線風格 */}
-          <div className="pt-0.5">
+          {/* 5. 備註: 底線風格 */}
+          <div className="pt-0.5 min-w-0">
             <label className="block text-[11px] font-bold text-slate-500 mb-0.5">備註</label>
             <input
               type="text"

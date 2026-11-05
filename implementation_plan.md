@@ -1,30 +1,44 @@
-# 住宿雙訂單多房確定與行程呈現實作計畫 (方案 A)
+# 購物清單店家支援多選功能實作計畫
 
-## 1. 需求理解與摘要 (Requirement Summary)
-- **核心目標**：解決同一天有兩間房、兩個獨立訂單時「無法同時確定」的限制，並在行程表（Itinerary Tab）當天底部支援多間確認住宿並列顯示。
-- **變更重點**：
-  1. **解除強制淘汰連動**：在 [AccommodationsTab.tsx](file:///Users/jo/.gemini/antigravity/scratch/jo-travel-hub/src/components/tabs/AccommodationsTab.tsx) 中，點擊「確定」不再自動將同日的其他 candidate 標記為待退訂；使用者可自由將多筆訂單同時設為「已確定」。若需淘汰某間房，使用卡片原有的「✕ 捨棄」按鈕即可。
-  2. **行程表多房並列支援**：在 [ItineraryTab.tsx](file:///Users/jo/.gemini/antigravity/scratch/jo-travel-hub/src/components/tabs/ItineraryTab.tsx) 中，由單一 `find()` 改為 `filter()`，當天若有多間確認住宿，以緊湊俐落的堆疊卡片顯示，並完整標註「房型 · 訂購人 · 訂單編號」，現場辦理入住出示清晰明確。
+## 需求理解與摘要
+使用者提出「**購買清單的店家應該要可以多選**」。
+這包含兩大核心使用情境：
+1. **新增 / 編輯商品時（`ShoppingModal`）**：同一項商品可能在多個店家均有販售（例如大國藥妝、唐吉訶德、松本清）。目前彈窗僅支援單一店家輸入框與單選按鈕（點擊會直接覆蓋前一個），無法便捷地為商品指派多個店家。
+2. **購買清單瀏覽與篩選時（`ShoppingTab`）**：在購物清單主畫面中，目前的店家篩選僅能單選（全部 vs 單一店家）。支援多選店家篩選後，使用者可以同時勾選 2~3 間即將前往的店家，一次比對與查看待買商品。
 
 ---
 
-## 2. 實作步驟 (Implementation Steps)
+## 客觀建議
+1. **資料相容性絕佳**：
+   - 經檢查後端與前端資料結構，`ShoppingItem.store` 為字串，專案各處（`ShoppingTab.tsx`、`page.tsx` 的 `currentShoppingStores`）早已原生支援使用逗號或斜線分割（`split(/[\n,、+/]+/)`）。
+   - 因此將店家儲存格式統一為逗號分隔（如 `"唐吉訶德, 松本清"`），完全相容現有資料庫架構與 Google Sheets / Supabase，無須任何資料表遷移（Migration）。
+2. **UI 互動與操作直覺性**：
+   - **新增/編輯彈窗**：
+     - 提供已選店家膠囊標籤（含快速移除 `✕`）。
+     - 下方店家快捷按鈕改為 Toggle 式多選（點擊選取、再次點擊取消）。
+     - 支援自訂店家輸入（輸入後按 Enter 或點擊 `+` 快速加入標籤）。
+     - **遵循全域規範**：將彈窗第一格欄位調整為「商品名稱與單價」，將店家與對象移至下方輔助，符合「標題第一、直覺填寫」規範。
+   - **清單畫面店家篩選器**：
+     - 店家篩選器改為支援多選（點擊個別店家切換選取狀態，選中多個時顯示兩家以上之聯集待買品項；點擊「全部」則快速重設回全選）。
 
-### 步驟 1：修改 `src/components/tabs/AccommodationsTab.tsx`
-- 修改 `handleConfirmAccommodation`：僅將當前選定項目設為 `confirmed`，不連動修改同日其他候補。
-- 修改 `handleUndoConfirmation`：僅將當前項目恢復為 `candidate`。
-- 精簡提示文案，維持極致簡潔。
+---
 
-### 步驟 2：修改 `src/components/tabs/ItineraryTab.tsx`
-- 將當日已確定住宿搜尋改為 `activeAccs.filter(...)`。
-- 當有多筆確認住宿時，以 `space-y-2` 渲染每間房的獨立小卡，資訊包含：
-  - 飯店名稱、[Check-in] 或 [連住] 標籤、Google Maps 📍 地圖連結。
-  - 次要資訊：區域 · 房型 · 訂購人 · 訂單代號（如有）。
-  - 各自獨立的 ✎ 編輯彈窗按鈕。
-- 若無確認住宿但有多筆候選時，候選按鈕提示 `X 等 N 間 (抉擇中)`。
+## 預計修改檔案
+1. `src/components/modals/ShoppingModal.tsx`
+   - 將 `store` 單一字串狀態重構為 `stores: string[]` 多選標籤集合。
+   - 新增已選店家標籤展示（Pill badges）、快捷切換（Toggle）與自訂店家輸入。
+   - 調整表單欄位順序：商品名稱與單價置頂（第一格），店家與對象置於次要輔助區。
+   - 儲存時將 `stores` 以標準逗號序列化（`stores.join(', ')`）。
+2. `src/components/tabs/ShoppingTab.tsx`
+   - 將 `selectedStore` 單一狀態升級為多選狀態（`selectedStores: string[]`）。
+   - 點擊「全部」時還原為全部；點選個別店家時可多選組合篩選，提供極致流暢之切換體驗。
+   - 確保所有統計金額（伴手禮預估、代購待請款、已購買金額）與篩選結果維持一致精確。
 
-### 步驟 3：驗證與測試 (Verification)
-- 執行 `npm run build` 確保 TypeScript 型別無錯誤、打包正常。
+---
 
-### 步驟 4：Git 版本控制自動推送 (Git Push)
-- 遵循規範自動執行 `git add .`、`git commit -m "..."` 與 `git push origin main`。
+## 驗證方式
+1. 本地執行 TypeScript 型別檢查與 Next.js 建置 (`npm run build`)，確保零語法與型別錯誤。
+2. 驗證新增商品時可選取多個店家、自訂店家，且商品名稱為第一輸入欄位。
+3. 驗證編輯現有多店家商品時正確解析並顯示多標籤。
+4. 驗證清單篩選列可多選不同店家，篩選結果與標籤卡片正常渲染。
+5. 完成後依規範執行 `git add`、`git commit` 與 `git push` 自動推送遠端。
