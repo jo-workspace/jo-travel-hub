@@ -163,8 +163,6 @@ export const TodoTab: React.FC<TodoTabProps> = ({
     nodate.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
     completed.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
 
-    const hasActiveTodos = overdue.length > 0 || later.length > 0 || nodate.length > 0;
-
     return [
       { key: 'overdue', title: '已逾期', badgeClass: 'text-rose-600', icon: '🚨', items: overdue },
       { key: 'upcoming', title: '7 天內', badgeClass: 'text-amber-700', icon: '🔥', items: upcoming },
@@ -172,9 +170,9 @@ export const TodoTab: React.FC<TodoTabProps> = ({
       { key: 'nodate', title: '無期限', badgeClass: 'text-slate-500', icon: '📌', items: nodate },
       { key: 'completed', title: '已完成', badgeClass: 'text-slate-400', icon: '✓', items: completed },
     ].filter((g) => {
-      // 7 天內若目前為 0 件，但其他分組有待辦時，保留此分組以呈現放鬆鼓勵提示
+      // 只有在「完全沒有已逾期事項」且「7 天內為 0」且「還有其他更久或無期限待辦」時，才保留此分組以呈現放鬆鼓勵提示
       if (g.key === 'upcoming' && g.items.length === 0) {
-        return hasActiveTodos;
+        return overdue.length === 0 && (later.length > 0 || nodate.length > 0);
       }
       return g.items.length > 0;
     });
@@ -199,14 +197,16 @@ export const TodoTab: React.FC<TodoTabProps> = ({
         <div className="space-y-6">
           {groups.map((group) => (
             <div key={group.key} className="space-y-2.5">
-              {/* Group Section Header */}
-              <div className="flex items-center space-x-1.5 px-1 pt-1">
-                <span className="text-sm">{group.icon}</span>
-                <h3 className={`text-xs font-black uppercase tracking-wider ${group.badgeClass}`}>
-                  <span>{group.title}</span>
-                  <span className="ml-1 opacity-75 font-mono">({group.items.length})</span>
-                </h3>
-              </div>
+              {/* Group Section Header (有項目時才顯示標題，避免 7天內(0) 的矛盾突兀標題) */}
+              {group.items.length > 0 && (
+                <div className="flex items-center space-x-1.5 px-1 pt-1">
+                  <span className="text-sm">{group.icon}</span>
+                  <h3 className={`text-xs font-black uppercase tracking-wider ${group.badgeClass}`}>
+                    <span>{group.title}</span>
+                    <span className="ml-1 opacity-75 font-mono">({group.items.length})</span>
+                  </h3>
+                </div>
+              )}
 
               {/* Items List or Layback Chill Empty Message */}
               {group.items.length === 0 && group.key === 'upcoming' ? (

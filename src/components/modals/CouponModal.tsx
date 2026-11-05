@@ -67,7 +67,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({
   onSave,
   onDelete,
 }) => {
-  const [title, setTitle] = useState('');
   const [store, setStore] = useState('');
   const [discount, setDiscount] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -87,7 +86,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({
 
   useEffect(() => {
     if (coupon) {
-      setTitle(coupon.title || '');
       setStore(coupon.store || '');
       setDiscount(coupon.discount || '');
       setExpiryDate(coupon.expiryDate || '');
@@ -101,7 +99,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({
         setInputUrl('');
       }
     } else {
-      setTitle('');
       setStore('');
       setDiscount('');
       setExpiryDate('');
@@ -171,13 +168,16 @@ export const CouponModal: React.FC<CouponModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !imageUrl.trim()) return;
+    if (!imageUrl.trim()) return;
+
+    // 自動以店家與折扣組合標題，無須使用者手動輸入
+    const autoTitle = [store.trim(), discount.trim()].filter(Boolean).join(' · ') || '優惠券';
 
     setIsSubmitting(true);
     try {
       await onSave({
         id: coupon?.id,
-        title: title.trim(),
+        title: autoTitle,
         store: store.trim() || undefined,
         discount: discount.trim() || undefined,
         expiryDate: expiryDate.trim() || undefined,
@@ -366,22 +366,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({
             )}
           </div>
 
-          {/* Title */}
-          <div>
-            <label className="text-xs font-bold text-slate-700 flex items-center space-x-1 mb-1">
-              <span>名稱</span>
-              <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="例：BicCamera 免稅 10% + 7% 折價券"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm font-bold border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50 focus:bg-white transition-all placeholder:text-slate-300"
-            />
-          </div>
-
           {/* Store Selector & Presets */}
           <div>
             <label className="text-xs font-bold text-slate-700 mb-1 block">店家</label>
@@ -497,7 +481,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !title.trim() || !imageUrl.trim()}
+                disabled={isSubmitting || !imageUrl.trim()}
                 className="px-5 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer flex items-center space-x-1.5"
               >
                 {isSubmitting ? (

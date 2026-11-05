@@ -317,7 +317,7 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                         {/* eslint-disable-next-next/no-img-element */}
                         <img
                           src={coupon.imageUrl}
-                          alt={coupon.title}
+                          alt={coupon.discount || coupon.store || coupon.title || 'Coupon'}
                           className="w-full h-full object-contain p-1 group-hover/img:scale-105 transition-transform"
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold space-x-1">
@@ -326,18 +326,27 @@ export const ShoppingTab: React.FC<ShoppingTabProps> = ({
                         </div>
                       </div>
 
-                      {/* Title & Discount */}
-                      <h4 className="text-xs font-black text-slate-900 line-clamp-1 leading-snug" title={coupon.title}>
-                        {coupon.title}
-                      </h4>
-                      {coupon.discount && (
-                        <div className="mt-1">
-                          <span className="inline-flex items-center text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-200 px-1.5 py-0.5 rounded">
-                            <Sparkles className="w-2.5 h-2.5 mr-0.5 text-amber-600" />
-                            {coupon.discount}
-                          </span>
-                        </div>
-                      )}
+                      {/* Discount Highlight & Note */}
+                      <div className="space-y-1">
+                        {coupon.discount ? (
+                          <div className="mt-0.5">
+                            <span className="inline-flex items-center text-[10px] font-extrabold text-amber-800 bg-amber-100/90 border border-amber-200 px-1.5 py-0.5 rounded">
+                              <Sparkles className="w-2.5 h-2.5 mr-0.5 text-amber-600" />
+                              {coupon.discount}
+                            </span>
+                          </div>
+                        ) : coupon.title ? (
+                          <h4 className="text-xs font-black text-slate-900 line-clamp-1 leading-snug" title={coupon.title}>
+                            {coupon.title}
+                          </h4>
+                        ) : null}
+
+                        {coupon.note && (
+                          <p className="text-[10px] text-slate-400 font-medium line-clamp-1 leading-tight">
+                            {coupon.note}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Bottom: Expiry & Quick Open */}
