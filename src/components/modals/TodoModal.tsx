@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { TodoItem } from '@/types/trip';
-import { X, Trash2, Calendar, Link2 } from 'lucide-react';
+import { addDaysToYMD, getTodayOffsetYMD } from '@/lib/todoUtils';
+import { X, Trash2, Calendar, Link2, Plus } from 'lucide-react';
 
 interface TodoModalProps {
   isOpen: boolean;
   item?: TodoItem | null;
-  existingCategories?: string[];
   tripStartDate?: string;
+  timezone?: string;
   onClose: () => void;
   onSave: (formData: any) => Promise<void>;
   onDelete: (rowIndex: number, id?: string) => Promise<void>;
@@ -17,8 +18,8 @@ interface TodoModalProps {
 export const TodoModal: React.FC<TodoModalProps> = ({
   isOpen,
   item,
-  existingCategories = [],
   tripStartDate = '',
+  timezone,
   onClose,
   onSave,
   onDelete,
@@ -28,6 +29,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
   const [note, setNote] = useState('');
   const [link1, setLink1] = useState('');
   const [link2, setLink2] = useState('');
+  const [showSecondLink, setShowSecondLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -50,31 +52,23 @@ export const TodoModal: React.FC<TodoModalProps> = ({
       setNote(cleanNote);
       setLink1(extractedUrls[0] || '');
       setLink2(extractedUrls[1] || '');
+      setShowSecondLink(Boolean(extractedUrls[1]));
     } else {
       setTask('');
       setDueDate('');
       setNote('');
       setLink1('');
       setLink2('');
+      setShowSecondLink(false);
     }
   }, [item, isOpen]);
 
   if (!isOpen) return null;
 
-  // 計算快捷截止日期
-  const getTomorrowStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  };
-
-  const getDaysBeforeTrip = (days: number) => {
-    if (!tripStartDate) return '';
-    const d = new Date(tripStartDate);
-    if (isNaN(d.getTime())) return '';
-    d.setDate(d.getDate() - days);
-    return d.toISOString().split('T')[0];
-  };
+  const todayStr = getTodayOffsetYMD(0, timezone);
+  const tomorrowStr = getTodayOffsetYMD(1, timezone);
+  const weekBeforeTripStr = tripStartDate ? addDaysToYMD(tripStartDate, -7) : '';
+  const threeDaysBeforeTripStr = tripStartDate ? addDaysToYMD(tripStartDate, -3) : '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +121,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
             {item ? '編輯待辦' : '新增待辦'}
           </h3>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
           >
@@ -147,7 +142,7 @@ export const TodoModal: React.FC<TodoModalProps> = ({
               onChange={(e) => setTask(e.target.value)}
               placeholder="要做什麼？例：預訂晴空塔門票、換日幣..."
               required
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
+              className="w-full bg-slate-50 border border-slate-200 text-[16px] sm:text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-semibold"
             />
           </div>
 
@@ -170,84 +165,103 @@ export const TodoModal: React.FC<TodoModalProps> = ({
               )}
             </div>
 
-            <div className="min-w-0">
+            <div className="min-w-0 w-full">
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full min-w-0 appearance-none min-h-[38px] px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]"
+                className="w-full min-w-0 appearance-none min-h-[42px] px-3 py-2 text-[16px] sm:text-sm leading-normal bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.5em]"
               />
             </div>
 
             {/* 快捷按鈕 */}
             <div className="flex items-center flex-wrap gap-1.5 mt-2">
-              <button
-                type="button"
-                onClick={() => setDueDate(getTomorrowStr())}
-                className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
-              >
-                明天
-              </button>
-              {tripStartDate && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = getDaysBeforeTrip(7);
-                      if (d) setDueDate(d);
-                    }}
-                    className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
-                  >
-                    出發前 1 週
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = getDaysBeforeTrip(3);
-                      if (d) setDueDate(d);
-                    }}
-                    className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
-                  >
-                    出發前 3 天
-                  </button>
-                </>
+              {todayStr && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate(todayStr)}
+                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+                >
+                  今天
+                </button>
+              )}
+              {tomorrowStr && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate(tomorrowStr)}
+                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+                >
+                  明天
+                </button>
+              )}
+              {weekBeforeTripStr && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate(weekBeforeTripStr)}
+                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+                >
+                  出發前 1 週
+                </button>
+              )}
+              {threeDaysBeforeTripStr && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate(threeDaysBeforeTripStr)}
+                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors cursor-pointer"
+                >
+                  出發前 3 天
+                </button>
               )}
             </div>
           </div>
 
-          {/* 第三格：相關連結 (1-2 個格子，避免網址佔用備註空間) */}
+          {/* 第三格：相關連結（預設單欄，按＋漸進展開第二欄） */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
-              <Link2 className="w-3.5 h-3.5 text-slate-500" />
-              <span>相關連結 (選填，最多 2 個)</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                <Link2 className="w-3.5 h-3.5 text-slate-500" />
+                <span>相關連結</span>
+              </label>
+              {!showSecondLink && (
+                <button
+                  type="button"
+                  onClick={() => setShowSecondLink(true)}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                  title="新增第 2 個連結"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <div className="space-y-1.5">
               <input
                 type="url"
                 value={link1}
                 onChange={(e) => setLink1(e.target.value)}
-                placeholder="https://... (例：預約網址、租車官網)"
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
+                placeholder="https://... (預約網址、參考頁面)"
+                className="w-full bg-slate-50 border border-slate-200 text-[16px] sm:text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
               />
-              <input
-                type="url"
-                value={link2}
-                onChange={(e) => setLink2(e.target.value)}
-                placeholder="https://... (備用連結或電子憑證)"
-                className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
-              />
+              {showSecondLink && (
+                <input
+                  type="url"
+                  value={link2}
+                  onChange={(e) => setLink2(e.target.value)}
+                  placeholder="https://... (備用連結或電子憑證)"
+                  className="w-full bg-slate-50 border border-slate-200 text-[16px] sm:text-sm px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono"
+                />
+              )}
             </div>
           </div>
 
           {/* 第四格：備註 */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">備註說明 (選填)</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">備註</label>
             <textarea
               rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="輸入事項說明、預約編號、重要提醒..."
-              className="w-full bg-slate-50 border border-slate-200 text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium resize-none"
+              placeholder="輸入預約編號、提醒事項..."
+              className="w-full bg-slate-50 border border-slate-200 text-[16px] sm:text-sm px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium resize-none"
             />
           </div>
 

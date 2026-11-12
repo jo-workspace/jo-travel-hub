@@ -2,13 +2,15 @@
 
 import React, { useMemo } from 'react';
 import { TodoItem } from '@/types/trip';
-import { linkifyText } from '@/lib/linkify';
 import { normalizeDateToYMD, parseYMD } from '@/lib/tripDate';
-import { Plus, Edit3, Calendar, CheckSquare, Link2, ExternalLink } from 'lucide-react';
+import { getTodoDueDiffDays, getTodayRef } from '@/lib/todoUtils';
+import { Plus, CheckSquare, Check, Link2, ExternalLink, Eye, EyeOff } from 'lucide-react';
 
 interface TodoTabProps {
   data: TodoItem[];
   hideDone: boolean;
+  timezone?: string;
+  onToggleHideDone?: () => void;
   onToggleTodo: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onOpenModal: (item?: TodoItem) => void;
 }
@@ -38,65 +40,51 @@ function parseNoteAndLinks(rawNote?: string): { text: string; links: Array<{ url
   return { text: cleanText, links };
 }
 
-/** 依據截止日期計算徽章樣式與文字 */
-function getDueDateBadge(dueDate?: string, isDone?: boolean) {
+/** 依據截止日期計算極簡低噪日期標籤 */
+function getDueDateBadge(dueDate?: string, isDone?: boolean, todayMs?: number, timezone?: string) {
   if (!dueDate || isDone) return null;
 
   const dueNorm = normalizeDateToYMD(dueDate);
   if (!dueNorm) return null;
 
-  // 使用本地日期計算差距天數 (消除時區偏差)
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-    today.getDate()
-  ).padStart(2, '0')}`;
-
-  const todayMs = parseYMD(todayStr);
-  const dueMs = parseYMD(dueNorm);
-  if (todayMs === null || dueMs === null) return null;
-
-  const diffDays = Math.round((dueMs - todayMs) / 86400000);
+  const diffDays = getTodoDueDiffDays(dueNorm, todayMs, timezone);
+  if (diffDays === null) return null;
 
   if (diffDays < 0) {
     return (
-      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-rose-50 text-rose-600 border border-rose-200">
-        <span>🚨</span>
-        <span>逾期 {Math.abs(diffDays)} 天</span>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-600 border border-rose-200/80 whitespace-nowrap">
+        逾期 {Math.abs(diffDays)} 天
       </span>
     );
   }
   if (diffDays === 0) {
     return (
-      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-rose-500 text-white shadow-2xs">
-        <span>🔥</span>
-        <span>今天截止</span>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200 whitespace-nowrap">
+        今天
       </span>
     );
   }
   if (diffDays === 1) {
     return (
-      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-        <span>⚡</span>
-        <span>明天截止</span>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+        明天
       </span>
     );
   }
-  if (diffDays <= 3) {
+  if (diffDays <= 7) {
     return (
-      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-        <span>⏳</span>
-        <span>剩 {diffDays} 天</span>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50/70 text-amber-700 border border-amber-200/70 whitespace-nowrap">
+        {diffDays} 天後
       </span>
     );
   }
 
-  // 4 天以上顯示簡短月/日 (例如 8/28)
+  // 更久之後僅顯示純淨月/日，降低視覺壓迫
   const parts = dueNorm.split('-');
   const formattedDate = parts.length === 3 ? `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}` : dueNorm;
   return (
-    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
-      <Calendar className="w-3 h-3 text-slate-400" />
-      <span>{formattedDate}</span>
+    <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap pt-0.5">
+      {formattedDate}
     </span>
   );
 }
@@ -104,18 +92,22 @@ function getDueDateBadge(dueDate?: string, isDone?: boolean) {
 export const TodoTab: React.FC<TodoTabProps> = ({
   data,
   hideDone,
+  timezone,
+  onToggleHideDone,
   onToggleTodo,
   onOpenModal,
 }) => {
-  const todayMs = useMemo(() => {
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-      today.getDate()
-    ).padStart(2, '0')}`;
-    return parseYMD(todayStr) ?? Date.now();
-  }, []);
+  const { todayMs } = useMemo(() => getTodayRef(timezone), [timezone]);
 
-  // 依照截止日期 (DueDate) 與緊迫程度動態小分組，組內嚴格依照 Date 毫秒數升冪排序
+  const { totalCount, doneCount, unfinishedCount, progressPct } = useMemo(() => {
+    const total = data.length;
+    const done = data.filter((t) => t.isDone).length;
+    const unfinished = total - done;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { totalCount: total, doneCount: done, unfinishedCount: unfinished, progressPct: pct };
+  }, [data]);
+
+  // 依照截止日期由近到遠分組與嚴格升冪排序
   const groups = useMemo(() => {
     const overdue: TodoItem[] = [];
     const upcoming: TodoItem[] = [];
@@ -131,17 +123,10 @@ export const TodoTab: React.FC<TodoTabProps> = ({
         return;
       }
 
-      const dueNorm = normalizeDateToYMD(item.dueDate);
-      const dueMs = dueNorm ? parseYMD(dueNorm) : null;
-
-      if (!dueNorm || dueMs === null) {
+      const diffDays = getTodoDueDiffDays(item.dueDate, todayMs, timezone);
+      if (diffDays === null) {
         nodate.push(item);
-        return;
-      }
-
-      const diffDays = Math.round((dueMs - todayMs) / 86400000);
-
-      if (diffDays < 0) {
+      } else if (diffDays < 0) {
         overdue.push(item);
       } else if (diffDays <= 7) {
         upcoming.push(item);
@@ -150,7 +135,6 @@ export const TodoTab: React.FC<TodoTabProps> = ({
       }
     });
 
-    // 嚴格升冪排序演算法 (依截止日毫秒數由近到遠升冪，若同日依建立順序 rowIndex)
     const compareDueAsc = (a: TodoItem, b: TodoItem) => {
       const msA = parseYMD(normalizeDateToYMD(a.dueDate) || '') ?? Infinity;
       const msB = parseYMD(normalizeDateToYMD(b.dueDate) || '') ?? Infinity;
@@ -164,152 +148,205 @@ export const TodoTab: React.FC<TodoTabProps> = ({
     completed.sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
 
     return [
-      { key: 'overdue', title: '已逾期', badgeClass: 'text-rose-600', icon: '🚨', items: overdue },
-      { key: 'upcoming', title: '7 天內', badgeClass: 'text-amber-700', icon: '🔥', items: upcoming },
-      { key: 'later', title: '更久之後', badgeClass: 'text-slate-600', icon: '🗓️', items: later },
-      { key: 'nodate', title: '無期限', badgeClass: 'text-slate-500', icon: '📌', items: nodate },
-      { key: 'completed', title: '已完成', badgeClass: 'text-slate-400', icon: '✓', items: completed },
-    ].filter((g) => {
-      // 只有在「完全沒有已逾期事項」且「7 天內為 0」且「還有其他更久或無期限待辦」時，才保留此分組以呈現放鬆鼓勵提示
-      if (g.key === 'upcoming' && g.items.length === 0) {
-        return overdue.length === 0 && (later.length > 0 || nodate.length > 0);
-      }
-      return g.items.length > 0;
-    });
-  }, [data, hideDone, todayMs]);
+      { key: 'overdue', title: '已逾期', titleClass: 'text-rose-600', items: overdue },
+      { key: 'upcoming', title: '7 天內', titleClass: 'text-amber-700', items: upcoming },
+      { key: 'later', title: '更久之後', titleClass: 'text-slate-500', items: later },
+      { key: 'nodate', title: '無期限', titleClass: 'text-slate-400', items: nodate },
+      { key: 'completed', title: '已完成', titleClass: 'text-slate-400', items: completed },
+    ].filter((g) => g.items.length > 0);
+  }, [data, hideDone, todayMs, timezone]);
 
   return (
-    <div className="space-y-4 pb-20">
-      {/* Empty State or Grouped Checklist */}
-      {groups.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center shadow-2xs">
-          <CheckSquare className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h4 className="text-slate-800 font-bold text-sm mb-3">尚無待辦事項 ✨</h4>
+    <div className="space-y-4 pb-24">
+      {/* 頂部極簡進度與已完成切換列 */}
+      {totalCount > 0 && (
+        <div className="space-y-1.5 px-1">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-slate-600">
+                {unfinishedCount === 0 ? '全部完成' : `待辦 ${unfinishedCount}`}
+              </span>
+              {doneCount > 0 && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="font-mono text-[11px]">
+                    {doneCount}/{totalCount}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {doneCount > 0 && onToggleHideDone && (
+              <button
+                type="button"
+                onClick={onToggleHideDone}
+                className="inline-flex items-center space-x-1 text-[11px] font-medium text-slate-400 hover:text-slate-700 transition-colors cursor-pointer py-0.5 px-1.5 -mr-1.5 rounded-md hover:bg-slate-100"
+                title={hideDone ? '顯示已完成' : '隱藏已完成'}
+              >
+                {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <span>{hideDone ? `已完成 (${doneCount})` : '隱藏已完成'}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="h-0.5 w-full bg-slate-200/70 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${
+                unfinishedCount === 0 ? 'bg-emerald-500' : 'bg-slate-800'
+              }`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Empty States or Grouped Checklist */}
+      {totalCount === 0 ? (
+        <div className="bg-white border border-dashed border-slate-200 rounded-3xl p-10 text-center">
+          <CheckSquare className="w-9 h-9 text-slate-300 mx-auto mb-2.5" />
+          <p className="text-slate-600 font-bold text-sm mb-3">尚無待辦</p>
           <button
+            type="button"
             onClick={() => onOpenModal()}
-            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-xs inline-flex items-center space-x-1"
+            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer inline-flex items-center space-x-1"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>新增待辦</span>
           </button>
         </div>
+      ) : groups.length === 0 ? (
+        <div className="bg-white border border-slate-200/70 rounded-3xl p-10 text-center space-y-2.5">
+          <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <Check className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <p className="text-slate-700 font-bold text-sm">已全部完成</p>
+          {doneCount > 0 && onToggleHideDone && (
+            <button
+              type="button"
+              onClick={onToggleHideDone}
+              className="text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              查看已完成 ({doneCount})
+            </button>
+          )}
+        </div>
       ) : (
         <div className="space-y-6">
-          {groups.map((group) => (
-            <div key={group.key} className="space-y-2.5">
-              {/* Group Section Header (有項目時才顯示標題，避免 7天內(0) 的矛盾突兀標題) */}
-              {group.items.length > 0 && (
-                <div className="flex items-center space-x-1.5 px-1 pt-1">
-                  <span className="text-sm">{group.icon}</span>
-                  <h3 className={`text-xs font-black uppercase tracking-wider ${group.badgeClass}`}>
+          {groups.map((group) => {
+            const isQuiet = group.key === 'later' || group.key === 'nodate';
+
+            return (
+              <div key={group.key} className="space-y-2">
+                {/* Group Section Header */}
+                <div className="flex items-center px-1 pt-0.5">
+                  <h3 className={`text-[11px] font-bold tracking-wider ${group.titleClass}`}>
                     <span>{group.title}</span>
-                    <span className="ml-1 opacity-75 font-mono">({group.items.length})</span>
+                    <span className="mx-1 opacity-50">·</span>
+                    <span className="font-mono opacity-80">{group.items.length}</span>
                   </h3>
                 </div>
-              )}
 
-              {/* Items List or Layback Chill Empty Message */}
-              {group.items.length === 0 && group.key === 'upcoming' ? (
-                <div className="bg-gradient-to-b from-emerald-50/70 to-teal-50/40 border border-dashed border-emerald-200/90 rounded-3xl py-7 px-5 text-center flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-2.5 shadow-2xs transition-all">
-                  <span className="text-2xl select-none">🌴</span>
-                  <span className="text-xs sm:text-sm font-bold text-emerald-800/90 tracking-wide">
-                    近期無須操心，放輕鬆 Lay back & chill ✨
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                {group.items.map((item) => {
-                  const dueBadge = getDueDateBadge(item.dueDate, item.isDone);
-                  const isLater = group.key === 'later';
-                  const { text: cleanNote, links } = parseNoteAndLinks(item.note);
+                <div className="space-y-1.5">
+                  {group.items.map((item) => {
+                    const dueBadge = getDueDateBadge(item.dueDate, item.isDone, todayMs, timezone);
+                    const { text: cleanNote, links } = parseNoteAndLinks(item.note);
 
-                  return (
-                    <div
-                      key={item.id || item.rowIndex}
-                      className={`flex justify-between items-start transition-all duration-200 border ${
-                        item.isDone
-                          ? 'rounded-2xl p-4 border-slate-100 opacity-40 bg-slate-50'
-                          : isLater
-                          ? 'rounded-xl px-3.5 py-2.5 sm:py-3 bg-slate-50/60 border-slate-200/50 shadow-none hover:bg-slate-100/50'
-                          : 'rounded-2xl p-4 bg-white border-slate-100 shadow-2xs hover:shadow-xs'
-                      }`}
-                    >
-                      <div className="flex-1 pr-4 min-w-0">
-                        <div className="flex items-center flex-wrap gap-2">
-                          <h3
-                            className={`text-base leading-tight ${
-                              item.isDone
-                                ? 'line-through text-slate-400 font-extrabold'
-                                : isLater
-                                ? 'text-slate-700 font-medium'
-                                : 'text-slate-900 font-extrabold'
-                            }`}
-                          >
-                            <span>{item.task}</span>
-                          </h3>
-                          {dueBadge}
-                        </div>
-
-                        {cleanNote && (
-                          <div
-                            className={`mt-1 leading-relaxed whitespace-pre-line ${
-                              isLater
-                                ? 'text-xs text-slate-400 font-normal'
-                                : 'text-sm text-slate-600 font-medium'
-                            }`}
-                          >
-                            {cleanNote}
-                          </div>
-                        )}
-
-                        {/* 連結自動縮為精緻膠囊標籤 (Pill Tag) */}
-                        {links.length > 0 && (
-                          <div className="flex items-center flex-wrap gap-1.5 mt-2">
-                            {links.map((link, idx) => (
-                              <a
-                                key={idx}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-sky-700 hover:text-sky-800 rounded-lg text-xs font-semibold transition-all active:scale-95 border border-slate-200/80 shadow-2xs group/link max-w-full cursor-pointer"
-                                title={link.url}
-                              >
-                                <Link2 className="w-3 h-3 text-sky-500 flex-shrink-0" />
-                                <span className="truncate max-w-[140px] sm:max-w-[200px]">{link.title}</span>
-                                <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover/link:text-sky-600 flex-shrink-0" />
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center space-x-2 flex-shrink-0 mt-0.5">
+                    return (
+                      <div
+                        key={item.id || item.rowIndex}
+                        onClick={() => onOpenModal(item)}
+                        className={`flex items-start gap-2 transition-all duration-150 border cursor-pointer ${
+                          item.isDone
+                            ? 'rounded-xl px-3.5 py-3 border-slate-100 opacity-50 hover:opacity-75 bg-slate-50/40'
+                            : isQuiet
+                            ? 'rounded-xl px-3.5 py-3 bg-slate-50/80 border-slate-200/60 hover:bg-slate-100/70'
+                            : 'rounded-2xl p-3.5 sm:p-4 bg-white border-slate-200/70 shadow-2xs hover:border-slate-300'
+                        }`}
+                      >
+                        {/* 左側擴大觸控熱區勾選框 */}
                         <button
-                          onClick={() => onOpenModal(item)}
-                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                          title="編輯"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleTodo(item.rowIndex, item.isDone, item.id);
+                          }}
+                          aria-label={item.isDone ? `標記「${item.task}」為未完成` : `標記「${item.task}」為已完成`}
+                          className="-ml-2 -mt-2 w-10 h-10 flex items-center justify-center flex-shrink-0 rounded-xl group/chk cursor-pointer"
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <span
+                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                              item.isDone
+                                ? 'bg-slate-400 border-slate-400 text-white'
+                                : isQuiet
+                                ? 'border-slate-300 bg-white/80 group-hover/chk:border-slate-500'
+                                : 'border-slate-300 bg-white group-hover/chk:border-slate-900'
+                            }`}
+                          >
+                            {item.isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </span>
                         </button>
-                        <input
-                          type="checkbox"
-                          checked={item.isDone}
-                          onChange={() => onToggleTodo(item.rowIndex, item.isDone, item.id)}
-                          className="w-5 h-5 rounded-md border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer transition-transform active:scale-90"
-                        />
+
+                        {/* 任務內容與右側對齊截止日 */}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="flex items-start justify-between gap-3">
+                            <h4
+                              className={`text-[15px] leading-snug break-words ${
+                                item.isDone
+                                  ? 'line-through text-slate-400 font-medium'
+                                  : isQuiet
+                                  ? 'text-slate-600 font-medium'
+                                  : 'text-slate-900 font-bold'
+                              }`}
+                            >
+                              {item.task}
+                            </h4>
+
+                            {dueBadge && <div className="flex-shrink-0 pt-0.5">{dueBadge}</div>}
+                          </div>
+
+                          {cleanNote && (
+                            <div
+                              className={`mt-1 leading-relaxed whitespace-pre-line ${
+                                isQuiet
+                                  ? 'text-xs text-slate-400 font-normal'
+                                  : 'text-xs sm:text-sm text-slate-500 font-normal'
+                              }`}
+                            >
+                              {cleanNote}
+                            </div>
+                          )}
+
+                          {links.length > 0 && (
+                            <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                              {links.map((link, idx) => (
+                                <a
+                                  key={idx}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-sky-700 hover:text-sky-800 rounded-lg text-xs font-medium transition-all active:scale-95 border border-slate-200/80 group/link max-w-full cursor-pointer"
+                                  title={link.url}
+                                >
+                                  <Link2 className="w-3 h-3 text-sky-500 flex-shrink-0" />
+                                  <span className="truncate max-w-[140px] sm:max-w-[200px]">{link.title}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 group-hover/link:text-sky-600 flex-shrink-0" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+            );
+          })}
         </div>
       )}
 
-      {/* 右下角固定懸浮「＋」按鈕 (FAB) - 統一住宿頁面樣式與位置 */}
+      {/* 右下角固定懸浮「＋」按鈕 (FAB) */}
       <button
         type="button"
         onClick={() => onOpenModal()}

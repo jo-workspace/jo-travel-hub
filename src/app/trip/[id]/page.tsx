@@ -62,6 +62,7 @@ import {
   updateTripSettings,
 } from '@/lib/supabase-client';
 import { computeTripDaySequence } from '@/lib/tripDate';
+import { getTodoBadgeSummary } from '@/lib/todoUtils';
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -359,22 +360,10 @@ export default function TripPage({ params }: PageProps) {
     return Array.from(set);
   }, [tripData.packing]);
 
-  // 跨旅程歷史待辦分類（純歷史資料）
-  const currentTodoCategories = useMemo(() => {
-    const set = new Set<string>();
-    const INVALID_CATEGORIES = ['其他', '全部'];
-    (tripData.historicalTodoCategories || []).forEach((cat) => {
-      const trimmed = cat.trim();
-      if (trimmed && !INVALID_CATEGORIES.includes(trimmed)) set.add(trimmed);
-    });
-    tripData.todo.forEach((t) => {
-      const cat = (t.category || '').trim();
-      if (cat && !INVALID_CATEGORIES.includes(cat)) {
-        set.add(cat);
-      }
-    });
-    return Array.from(set);
-  }, [tripData.todo, tripData.historicalTodoCategories]);
+  // 待辦分頁 2 階未完成標註狀態
+  const todoBadgeSummary = useMemo(() => {
+    return getTodoBadgeSummary(tripData.todo, tripData.timezone);
+  }, [tripData.todo, tripData.timezone]);
 
   // 當前旅程中已使用之行程分類（經清洗與去重）
   const currentItineraryCategories = useMemo(() => {
@@ -1014,6 +1003,7 @@ export default function TripPage({ params }: PageProps) {
         onToggleHideVisited={() => setHideVisited(!hideVisited)}
         tripTitle={tripData.tripTitle || tripConfig.title}
         customIcon={tripData.customIcon || tripData.svgIcon}
+        todoBadge={todoBadgeSummary}
       />
 
       {/* Main Container */}
@@ -1099,10 +1089,11 @@ export default function TripPage({ params }: PageProps) {
               )}
 
               {currentTab === 'todo' && (
-
                 <TodoTab
                   data={tripData.todo}
                   hideDone={hideVisited}
+                  timezone={tripData.timezone}
+                  onToggleHideDone={() => setHideVisited(!hideVisited)}
                   onToggleTodo={handleToggleTodo}
                   onOpenModal={(item) => {
                     setActiveTodoItem(item || null);
@@ -1188,7 +1179,7 @@ export default function TripPage({ params }: PageProps) {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <MobileNav currentTab={currentTab} onSelectTab={handleTabChange} />
+      <MobileNav currentTab={currentTab} onSelectTab={handleTabChange} todoBadge={todoBadgeSummary} />
 
       {/* Modals */}
       <ItineraryModal
@@ -1228,8 +1219,8 @@ export default function TripPage({ params }: PageProps) {
       <TodoModal
         isOpen={todoModalOpen}
         item={activeTodoItem}
-        existingCategories={currentTodoCategories}
         tripStartDate={tripData.startDate || ''}
+        timezone={tripData.timezone}
         onClose={() => setTodoModalOpen(false)}
         onSave={handleSaveTodo}
         onDelete={handleDeleteTodo}

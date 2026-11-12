@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Calendar, BedDouble, CheckSquare, Package, DollarSign, ShoppingBag, Eye, EyeOff, Plane } from 'lucide-react';
+import { TodoBadgeSummary } from '@/lib/todoUtils';
 
 export type TabType = 'itinerary' | 'accommodations' | 'todo' | 'packing' | 'expenses' | 'shopping';
 
@@ -12,6 +13,7 @@ interface SidebarProps {
   onToggleHideVisited: () => void;
   tripTitle?: string;
   customIcon?: string;
+  todoBadge?: TodoBadgeSummary;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -21,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleHideVisited,
   tripTitle = '旅程總覽',
   customIcon,
+  todoBadge,
 }) => {
   const tabs = [
     { id: 'itinerary', label: '行程', icon: Calendar },
@@ -61,18 +64,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
+          const showTodoUrgent = tab.id === 'todo' && todoBadge?.tier === 'urgent';
+          const showTodoCalm = tab.id === 'todo' && todoBadge?.tier === 'calm';
           return (
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id as TabType)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer font-bold text-sm ${
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer font-bold text-sm ${
                 isActive
                   ? 'bg-slate-800 text-white shadow-sm border-l-4 border-amber-400'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
-              <span>{tab.label}</span>
+              <span className="flex items-center space-x-3">
+                <Icon className={`w-5 h-5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                <span>{tab.label}</span>
+              </span>
+
+              {showTodoUrgent && todoBadge && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 text-[11px] font-mono tabular-nums"
+                  title={`${todoBadge.urgentCount} 項近期或已逾期待辦`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span>{todoBadge.urgentCount}</span>
+                </span>
+              )}
+
+              {showTodoCalm && (
+                <span
+                  className="w-2 h-2 rounded-full border border-slate-500 mr-1"
+                  title="尚有更久之後或無期限待辦"
+                />
+              )}
             </button>
           );
         })}

@@ -3,13 +3,15 @@
 import React from 'react';
 import { Calendar, BedDouble, CheckSquare, Package, DollarSign, ShoppingBag } from 'lucide-react';
 import { TabType } from './Sidebar';
+import { TodoBadgeSummary } from '@/lib/todoUtils';
 
 interface MobileNavProps {
   currentTab: TabType;
   onSelectTab: (tab: TabType) => void;
+  todoBadge?: TodoBadgeSummary;
 }
 
-export const MobileNav: React.FC<MobileNavProps> = ({ currentTab, onSelectTab }) => {
+export const MobileNav: React.FC<MobileNavProps> = ({ currentTab, onSelectTab, todoBadge }) => {
   const tabs = [
     { id: 'itinerary', label: '行程', icon: Calendar },
     { id: 'accommodations', label: '住宿', icon: BedDouble },
@@ -24,6 +26,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({ currentTab, onSelectTab })
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = currentTab === tab.id;
+        const showTodoUrgent = tab.id === 'todo' && todoBadge?.tier === 'urgent';
+        const showTodoCalm = tab.id === 'todo' && todoBadge?.tier === 'calm';
         return (
           <button
             key={tab.id}
@@ -32,7 +36,21 @@ export const MobileNav: React.FC<MobileNavProps> = ({ currentTab, onSelectTab })
               isActive ? 'text-amber-400 font-extrabold' : 'text-slate-400 hover:text-slate-200 font-medium'
             }`}
           >
-            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'scale-110 text-amber-400' : ''} transition-transform`} />
+            <div className="relative flex items-center justify-center">
+              <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'scale-110 text-amber-400' : ''} transition-transform`} />
+              {showTodoUrgent && (
+                <span
+                  className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-2 ring-slate-900"
+                  aria-hidden="true"
+                />
+              )}
+              {showTodoCalm && (
+                <span
+                  className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full border border-slate-400 bg-slate-900"
+                  aria-hidden="true"
+                />
+              )}
+            </div>
             <span className="text-[9px] sm:text-[10px] mt-0.5 tracking-tight">{tab.label}</span>
           </button>
         );
