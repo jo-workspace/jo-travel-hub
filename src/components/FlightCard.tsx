@@ -25,7 +25,7 @@ interface FlightCardProps {
   hideVisited?: boolean;
   timezone?: string;
   startDate?: string;
-  onOpenModal: (flight?: FlightItem | null, defaultType?: 'outbound' | 'inbound') => void;
+  onOpenModal?: (flight?: FlightItem | null, defaultType?: 'outbound' | 'inbound') => void;
   showToast?: (msg: string) => void;
 }
 
@@ -130,14 +130,16 @@ export const FlightCard: React.FC<FlightCardProps> = ({
                 >
                   展開明細
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenModal(flight)}
-                  className="p-1 rounded text-slate-400 hover:text-white"
-                  title="編輯"
-                >
-                  <Pencil className="w-3 h-3" />
-                </button>
+                {onOpenModal && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenModal(flight)}
+                    className="p-1 rounded text-slate-400 hover:text-white"
+                    title="編輯"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -210,14 +212,16 @@ export const FlightCard: React.FC<FlightCardProps> = ({
                   </a>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => onOpenModal(flight)}
-                  className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
-                  title="編輯班機"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
+                {onOpenModal && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenModal(flight)}
+                    className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="編輯班機"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -324,7 +328,7 @@ export const FlightCard: React.FC<FlightCardProps> = ({
       })}
 
       {/* 若目前只有去程或只有回程，提供快速新增另一程的小按鈕 */}
-      {outboundFlights.length > 0 && inboundFlights.length === 0 && (
+      {onOpenModal && outboundFlights.length > 0 && inboundFlights.length === 0 && (
         <button
           type="button"
           onClick={() => onOpenModal(null, 'inbound')}
@@ -335,7 +339,7 @@ export const FlightCard: React.FC<FlightCardProps> = ({
         </button>
       )}
 
-      {inboundFlights.length > 0 && outboundFlights.length === 0 && (
+      {onOpenModal && inboundFlights.length > 0 && outboundFlights.length === 0 && (
         <button
           type="button"
           onClick={() => onOpenModal(null, 'outbound')}

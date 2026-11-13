@@ -48,6 +48,7 @@ interface ItineraryTabProps {
   data: ItineraryItem[];
   tripNote?: string;
   hideVisited: boolean;
+  readOnly?: boolean;
   startDate?: string; // YYYY-MM-DD，旅程起始日
   timezone?: string; // 旅程目的地時區（IANA），用來判斷「今天」是第幾天
   citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
@@ -57,10 +58,10 @@ interface ItineraryTabProps {
   onOpenFlightModal?: (flight?: FlightItem | null, defaultType?: 'outbound' | 'inbound') => void;
   onOpenAccommodationModal?: (item?: AccommodationItem | null, defaultDate?: string) => void;
   showToast?: (msg: string) => void;
-  onToggleVisited: (rowIndex: number, currentStatus: boolean, id?: string) => void;
+  onToggleVisited?: (rowIndex: number, currentStatus: boolean, id?: string) => void;
   onToggleIgnored?: (rowIndex: number, currentIgnored: boolean, id?: string) => void;
-  onOpenModal: (item?: ItineraryItem, initialDay?: string) => void;
-  onOpenLightbox: (imageUrl: string) => void;
+  onOpenModal?: (item?: ItineraryItem, initialDay?: string) => void;
+  onOpenLightbox?: (imageUrl: string) => void;
   onSwapItemTimes?: (itemA: ItineraryItem, itemB: ItineraryItem) => Promise<void>;
   onBatchUpdateTimes?: (updates: Array<{ rowIndex: number; time: string }>) => Promise<void>;
   onSaveTripNote?: (note: string) => Promise<void>;
@@ -192,6 +193,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   data,
   tripNote,
   hideVisited,
+  readOnly = false,
   startDate,
   timezone,
   citySchedule,
@@ -368,13 +370,13 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   return (
     <div className="space-y-4 pb-20">
       {/* Flight Information Card: 僅在檢視「全部」時呈現頂部總覽，點選單天時直接在該天時間軸內呈現 */}
-      {onOpenFlightModal && selectedDay === 'ALL' && (
+      {(onOpenFlightModal || flights.length > 0) && selectedDay === 'ALL' && (
         <FlightCard
           flights={flights}
           hideVisited={hideVisited}
           timezone={timezone}
           startDate={startDate}
-          onOpenModal={onOpenFlightModal}
+          onOpenModal={readOnly ? undefined : onOpenFlightModal}
           showToast={showToast}
         />
       )}
@@ -531,13 +533,15 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
       {/* Day Filter, Add Button & View Mode Switch Bar */}
       <div className="flex items-center justify-between gap-2 py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">
         <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
-          <button
-            onClick={() => onOpenModal(undefined, selectedDay !== 'ALL' ? selectedDay : undefined)}
-            className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>新增行程</span>
-          </button>
+          {!readOnly && onOpenModal && (
+            <button
+              onClick={() => onOpenModal(undefined, selectedDay !== 'ALL' ? selectedDay : undefined)}
+              className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>新增行程</span>
+            </button>
+          )}
 
           <button
             onClick={() => setSelectedDay('ALL')}
@@ -608,9 +612,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
             citySchedule={citySchedule}
             hideVisited={hideVisited}
             onSelectDay={setSelectedDay}
-            onOpenItemModal={onOpenModal}
-            onSwapItemTimes={onSwapItemTimes}
-            onBatchUpdateTimes={onBatchUpdateTimes}
+            onOpenItemModal={readOnly ? undefined : onOpenModal}
+            onSwapItemTimes={readOnly ? undefined : onSwapItemTimes}
+            onBatchUpdateTimes={readOnly ? undefined : onBatchUpdateTimes}
           />
         </div>
       )}
@@ -824,7 +828,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                       </button>
                                     )}
 
-                                    {onOpenFlightModal && (
+                                    {!readOnly && onOpenFlightModal && (
                                       <button
                                         type="button"
                                         onClick={() => onOpenFlightModal(flight)}
@@ -945,33 +949,39 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                             </div>
 
                               {/* Right Actions (Toggle Done & Edit) */}
-                            <div className="flex items-center space-x-1.5 flex-shrink-0">
-                              <button
-                                onClick={() => onOpenModal(item)}
-                                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                                title="編輯"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => onToggleVisited(item.rowIndex, item.isVisited, item.id)}
-                                className="text-slate-400 hover:text-slate-800 transition-transform active:scale-90 cursor-pointer"
-                                title={item.isVisited ? '未去過' : '已完成'}
-                              >
-                                {item.isVisited ? (
-                                  <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50" />
-                                ) : (
-                                  <Circle className="w-5 h-5 text-slate-300 hover:text-slate-500" />
+                            {!readOnly && (
+                              <div className="flex items-center space-x-1.5 flex-shrink-0">
+                                {onOpenModal && (
+                                  <button
+                                    onClick={() => onOpenModal(item)}
+                                    className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                                    title="編輯"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
                                 )}
-                              </button>
-                            </div>
+                                {onToggleVisited && (
+                                  <button
+                                    onClick={() => onToggleVisited(item.rowIndex, item.isVisited, item.id)}
+                                    className="text-slate-400 hover:text-slate-800 transition-transform active:scale-90 cursor-pointer"
+                                    title={item.isVisited ? '未去過' : '已完成'}
+                                  >
+                                    {item.isVisited ? (
+                                      <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50" />
+                                    ) : (
+                                      <Circle className="w-5 h-5 text-slate-300 hover:text-slate-500" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
                   ) : (
                     <div className="text-xs text-slate-400 font-medium py-3 px-4 bg-white/60 rounded-xl border border-dashed border-slate-200">
-                      尚無指定時間行程，可從口袋名單挑選 📍
+                      {readOnly ? '尚無指定時間行程 📍' : '尚無指定時間行程，可從口袋名單挑選 📍'}
                     </div>
                   )}
 
@@ -982,9 +992,11 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                         <div className="flex items-center space-x-1.5 text-xs font-black text-slate-700">
                           <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
                           <span>口袋名單 ({candidateItems.length})</span>
-                          <span className="text-[11px] font-normal text-slate-400 hidden sm:inline">
-                            · 點擊排入時間
-                          </span>
+                          {!readOnly && (
+                            <span className="text-[11px] font-normal text-slate-400 hidden sm:inline">
+                              · 點擊排入時間
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -995,10 +1007,13 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                             <div
                               key={cItem.id || cItem.rowIndex}
                               onClick={() => {
+                                if (readOnly || !onBatchUpdateTimes) return;
                                 setQuickTimeTargetItem(cItem);
                                 setQuickTimeInput('12:00');
                               }}
-                              className={`bg-white border rounded-xl p-2.5 flex items-center justify-between shadow-2xs hover:shadow-xs transition-all cursor-pointer select-none group ${
+                              className={`bg-white border rounded-xl p-2.5 flex items-center justify-between shadow-2xs transition-all select-none group ${
+                                !readOnly && onBatchUpdateTimes ? 'hover:shadow-xs cursor-pointer' : ''
+                              } ${
                                 cItem.isIgnored
                                   ? 'opacity-40 border-slate-200 bg-slate-50/60'
                                   : cItem.isVisited
@@ -1015,7 +1030,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                 </span>
                                 <div className="min-w-0">
                                   <div className="flex items-center space-x-1">
-                                    <h4 className={`text-xs font-bold truncate group-hover:text-blue-600 transition-colors ${
+                                    <h4 className={`text-xs font-bold truncate transition-colors ${
+                                      !readOnly ? 'group-hover:text-blue-600' : ''
+                                    } ${
                                       cItem.isIgnored ? 'line-through text-slate-400' : cItem.isVisited ? 'line-through text-slate-500' : 'text-slate-900'
                                     }`}>
                                       {cItem.title}
@@ -1046,45 +1063,53 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                 </div>
                               </div>
 
-                              <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                {/* Done 按鈕 */}
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleVisited(cItem.rowIndex, cItem.isVisited, cItem.id)}
-                                  className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                                    cItem.isVisited && !cItem.isIgnored
-                                      ? 'text-emerald-600 bg-emerald-50'
-                                      : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
-                                  }`}
-                                  title={cItem.isVisited && !cItem.isIgnored ? '未去過' : '已去過'}
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
+                              {!readOnly && (
+                                <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  {/* Done 按鈕 */}
+                                  {onToggleVisited && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleVisited(cItem.rowIndex, cItem.isVisited, cItem.id)}
+                                      className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                                        cItem.isVisited && !cItem.isIgnored
+                                          ? 'text-emerald-600 bg-emerald-50'
+                                          : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                      }`}
+                                      title={cItem.isVisited && !cItem.isIgnored ? '未去過' : '已去過'}
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
 
-                                {/* Ignore 按鈕 */}
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleIgnored && onToggleIgnored(cItem.rowIndex, !!cItem.isIgnored, cItem.id)}
-                                  className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                                    cItem.isIgnored
-                                      ? 'text-amber-600 bg-amber-50'
-                                      : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
-                                  }`}
-                                  title={cItem.isIgnored ? '取消略過' : '略過'}
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
+                                  {/* Ignore 按鈕 */}
+                                  {onToggleIgnored && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleIgnored(cItem.rowIndex, !!cItem.isIgnored, cItem.id)}
+                                      className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                                        cItem.isIgnored
+                                          ? 'text-amber-600 bg-amber-50'
+                                          : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                                      }`}
+                                      title={cItem.isIgnored ? '取消略過' : '略過'}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
 
-                                {/* Edit 按鈕 */}
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenModal(cItem)}
-                                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs transition-all cursor-pointer"
-                                  title="編輯"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                                  {/* Edit 按鈕 */}
+                                  {onOpenModal && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenModal(cItem)}
+                                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs transition-all cursor-pointer"
+                                      title="編輯"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1100,7 +1125,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
               const dayIsoDate = startDate ? (getYmdForTripDay(startDate, day) || getIsoDateForDay(startDate, day)) : '';
               const isLastDay = day === days[days.length - 1];
 
-              if (!onOpenAccommodationModal) return null;
+              if (!onOpenAccommodationModal && (!accommodations || accommodations.length === 0)) return null;
 
               // 查找當晚住宿（排除已退訂 cancelled）
               const activeAccs = (accommodations || []).filter((a) => a.status !== 'cancelled');
@@ -1182,16 +1207,18 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center space-x-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => onOpenAccommodationModal(confirmedAcc)}
-                              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
-                              title="編輯住宿"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {!readOnly && onOpenAccommodationModal && (
+                            <div className="flex items-center space-x-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => onOpenAccommodationModal(confirmedAcc)}
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
+                                title="編輯住宿"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1199,7 +1226,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 );
               }
 
-              if (candidateAccs.length > 0) {
+              if (!readOnly && onOpenAccommodationModal && candidateAccs.length > 0) {
                 const firstCandidate = candidateAccs[0];
                 const label = candidateAccs.length > 1
                   ? `${firstCandidate.name} 等 ${candidateAccs.length} 間 (抉擇中)`
@@ -1222,7 +1249,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
               }
 
               // 若無住宿且非最後一天，顯示極簡淡灰「＋ 安排住宿」
-              if (!isLastDay && dayIsoDate) {
+              if (!readOnly && onOpenAccommodationModal && !isLastDay && dayIsoDate) {
                 return (
                   <button
                     type="button"

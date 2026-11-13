@@ -111,9 +111,23 @@ export default function TripPage({ params }: PageProps) {
     const url = `${window.location.origin}/trip/${tripId}?tab=${currentTab}`;
     try {
       await navigator.clipboard.writeText(url);
-      showToast('連結已複製，分享給旅伴吧！');
+      showToast('已複製完整連結！');
     } catch {
       showToast(`複製失敗，請手動複製：${url}`);
+    }
+  };
+
+  const handleShareCompanion = async () => {
+    try {
+      const res = await fetch(`/api/share-link?tripId=${encodeURIComponent(tripId)}`);
+      if (!res.ok) throw new Error('無法產生分享連結');
+      const { token } = await res.json();
+      const shareTab = currentTab === 'expenses' ? 'expenses' : 'itinerary';
+      const url = `${window.location.origin}/share/${tripId}?token=${encodeURIComponent(token)}&tab=${shareTab}`;
+      await navigator.clipboard.writeText(url);
+      showToast('已複製旅伴連結（僅行程＋記帳）！');
+    } catch {
+      showToast('複製旅伴連結失敗，請重試');
     }
   };
   const [hideVisited, setHideVisited] = useState<boolean>(true);
@@ -1015,6 +1029,7 @@ export default function TripPage({ params }: PageProps) {
           onRefresh={() => fetchData(true)}
           onOpenSettings={() => setSettingsModalOpen(true)}
           onShare={handleShare}
+          onShareCompanion={handleShareCompanion}
           isLoading={isLoading}
           tripTitle={tripData.tripTitle || tripConfig.title}
           customIcon={tripData.customIcon || tripData.svgIcon}
