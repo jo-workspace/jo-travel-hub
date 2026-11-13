@@ -3,13 +3,22 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TRIPS, TripConfig } from '@/config/trips';
-import { AllTripData, ExpenseItem } from '@/types/trip';
+import { AllTripData, ItineraryItem, ExpenseItem } from '@/types/trip';
 import { ItineraryTab } from '@/components/tabs/ItineraryTab';
 import { ExpensesTab } from '@/components/tabs/ExpensesTab';
+import { ItineraryModal } from '@/components/modals/ItineraryModal';
 import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { LightboxModal } from '@/components/modals/LightboxModal';
+import { cleanCategoryName } from '@/lib/itineraryCategories';
 import {
   getAllData,
+  saveItineraryData,
+  deleteItineraryData,
+  toggleVisitedStatus,
+  toggleIgnoredStatus,
+  swapItineraryTimes,
+  batchUpdateItineraryTimes,
+  updateTripSettings,
   addExpenseData,
   deleteExpenseData,
   saveShoppingData,
@@ -69,6 +78,11 @@ export default function CompanionSharePage({ params }: SharePageProps) {
 
   const [hideVisited, setHideVisited] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
+  const [activeItineraryItem, setActiveItineraryItem] = useState<ItineraryItem | null>(null);
+  const [defaultItineraryDay, setDefaultItineraryDay] = useState<string>('Day 1');
+
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [activeExpenseItem, setActiveExpenseItem] = useState<ExpenseItem | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -124,7 +138,7 @@ export default function CompanionSharePage({ params }: SharePageProps) {
     fetchData(false);
   }, [fetchData]);
 
-  // 動態更新頁面標題與 Favicon
+  // 動態更新頁面標題
   useEffect(() => {
     const displayTitle = tripData.tripTitle || tripConfig.title;
     if (displayTitle) {
@@ -160,10 +174,126 @@ export default function CompanionSharePage({ params }: SharePageProps) {
     return Array.from(set);
   }, [tripData.companions, tripData.expenses, hasWillCompanion]);
 
+  const currentItineraryCategories = useMemo(() => {
+    const set = new Set<string>();
+    tripData.itinerary.forEach((item) => {
+      const clean = cleanCategoryName(item.type);
+      if (clean) {
+        set.add(clean);
+      }
+    });
+    return Array.from(set);
+  }, [tripData.itinerary]);
+
   const effectiveStartDate = useMemo(() => {
     const outboundFlight = tripData.flights?.find((f) => f.type === 'outbound');
     return outboundFlight?.departureDate || tripData.startDate || '';
   }, [tripData.flights, tripData.startDate]);
+
+  // 行程操作 Handlers
+  const handleToggleVisited = async (rowIndex: number, currentStatus: boolean, id?: string) => {
+    const nextStatus = !currentStatus;
+    setTripData((prev) => ({
+      ...prev,
+      itinerary: prev.itinerary.map((i) => {
+        const matches = id ? i.id === id : i.rowIndex === rowIndex;
+        return matches ? { ...i, isVisited: nextStatus, isIgnored: false } : i;
+      }),
+    }));
+
+    try {
+      await toggleVisitedStatus(id ? { id, rowIndex } : rowIndex, nextStatus, tripId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`更新失敗，正在還原: ${msg}`);
+      fetchData(false);
+    }
+  };
+
+  const handleToggleIgnored = async (rowIndex: number, currentIgnored: boolean, id?: string) => {
+    const nextIgnored = !currentIgnored;
+    setTripData((prev) => ({
+      ...prev,
+      itinerary: prev.itinerary.map((i) => {
+        const matches = id ? i.id === id : i.rowIndex === rowIndex;
+        return matches ? { ...i, isVisited: nextIgnored, isIgnored: nextIgnored } : i;
+      }),
+    }));
+
+    try {
+      const msg = await toggleIgnoredStatus(id ? { id, rowIndex } : rowIndex, currentIgnored, tripId);
+      showToast(msg);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`略過更新失敗: ${msg}`);
+      fetchData(false);
+    }
+  };
+
+  const handleSaveItinerary = async (formData: Record<string, unknown>) => {
+    try {
+      showToast('正在儲存行程...');
+      await saveItineraryData(formData, tripId);
+      showToast('行程儲存成功！');
+      fetchData(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`儲存失敗: ${msg}`);
+    }
+  };
+
+  const handleDeleteItinerary = async (target: number | { id?: string; rowIndex?: number }) => {
+    try {
+      showToast('正在刪除行程...');
+      await deleteItineraryData(target, tripId);
+      showToast('刪除成功！');
+      fetchData(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`刪除失敗: ${msg}`);
+    }
+  };
+
+  const handleSwapItineraryTimes = async (itemA: ItineraryItem, itemB: ItineraryItem) => {
+    try {
+      showToast('正在對調行程順序...');
+      await swapItineraryTimes(itemA, itemB, tripId);
+      showToast('順序已更新！');
+      fetchData(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`更新失敗: ${msg}`);
+    }
+  };
+
+  const handleBatchUpdateItineraryTimes = async (updates: Array<{ rowIndex: number; time: string }>) => {
+    try {
+      showToast('正在套用最順動線...');
+      await batchUpdateItineraryTimes(updates, tripId);
+      showToast('🎉 最順動線已成功套用！');
+      fetchData(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`套用失敗: ${msg}`);
+    }
+  };
+
+  const handleSaveTripNote = async (newNote: string) => {
+    setTripData((prev) => ({
+      ...prev,
+      tripNote: newNote,
+    }));
+    try {
+      showToast('正在儲存重要備註...');
+      await updateTripSettings(tripId, { tripNote: newNote });
+      showToast('重要備註已儲存！');
+      fetchData(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(`儲存失敗: ${msg}`);
+      fetchData(false);
+    }
+  };
 
   // 記帳操作 Handlers
   const handleAddExpense = async (formData: Record<string, unknown>) => {
@@ -357,7 +487,6 @@ export default function CompanionSharePage({ params }: SharePageProps) {
                   data={tripData.itinerary}
                   tripNote={tripData.tripNote}
                   hideVisited={hideVisited}
-                  readOnly={true}
                   startDate={effectiveStartDate}
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
@@ -365,7 +494,17 @@ export default function CompanionSharePage({ params }: SharePageProps) {
                   flights={tripData.flights || []}
                   accommodations={tripData.accommodations || []}
                   showToast={showToast}
+                  onToggleVisited={handleToggleVisited}
+                  onToggleIgnored={handleToggleIgnored}
+                  onSaveTripNote={handleSaveTripNote}
+                  onOpenModal={(item, initialDay) => {
+                    setActiveItineraryItem(item || null);
+                    if (initialDay) setDefaultItineraryDay(initialDay);
+                    setItineraryModalOpen(true);
+                  }}
                   onOpenLightbox={(img) => setLightboxUrl(img)}
+                  onSwapItemTimes={handleSwapItineraryTimes}
+                  onBatchUpdateTimes={handleBatchUpdateItineraryTimes}
                 />
               )}
 
@@ -412,7 +551,17 @@ export default function CompanionSharePage({ params }: SharePageProps) {
         })}
       </nav>
 
-      {/* Modals (僅開放記帳與圖片檢視) */}
+      {/* Modals (開放行程新增/編輯、記帳與圖片檢視) */}
+      <ItineraryModal
+        isOpen={itineraryModalOpen}
+        item={activeItineraryItem}
+        defaultDay={defaultItineraryDay}
+        existingCategories={currentItineraryCategories}
+        onClose={() => setItineraryModalOpen(false)}
+        onSave={handleSaveItinerary}
+        onDelete={handleDeleteItinerary}
+      />
+
       <ExpenseModal
         isOpen={expenseModalOpen}
         item={activeExpenseItem}

@@ -117,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <Users className="w-4 h-4 text-amber-500 flex-shrink-0" />
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-slate-900">旅伴連結</div>
-                            <div className="text-[10px] text-slate-400 font-medium">僅行程唯讀 · 記帳</div>
+                            <div className="text-[10px] text-slate-400 font-medium">僅行程 · 記帳</div>
                           </div>
                         </button>
                       )}
