@@ -34,6 +34,7 @@ import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
 import { TripNoteModal } from '@/components/modals/TripNoteModal';
 import { FlightCard, isFlightFinished } from '@/components/FlightCard';
 import { formatTimeOnBlur } from '@/lib/timeUtils';
+import { linkifyText } from '@/lib/linkify';
 import {
   getCityForDay,
   getUniqueCities,
@@ -952,7 +953,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                   </div>
                                   {item.content && (
                                     <div className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium whitespace-pre-line">
-                                      {item.content.replace(/<br\s*\/?>/gi, '\n')}
+                                      {linkifyText(item.content.replace(/<br\s*\/?>/gi, '\n'))}
                                     </div>
                                   )}
                                 </div>
