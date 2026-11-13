@@ -25,6 +25,8 @@ import {
   Pencil,
   BedDouble,
   ChevronRight,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { WeatherDetailModal } from '@/components/modals/WeatherDetailModal';
@@ -49,6 +51,7 @@ interface ItineraryTabProps {
   tripNote?: string;
   hideVisited: boolean;
   readOnly?: boolean;
+  defaultLocked?: boolean;
   startDate?: string; // YYYY-MM-DD，旅程起始日
   timezone?: string; // 旅程目的地時區（IANA），用來判斷「今天」是第幾天
   citySchedule?: string; // 跨城市天數排程，例如 Day 1-3: Los Angeles, Day 4-5: Las Vegas
@@ -194,6 +197,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   tripNote,
   hideVisited,
   readOnly = false,
+  defaultLocked = false,
   startDate,
   timezone,
   citySchedule,
@@ -210,6 +214,8 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
   onBatchUpdateTimes,
   onSaveTripNote,
 }) => {
+  const [isLocked, setIsLocked] = useState<boolean>(defaultLocked);
+  const isReadOnly = readOnly || isLocked;
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [weatherMap, setWeatherMap] = useState<Record<string, CityWeatherData>>({});
   const [inspectingWeather, setInspectingWeather] = useState<{
@@ -376,7 +382,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           hideVisited={hideVisited}
           timezone={timezone}
           startDate={startDate}
-          onOpenModal={readOnly ? undefined : onOpenFlightModal}
+          onOpenModal={isReadOnly ? undefined : onOpenFlightModal}
           showToast={showToast}
         />
       )}
@@ -443,18 +449,14 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
         return (
           <div
-            onClick={() => onSaveTripNote && setIsNoteModalOpen(true)}
-            className={`group bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5 transition-all ${
-              onSaveTripNote ? 'cursor-pointer hover:bg-slate-850 hover:shadow-md' : ''
-            }`}
-            title={onSaveTripNote ? '點擊編輯重要備註' : undefined}
+            className="group bg-slate-900 text-slate-100 p-4 rounded-2xl shadow-sm border-l-4 border-amber-400 space-y-2.5 transition-all"
           >
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold uppercase text-amber-400 flex items-center space-x-1.5">
                 <span>📢</span>
                 <span>重要備註</span>
               </div>
-              {onSaveTripNote && (
+              {!isReadOnly && onSaveTripNote && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -516,7 +518,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
             )}
           </div>
         );
-      })() : onSaveTripNote ? (
+      })() : !isReadOnly && onSaveTripNote ? (
         <div className="flex justify-end">
           <button
             type="button"
@@ -533,7 +535,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
       {/* Day Filter, Add Button & View Mode Switch Bar */}
       <div className="flex items-center justify-between gap-2 py-1 sticky top-[57px] md:top-0 bg-slate-50/90 backdrop-blur-md z-30">
         <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar flex-1 min-w-0">
-          {!readOnly && onOpenModal && (
+          {!isReadOnly && onOpenModal && (
             <button
               onClick={() => onOpenModal(undefined, selectedDay !== 'ALL' ? selectedDay : undefined)}
               className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-full cursor-pointer select-none whitespace-nowrap shadow-xs transition-all active:scale-95 flex items-center space-x-1 flex-shrink-0"
@@ -572,32 +574,50 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
           })}
         </div>
 
-        {/* View Mode Toggle: Pure SVG List / Map Toggle */}
-        <div className="flex items-center bg-white border border-slate-200/90 p-0.5 rounded-full flex-shrink-0 shadow-2xs">
-          <button
-            type="button"
-            onClick={() => handleSwitchViewMode('list')}
-            className={`p-1.5 rounded-full transition-all cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-            title="清單"
-          >
-            <List className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchViewMode('map')}
-            className={`p-1.5 rounded-full transition-all cursor-pointer ${
-              viewMode === 'map'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-            title="地圖"
-          >
-            <MapIcon className="w-3.5 h-3.5" />
-          </button>
+        {/* Read-only Lock & View Mode Toggle */}
+        <div className="flex items-center space-x-1.5 flex-shrink-0">
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setIsLocked((prev) => !prev)}
+              className={`p-2 rounded-full border transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center ${
+                isLocked
+                  ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                  : 'bg-white border-slate-200/90 text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              title={isLocked ? '防誤觸鎖定中（點擊解鎖編輯）' : '編輯模式（點擊鎖定防誤觸）'}
+              aria-label={isLocked ? '解鎖編輯' : '鎖定防誤觸'}
+            >
+              {isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
+          <div className="flex items-center bg-white border border-slate-200/90 p-0.5 rounded-full shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSwitchViewMode('list')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="清單"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchViewMode('map')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                viewMode === 'map'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="地圖"
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -612,9 +632,9 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
             citySchedule={citySchedule}
             hideVisited={hideVisited}
             onSelectDay={setSelectedDay}
-            onOpenItemModal={readOnly ? undefined : onOpenModal}
-            onSwapItemTimes={readOnly ? undefined : onSwapItemTimes}
-            onBatchUpdateTimes={readOnly ? undefined : onBatchUpdateTimes}
+            onOpenItemModal={isReadOnly ? undefined : onOpenModal}
+            onSwapItemTimes={isReadOnly ? undefined : onSwapItemTimes}
+            onBatchUpdateTimes={isReadOnly ? undefined : onBatchUpdateTimes}
           />
         </div>
       )}
@@ -828,7 +848,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                       </button>
                                     )}
 
-                                    {!readOnly && onOpenFlightModal && (
+                                    {!isReadOnly && onOpenFlightModal && (
                                       <button
                                         type="button"
                                         onClick={() => onOpenFlightModal(flight)}
@@ -951,7 +971,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               {/* Right Actions (Toggle Done & Edit) */}
                             {!readOnly && (
                               <div className="flex items-center space-x-1.5 flex-shrink-0">
-                                {onOpenModal && (
+                                {!isReadOnly && onOpenModal && (
                                   <button
                                     onClick={() => onOpenModal(item)}
                                     className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90"
@@ -981,7 +1001,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                     </div>
                   ) : (
                     <div className="text-xs text-slate-400 font-medium py-3 px-4 bg-white/60 rounded-xl border border-dashed border-slate-200">
-                      {readOnly ? '尚無指定時間行程 📍' : '尚無指定時間行程，可從口袋名單挑選 📍'}
+                      {isReadOnly ? '尚無指定時間行程 📍' : '尚無指定時間行程，可從口袋名單挑選 📍'}
                     </div>
                   )}
 
@@ -992,7 +1012,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                         <div className="flex items-center space-x-1.5 text-xs font-black text-slate-700">
                           <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
                           <span>口袋名單 ({candidateItems.length})</span>
-                          {!readOnly && (
+                          {!isReadOnly && (
                             <span className="text-[11px] font-normal text-slate-400 hidden sm:inline">
                               · 點擊排入時間
                             </span>
@@ -1007,12 +1027,12 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                             <div
                               key={cItem.id || cItem.rowIndex}
                               onClick={() => {
-                                if (readOnly || !onBatchUpdateTimes) return;
+                                if (isReadOnly || !onBatchUpdateTimes) return;
                                 setQuickTimeTargetItem(cItem);
                                 setQuickTimeInput('12:00');
                               }}
                               className={`bg-white border rounded-xl p-2.5 flex items-center justify-between shadow-2xs transition-all select-none group ${
-                                !readOnly && onBatchUpdateTimes ? 'hover:shadow-xs cursor-pointer' : ''
+                                !isReadOnly && onBatchUpdateTimes ? 'hover:shadow-xs cursor-pointer' : ''
                               } ${
                                 cItem.isIgnored
                                   ? 'opacity-40 border-slate-200 bg-slate-50/60'
@@ -1031,7 +1051,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                 <div className="min-w-0">
                                   <div className="flex items-center space-x-1">
                                     <h4 className={`text-xs font-bold truncate transition-colors ${
-                                      !readOnly ? 'group-hover:text-blue-600' : ''
+                                      !isReadOnly ? 'group-hover:text-blue-600' : ''
                                     } ${
                                       cItem.isIgnored ? 'line-through text-slate-400' : cItem.isVisited ? 'line-through text-slate-500' : 'text-slate-900'
                                     }`}>
@@ -1063,7 +1083,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                 </div>
                               </div>
 
-                              {!readOnly && (
+                              {!isReadOnly && (
                                 <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                   {/* Done 按鈕 */}
                                   {onToggleVisited && (
@@ -1207,7 +1227,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                               )}
                             </div>
                           </div>
-                          {!readOnly && onOpenAccommodationModal && (
+                          {!isReadOnly && onOpenAccommodationModal && (
                             <div className="flex items-center space-x-1 flex-shrink-0">
                               <button
                                 type="button"
@@ -1226,7 +1246,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                 );
               }
 
-              if (!readOnly && onOpenAccommodationModal && candidateAccs.length > 0) {
+              if (!isReadOnly && onOpenAccommodationModal && candidateAccs.length > 0) {
                 const firstCandidate = candidateAccs[0];
                 const label = candidateAccs.length > 1
                   ? `${firstCandidate.name} 等 ${candidateAccs.length} 間 (抉擇中)`
@@ -1249,7 +1269,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
               }
 
               // 若無住宿且非最後一天，顯示極簡淡灰「＋ 安排住宿」
-              if (!readOnly && onOpenAccommodationModal && !isLastDay && dayIsoDate) {
+              if (!isReadOnly && onOpenAccommodationModal && !isLastDay && dayIsoDate) {
                 return (
                   <button
                     type="button"

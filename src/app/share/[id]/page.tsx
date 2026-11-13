@@ -487,6 +487,7 @@ export default function CompanionSharePage({ params }: SharePageProps) {
                   data={tripData.itinerary}
                   tripNote={tripData.tripNote}
                   hideVisited={hideVisited}
+                  defaultLocked={true}
                   startDate={effectiveStartDate}
                   timezone={tripData.timezone}
                   citySchedule={tripData.citySchedule}
