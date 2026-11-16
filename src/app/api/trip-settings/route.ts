@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AUTH_COOKIE_NAME, verifyAuthToken } from '@/lib/auth';
+import { AUTH_COOKIE_NAME, verifyAuthToken, getShareCookieName, verifyCompanionShareToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -11,14 +11,15 @@ const supabaseKey =
 
 export async function POST(req: NextRequest) {
   try {
-    const authCookie = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-    if (!verifyAuthToken(authCookie)) {
-      return NextResponse.json({ error: '未授權' }, { status: 401 });
-    }
-
     const body = await req.json().catch(() => null);
     if (!body || !body.tripId) {
       return NextResponse.json({ error: '缺少 tripId 參數' }, { status: 400 });
+    }
+
+    const authCookie = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+    const shareCookie = req.cookies.get(getShareCookieName(body.tripId))?.value;
+    if (!verifyAuthToken(authCookie) && !verifyCompanionShareToken(body.tripId, shareCookie)) {
+      return NextResponse.json({ error: '未授權' }, { status: 401 });
     }
 
     const {
@@ -58,24 +59,31 @@ export async function POST(req: NextRequest) {
       { headers }
     );
 
-    let existingRow: any = null;
-    if (fetchRes.ok) {
-      const list = await fetchRes.json();
-      existingRow = list?.[0] || null;
-    } else {
-      console.warn('Fetch trip_settings HTTP error in API:', fetchRes.status);
+    if (!fetchRes.ok) {
+      const errText = await fetchRes.text().catch(() => '');
+      console.error('Fetch trip_settings HTTP error in API:', fetchRes.status, errText);
+      return NextResponse.json(
+        { error: `讀取現有設定失敗 (${fetchRes.status})，已中止寫入以保護既有資料` },
+        { status: 500 }
+      );
     }
 
+    const list = await fetchRes.json();
+    const existingRow: any = list?.[0] || null;
     const existingNote = existingRow?.trip_note || '';
 
     // 從現有 trip_note 或傳入之 tripNote 進行安全字串重組
     let baseNote = tripNote !== undefined ? tripNote : existingNote;
 
-    // 移除舊的隱藏標籤，避免重複堆疊
+    // 移除所有系統隱藏標籤，取得純淨的備註本文，避免重複堆疊或誤刪
     baseNote = baseNote
       .replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '')
       .replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '')
       .replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '')
+      .replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '')
+      .replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '')
+      .replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '')
+      .replace(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/g, '')
       .trim();
 
     let finalTripNote = baseNote;

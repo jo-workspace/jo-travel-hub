@@ -163,7 +163,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         startDate: start.trim(),
         fxRate: finalFxRate,
         budgetTwd: budget ? parseInt(budget, 10) : 0,
-        tripNote: tripNote || '',
         foreignCurrency: trimmedCurrency,
         companions: finalCompanions,
         timezone: tz.trim() || 'Asia/Taipei',

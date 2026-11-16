@@ -146,8 +146,6 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripRes,
       allPackingCatsRes,
       allTodoCatsRes,
-      accommodationsRes,
-      flightsRes,
     ] = await Promise.all([
       supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
       supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
@@ -165,8 +163,6 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         .limit(1),
       supabase.from('packing_items').select('category'),
       supabase.from('todo_items').select('category'),
-      supabase.from('accommodations').select('*').eq('trip_id', tripId).order('check_in_date', { ascending: true }),
-      supabase.from('flights').select('*').eq('trip_id', tripId).order('departure_date', { ascending: true }),
     ]);
 
 
@@ -289,6 +285,11 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
           customIcon = inner;
         }
       }
+      if (typeof window !== 'undefined' && customIcon) {
+        try {
+          localStorage.setItem(`customIcon_${tripId}`, customIcon);
+        } catch {}
+      }
     } else {
       const localCustomIcon = typeof window !== 'undefined'
         ? localStorage.getItem(`customIcon_${tripId}`) || localStorage.getItem(`svgIcon_${tripId}`) || ''
@@ -309,6 +310,11 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         } catch {
           citySchedule = inner;
         }
+      }
+      if (typeof window !== 'undefined' && citySchedule) {
+        try {
+          localStorage.setItem(`citySchedule_${tripId}`, citySchedule);
+        } catch {}
       }
     }
     if (!citySchedule) {
@@ -393,126 +399,68 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
 
     // 解析跨裝置同步的住宿預訂與比價 (accommodations)
     let accommodations: AccommodationItem[] = [];
-    if (accommodationsRes?.data && accommodationsRes.data.length > 0) {
-      accommodations = accommodationsRes.data.map((row: any) => ({
-        id: row.id,
-        tripId: row.trip_id || tripId,
-        name: row.name || '未命名住宿',
-        cityArea: row.city_area || '',
-        checkInDate: row.check_in_date || '',
-        checkOutDate: row.check_out_date || '',
-        platform: row.platform || 'Agoda',
-        booker: row.booker || 'Jo',
-        price: row.price !== null && row.price !== undefined ? Number(row.price) : undefined,
-        currency: row.currency || 'TWD',
-        roomType: row.room_type || '',
-        freeCancellationDeadline: row.free_cancellation_deadline || '',
-        status: (row.status as AccommodationStatus) || 'candidate',
-        bookingRef: row.booking_ref || '',
-        bookingUrl: row.booking_url || '',
-        mapUrl: row.map_url || '',
-        note: row.note || '',
-        createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
-      }));
-    } else {
-      const accMatch = rawTripNote.match(/<!--ACCOMMODATIONS_START-->([\s\S]*?)<!--ACCOMMODATIONS_END-->/);
-      if (accMatch && accMatch[1].trim()) {
-        const inner = accMatch[1].trim();
+    const accMatch = rawTripNote.match(/<!--ACCOMMODATIONS_START-->([\s\S]*?)<!--ACCOMMODATIONS_END-->/);
+    if (accMatch && accMatch[1].trim()) {
+      const inner = accMatch[1].trim();
+      try {
+        const decoded = decodeURIComponent(atob(inner));
+        accommodations = JSON.parse(decoded);
+      } catch {
         try {
-          const decoded = decodeURIComponent(atob(inner));
-          accommodations = JSON.parse(decoded);
+          accommodations = JSON.parse(decodeURIComponent(inner));
         } catch {
           try {
-            accommodations = JSON.parse(decodeURIComponent(inner));
-          } catch {
-            try {
-              accommodations = JSON.parse(inner);
-            } catch (err) {
-              console.warn('Failed to parse accommodations from trip_note:', err);
-            }
+            accommodations = JSON.parse(inner);
+          } catch (err) {
+            console.warn('Failed to parse accommodations from trip_note:', err);
           }
         }
       }
-      if (!accommodations || accommodations.length === 0) {
+      if (typeof window !== 'undefined' && Array.isArray(accommodations)) {
         try {
-          const local = typeof window !== 'undefined' ? localStorage.getItem(`accommodations_${tripId}`) : null;
-          if (local) {
-            accommodations = JSON.parse(local);
-            if (Array.isArray(accommodations) && accommodations.length > 0) {
-              syncAccommodationsToNote(tripId, accommodations).catch((e) =>
-                console.warn('Auto sync local accommodations to cloud warning:', e)
-              );
-            }
-          }
-        } catch (err) {
-          console.warn('Failed to parse accommodations from localStorage:', err);
-        }
+          localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(accommodations));
+        } catch {}
+      }
+    } else {
+      try {
+        const local = typeof window !== 'undefined' ? localStorage.getItem(`accommodations_${tripId}`) : null;
+        if (local) accommodations = JSON.parse(local);
+      } catch (err) {
+        console.warn('Failed to parse accommodations from localStorage:', err);
       }
     }
     if (!Array.isArray(accommodations)) accommodations = [];
 
     // 解析跨裝置同步的航班資訊 (flights)
     let flights: FlightItem[] = [];
-    if (flightsRes?.data && flightsRes.data.length > 0) {
-      flights = flightsRes.data.map((row: any) => ({
-        id: row.id,
-        type: row.type || 'outbound',
-        airline: row.airline || '',
-        flightNumber: row.flight_number || '',
-        departureAirport: row.departure_airport || '',
-        departureCity: row.departure_city || '',
-        departureDate: row.departure_date || '',
-        departureTime: row.departure_time || '',
-        arrivalAirport: row.arrival_airport || '',
-        arrivalCity: row.arrival_city || '',
-        arrivalDate: row.arrival_date || '',
-        arrivalTime: row.arrival_time || '',
-        terminal: row.terminal || '',
-        gate: row.gate || '',
-        pnr: row.pnr || '',
-        checkInStatus: row.check_in_status || 'none',
-        seatStatus: row.seat_status || 'unselected',
-        seatNumbers: row.seat_numbers || '',
-        checkedBaggage: row.checked_baggage || '',
-        carryOnBaggage: row.carry_on_baggage || '',
-        ticketUrl: row.ticket_url || '',
-        note: row.note || '',
-        isCompleted: !!row.is_completed,
-        createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
-      }));
-    } else {
-      const flMatch = rawTripNote.match(/<!--FLIGHTS_START-->([\s\S]*?)<!--FLIGHTS_END-->/);
-      if (flMatch && flMatch[1].trim()) {
-        const inner = flMatch[1].trim();
+    const flMatch = rawTripNote.match(/<!--FLIGHTS_START-->([\s\S]*?)<!--FLIGHTS_END-->/);
+    if (flMatch && flMatch[1].trim()) {
+      const inner = flMatch[1].trim();
+      try {
+        const decoded = decodeURIComponent(atob(inner));
+        flights = JSON.parse(decoded);
+      } catch {
         try {
-          const decoded = decodeURIComponent(atob(inner));
-          flights = JSON.parse(decoded);
+          flights = JSON.parse(decodeURIComponent(inner));
         } catch {
           try {
-            flights = JSON.parse(decodeURIComponent(inner));
-          } catch {
-            try {
-              flights = JSON.parse(inner);
-            } catch (err) {
-              console.warn('Failed to parse flights from trip_note:', err);
-            }
+            flights = JSON.parse(inner);
+          } catch (err) {
+            console.warn('Failed to parse flights from trip_note:', err);
           }
         }
       }
-      if (!flights || flights.length === 0) {
+      if (typeof window !== 'undefined' && Array.isArray(flights)) {
         try {
-          const local = typeof window !== 'undefined' ? localStorage.getItem(`flights_${tripId}`) : null;
-          if (local) {
-            flights = JSON.parse(local);
-            if (Array.isArray(flights) && flights.length > 0) {
-              syncFlightsToNote(tripId, flights).catch((e) =>
-                console.warn('Auto sync local flights to cloud warning:', e)
-              );
-            }
-          }
-        } catch (err) {
-          console.warn('Failed to parse flights from localStorage:', err);
-        }
+          localStorage.setItem(`flights_${tripId}`, JSON.stringify(flights));
+        } catch {}
+      }
+    } else {
+      try {
+        const local = typeof window !== 'undefined' ? localStorage.getItem(`flights_${tripId}`) : null;
+        if (local) flights = JSON.parse(local);
+      } catch (err) {
+        console.warn('Failed to parse flights from localStorage:', err);
       }
     }
     if (!Array.isArray(flights)) flights = [];
