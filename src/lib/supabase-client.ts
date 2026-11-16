@@ -436,7 +436,14 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       if (!accommodations || accommodations.length === 0) {
         try {
           const local = typeof window !== 'undefined' ? localStorage.getItem(`accommodations_${tripId}`) : null;
-          if (local) accommodations = JSON.parse(local);
+          if (local) {
+            accommodations = JSON.parse(local);
+            if (Array.isArray(accommodations) && accommodations.length > 0) {
+              syncAccommodationsToNote(tripId, accommodations).catch((e) =>
+                console.warn('Auto sync local accommodations to cloud warning:', e)
+              );
+            }
+          }
         } catch (err) {
           console.warn('Failed to parse accommodations from localStorage:', err);
         }
@@ -495,7 +502,14 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       if (!flights || flights.length === 0) {
         try {
           const local = typeof window !== 'undefined' ? localStorage.getItem(`flights_${tripId}`) : null;
-          if (local) flights = JSON.parse(local);
+          if (local) {
+            flights = JSON.parse(local);
+            if (Array.isArray(flights) && flights.length > 0) {
+              syncFlightsToNote(tripId, flights).catch((e) =>
+                console.warn('Auto sync local flights to cloud warning:', e)
+              );
+            }
+          }
         } catch (err) {
           console.warn('Failed to parse flights from localStorage:', err);
         }
@@ -515,7 +529,10 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       .trim();
 
     const foreignCurrency = settingsData?.foreign_currency !== undefined && settingsData?.foreign_currency !== null ? settingsData.foreign_currency : '';
-    const companions = settingsData?.companions || 'Jo, Will';
+    const companions =
+      settingsData?.companions !== undefined && settingsData?.companions !== null
+        ? settingsData.companions
+        : (tripData?.companions || 'Jo');
     const tripTitle = settingsData?.title || tripData?.title || tripId;
     const tripDates = settingsData?.dates || tripData?.dates || '';
     const badgeText = tripData?.badge_text || '進行中';
@@ -658,42 +675,20 @@ export async function updateTripCoupons(tripId: string, coupons: CouponItem[]): 
     }
   }
 
-  // 2. 查詢現有 trip_settings
-  const { data: list } = await supabase
-    .from('trip_settings')
-    .select('*')
-    .eq('trip_id', tripId)
-    .limit(1);
-
-  const existingRow = list?.[0] || null;
-  let rawTripNote = existingRow?.trip_note || '';
-
-  // 移除既有的 COUPONS 標籤
-  rawTripNote = rawTripNote.replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '').trim();
-
-  // 若有優惠券則編碼存入
-  if (coupons.length > 0) {
-    try {
-      const jsonStr = JSON.stringify(coupons);
-      const encoded = btoa(encodeURIComponent(jsonStr));
-      rawTripNote = `${rawTripNote}\n<!--COUPONS_START-->${encoded}<!--COUPONS_END-->`;
-    } catch (e) {
-      console.error('Failed to encode coupons:', e);
+  // 2. 透過同源安全 API 同步至伺服器
+  try {
+    const res = await fetch('/api/trip-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId, coupons }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error || `HTTP ${res.status}`);
     }
-  }
-
-  if (existingRow) {
-    await supabase
-      .from('trip_settings')
-      .update({ trip_note: rawTripNote })
-      .eq('trip_id', tripId);
-  } else {
-    await supabase
-      .from('trip_settings')
-      .insert({
-        trip_id: tripId,
-        trip_note: rawTripNote,
-      });
+  } catch (err) {
+    console.warn('Failed to sync coupons to server:', err);
+    throw err;
   }
 }
 
@@ -708,40 +703,20 @@ export async function updateTripClimateGuide(tripId: string, guide: ClimateGuide
     }
   }
 
-  // 2. 查詢現有 trip_settings
-  const { data: list } = await supabase
-    .from('trip_settings')
-    .select('*')
-    .eq('trip_id', tripId)
-    .limit(1);
-
-  const existingRow = list?.[0] || null;
-  let rawTripNote = existingRow?.trip_note || '';
-
-  // 移除既有的 CLIMATE_GUIDE 標籤
-  rawTripNote = rawTripNote.replace(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/g, '').trim();
-
-  // 編碼存入
+  // 2. 透過同源安全 API 同步至伺服器
   try {
-    const jsonStr = JSON.stringify(guide);
-    const encoded = btoa(encodeURIComponent(jsonStr));
-    rawTripNote = `${rawTripNote}\n<!--CLIMATE_GUIDE_START-->${encoded}<!--CLIMATE_GUIDE_END-->`;
-  } catch (e) {
-    console.error('Failed to encode climate guide:', e);
-  }
-
-  if (existingRow) {
-    await supabase
-      .from('trip_settings')
-      .update({ trip_note: rawTripNote })
-      .eq('trip_id', tripId);
-  } else {
-    await supabase
-      .from('trip_settings')
-      .insert({
-        trip_id: tripId,
-        trip_note: rawTripNote,
-      });
+    const res = await fetch('/api/trip-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId, climateGuide: guide }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error || `HTTP ${res.status}`);
+    }
+  } catch (err) {
+    console.warn('Failed to sync climate guide to server:', err);
+    throw err;
   }
 }
 
@@ -1655,49 +1630,33 @@ export async function checkoutShoppingStore(
   ]);
 }
 
-/** 同步住宿清單至 trip_settings.trip_note (無縫降級儲存) */
+/** 同步住宿清單至 trip_settings.trip_note (透過安全後端端點跨裝置同步) */
 async function syncAccommodationsToNote(tripId: string, list: AccommodationItem[]): Promise<void> {
-  try {
-    const { data: listData } = await supabase
-      .from('trip_settings')
-      .select('trip_note')
-      .eq('trip_id', tripId)
-      .limit(1);
-
-    const existingRow = listData?.[0] || null;
-    let rawTripNote = existingRow?.trip_note || '';
-
-    rawTripNote = rawTripNote.replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '').trim();
-
-    if (list.length > 0) {
-      try {
-        const jsonStr = JSON.stringify(list);
-        const encoded = btoa(encodeURIComponent(jsonStr));
-        rawTripNote = `${rawTripNote}\n<!--ACCOMMODATIONS_START-->${encoded}<!--ACCOMMODATIONS_END-->`;
-      } catch (e) {
-        console.error('Failed to encode accommodations:', e);
-      }
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(list));
+    } catch (e) {
+      console.warn('localStorage accommodations save error:', e);
     }
+  }
 
-    if (existingRow) {
-      await supabase
-        .from('trip_settings')
-        .update({ trip_note: rawTripNote })
-        .eq('trip_id', tripId);
-    } else {
-      await supabase
-        .from('trip_settings')
-        .insert({
-          trip_id: tripId,
-          trip_note: rawTripNote,
-        });
+  try {
+    const res = await fetch('/api/trip-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId, accommodations: list }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error || `HTTP ${res.status}`);
     }
   } catch (err) {
-    console.warn('Failed to sync accommodations to trip_note:', err);
+    console.warn('Failed to sync accommodations to server:', err);
+    throw err;
   }
 }
 
-/** 儲存或更新單筆住宿資料 (支援 DB 表與 Note 隱藏標籤雙軌同步) */
+/** 儲存或更新單筆住宿資料 (支援離線快取與伺服器跨裝置同步) */
 export async function saveAccommodationData(
   item: Partial<AccommodationItem>,
   tripId = 'la-2026',
@@ -1724,48 +1683,13 @@ export async function saveAccommodationData(
     createdAt: item.createdAt || Date.now(),
   };
 
-  // 1. 嘗試直接寫入 Supabase accommodations 資料表
-  try {
-    const dbPayload = {
-      id: newItem.id,
-      trip_id: tripId,
-      name: newItem.name,
-      city_area: newItem.cityArea,
-      check_in_date: newItem.checkInDate,
-      check_out_date: newItem.checkOutDate,
-      platform: newItem.platform,
-      booker: newItem.booker,
-      price: newItem.price ?? null,
-      currency: newItem.currency,
-      room_type: newItem.roomType,
-      free_cancellation_deadline: newItem.freeCancellationDeadline,
-      status: newItem.status,
-      booking_ref: newItem.bookingRef,
-      booking_url: newItem.bookingUrl,
-      map_url: newItem.mapUrl,
-      note: newItem.note,
-    };
-    await supabase.from('accommodations').upsert(dbPayload);
-  } catch (err) {
-    console.warn('DB upsert accommodation fallback:', err);
-  }
-
-  // 2. 本地記憶體清單更新
+  // 本地記憶體清單更新
   const idx = currentList.findIndex((x) => x.id === newItem.id);
   const updatedList = idx >= 0
     ? currentList.map((x) => (x.id === newItem.id ? newItem : x))
     : [...currentList, newItem];
 
-  // 3. 離線快取寫入
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('localStorage accommodations save error:', e);
-    }
-  }
-
-  // 4. 備用持久化：寫入 trip_note 隱藏標籤
+  // 持久化寫入 localStorage 與伺服器雲端同步
   await syncAccommodationsToNote(tripId, updatedList);
 
   return updatedList;
@@ -1777,22 +1701,7 @@ export async function deleteAccommodationData(
   tripId = 'la-2026',
   currentList: AccommodationItem[] = []
 ): Promise<AccommodationItem[]> {
-  try {
-    await supabase.from('accommodations').delete().eq('id', id);
-  } catch (err) {
-    console.warn('DB delete accommodation fallback:', err);
-  }
-
   const updatedList = currentList.filter((x) => x.id !== id);
-
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('localStorage accommodations delete error:', e);
-    }
-  }
-
   await syncAccommodationsToNote(tripId, updatedList);
   return updatedList;
 }
@@ -1813,18 +1722,7 @@ export async function batchUpdateAccommodationStatuses(
     return item;
   });
 
-  // 1. 離線快取寫入
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(`accommodations_${tripId}`, JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('localStorage accommodations batch save error:', e);
-    }
-  }
-
-  // 2. 持久化寫入 trip_note 隱藏標籤
   await syncAccommodationsToNote(tripId, updatedList);
-
   return updatedList;
 }
 
@@ -1840,49 +1738,33 @@ export async function updateAccommodationStatus(
   return saveAccommodationData({ ...target, status }, tripId, currentList);
 }
 
-/** 同步班機清單至 trip_settings.trip_note (無縫降級儲存) */
+/** 同步班機清單至 trip_settings.trip_note (透過安全後端端點跨裝置同步) */
 async function syncFlightsToNote(tripId: string, list: FlightItem[]): Promise<void> {
-  try {
-    const { data: listData } = await supabase
-      .from('trip_settings')
-      .select('trip_note')
-      .eq('trip_id', tripId)
-      .limit(1);
-
-    const existingRow = listData?.[0] || null;
-    let rawTripNote = existingRow?.trip_note || '';
-
-    rawTripNote = rawTripNote.replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '').trim();
-
-    if (list.length > 0) {
-      try {
-        const jsonStr = JSON.stringify(list);
-        const encoded = btoa(encodeURIComponent(jsonStr));
-        rawTripNote = `${rawTripNote}\n<!--FLIGHTS_START-->${encoded}<!--FLIGHTS_END-->`;
-      } catch (e) {
-        console.error('Failed to encode flights:', e);
-      }
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`flights_${tripId}`, JSON.stringify(list));
+    } catch (e) {
+      console.warn('localStorage flights save error:', e);
     }
+  }
 
-    if (existingRow) {
-      await supabase
-        .from('trip_settings')
-        .update({ trip_note: rawTripNote })
-        .eq('trip_id', tripId);
-    } else {
-      await supabase
-        .from('trip_settings')
-        .insert({
-          trip_id: tripId,
-          trip_note: rawTripNote,
-        });
+  try {
+    const res = await fetch('/api/trip-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId, flights: list }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error || `HTTP ${res.status}`);
     }
   } catch (err) {
-    console.warn('Failed to sync flights to trip_note:', err);
+    console.warn('Failed to sync flights to server:', err);
+    throw err;
   }
 }
 
-/** 儲存或更新航班資料 (支援 DB 表與 Note 隱藏標籤雙軌同步) */
+/** 儲存或更新航班資料 (支援離線快取與伺服器跨裝置同步) */
 export async function saveFlightData(
   item: Partial<FlightItem>,
   tripId = 'la-2026',
@@ -1915,55 +1797,13 @@ export async function saveFlightData(
     createdAt: item.createdAt || Date.now(),
   };
 
-  // 1. 嘗試直接寫入 Supabase flights 表
-  try {
-    const dbPayload = {
-      id: newItem.id,
-      trip_id: tripId,
-      type: newItem.type,
-      airline: newItem.airline,
-      flight_number: newItem.flightNumber,
-      departure_airport: newItem.departureAirport,
-      departure_city: newItem.departureCity,
-      departure_date: newItem.departureDate,
-      departure_time: newItem.departureTime,
-      arrival_airport: newItem.arrivalAirport,
-      arrival_city: newItem.arrivalCity,
-      arrival_date: newItem.arrivalDate,
-      arrival_time: newItem.arrivalTime,
-      terminal: newItem.terminal,
-      gate: newItem.gate,
-      pnr: newItem.pnr,
-      check_in_status: newItem.checkInStatus,
-      seat_status: newItem.seatStatus,
-      seat_numbers: newItem.seatNumbers,
-      checked_baggage: newItem.checkedBaggage,
-      carry_on_baggage: newItem.carryOnBaggage,
-      ticket_url: newItem.ticketUrl,
-      note: newItem.note,
-      is_completed: newItem.isCompleted,
-    };
-    await supabase.from('flights').upsert(dbPayload);
-  } catch (err) {
-    console.warn('DB upsert flight fallback:', err);
-  }
-
-  // 2. 本地記憶體清單更新
+  // 本地記憶體清單更新
   const idx = currentList.findIndex((x) => x.id === newItem.id);
   const updatedList = idx >= 0
     ? currentList.map((x) => (x.id === newItem.id ? newItem : x))
     : [...currentList, newItem];
 
-  // 3. 離線快取寫入
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(`flights_${tripId}`, JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('localStorage flights save error:', e);
-    }
-  }
-
-  // 4. 備用持久化：寫入 trip_note 隱藏標籤
+  // 持久化寫入 localStorage 與伺服器雲端同步
   await syncFlightsToNote(tripId, updatedList);
 
   return updatedList;
@@ -1975,22 +1815,7 @@ export async function deleteFlightData(
   tripId = 'la-2026',
   currentList: FlightItem[] = []
 ): Promise<FlightItem[]> {
-  try {
-    await supabase.from('flights').delete().eq('id', id);
-  } catch (err) {
-    console.warn('DB delete flight fallback:', err);
-  }
-
   const updatedList = currentList.filter((x) => x.id !== id);
-
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(`flights_${tripId}`, JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('localStorage flights delete error:', e);
-    }
-  }
-
   await syncFlightsToNote(tripId, updatedList);
   return updatedList;
 }

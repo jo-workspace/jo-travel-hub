@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
       svgIcon,
       citySchedule,
       isTaiwanTrip,
+      accommodations,
+      flights,
+      coupons,
+      climateGuide,
     } = body;
 
     const iconToSave = customIcon !== undefined ? customIcon : svgIcon;
@@ -116,13 +120,37 @@ export async function POST(req: NextRequest) {
       if (oldTw) finalTripNote += `\n${oldTw[0]}`;
     }
 
-    // (D) 嚴格保護並保留現有的 COUPONS, ACCOMMODATIONS, FLIGHTS, CLIMATE_GUIDE 標籤
-    const tagsToPreserve = ['COUPONS', 'ACCOMMODATIONS', 'FLIGHTS', 'CLIMATE_GUIDE'];
-    for (const tag of tagsToPreserve) {
-      const regex = new RegExp(`<!--${tag}_START-->[\\s\\S]*?<!--${tag}_END-->`);
-      const matched = existingNote.match(regex);
-      if (matched && !finalTripNote.includes(`<!--${tag}_START-->`)) {
-        finalTripNote += `\n${matched[0]}`;
+    // (D) 處理 COUPONS, ACCOMMODATIONS, FLIGHTS, CLIMATE_GUIDE 標籤
+    const metaPayloads: Record<string, any> = {
+      ACCOMMODATIONS: accommodations,
+      FLIGHTS: flights,
+      COUPONS: coupons,
+      CLIMATE_GUIDE: climateGuide,
+    };
+
+    for (const [tag, val] of Object.entries(metaPayloads)) {
+      const regex = new RegExp(`<!--${tag}_START-->[\\s\\S]*?<!--${tag}_END-->`, 'g');
+      // 先從 finalTripNote 移除該標籤（避免重複堆疊）
+      finalTripNote = finalTripNote.replace(regex, '').trim();
+
+      if (val !== undefined) {
+        // 使用者/客戶端有明確傳入
+        const hasContent = Array.isArray(val) ? val.length > 0 : Boolean(val);
+        if (hasContent) {
+          try {
+            const jsonStr = JSON.stringify(val);
+            const encoded = Buffer.from(encodeURIComponent(jsonStr)).toString('base64');
+            finalTripNote += `\n<!--${tag}_START-->${encoded}<!--${tag}_END-->`;
+          } catch (e) {
+            console.error(`Failed to encode ${tag}:`, e);
+          }
+        }
+      } else {
+        // 未傳入：保留 existingNote 中的既有標籤
+        const matchOld = existingNote.match(new RegExp(`<!--${tag}_START-->[\\s\\S]*?<!--${tag}_END-->`));
+        if (matchOld) {
+          finalTripNote += `\n${matchOld[0]}`;
+        }
       }
     }
 
@@ -137,7 +165,7 @@ export async function POST(req: NextRequest) {
       budget_twd: budgetTwd !== undefined ? Number(budgetTwd) : (existingRow?.budget_twd ?? 0),
       trip_note: finalTripNote,
       foreign_currency: foreignCurrency !== undefined ? foreignCurrency : (existingRow?.foreign_currency || ''),
-      companions: companions !== undefined ? companions : (existingRow?.companions || 'Jo, Will'),
+      companions: companions !== undefined ? companions : (existingRow?.companions || 'Jo'),
       timezone: timezone !== undefined ? timezone : (existingRow?.timezone || 'Asia/Taipei'),
     };
 

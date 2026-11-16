@@ -258,27 +258,21 @@ export default function TripPage({ params }: PageProps) {
   }, [tripData.companions]);
   const hasWillCompanion = companionTokens.includes('Will');
 
-  // 嚴格限定於「當前旅程同行人員 / 記帳分帳成員」（Jo 預設永遠加入）
+  // 嚴格限定於「當前旅程同行人員 / 記帳分帳成員」（Jo 預設永遠加入，嚴格尊重使用者設定，不從舊記帳歷史撈取已勾掉人員）
   const currentCompanions = useMemo(() => {
     const set = new Set<string>();
     set.add('Jo');
-    if (hasWillCompanion) set.add('Will');
     const EXCLUDED_KEYWORDS = ['公用', '公用錢包', '均分', 'Both', 'ALL', '全體均分', '僅公用'];
-    if (tripData.companions) {
+    if (tripData.companions && tripData.companions.trim()) {
       tripData.companions.split(/[\n,，]+/).forEach((p) => {
         const trimmed = p.trim();
         if (trimmed && !EXCLUDED_KEYWORDS.includes(trimmed)) set.add(trimmed);
       });
+    } else if (hasWillCompanion) {
+      set.add('Will');
     }
-    // 從記帳付款人與分帳人補充同行成員
-    tripData.expenses.forEach((e) => {
-      const p = (e.paidBy || '').trim();
-      const s = (e.split || '').trim();
-      if (p && !EXCLUDED_KEYWORDS.includes(p) && !p.includes(':') && !p.includes('：')) set.add(p);
-      if (s && !EXCLUDED_KEYWORDS.includes(s) && !s.includes(':') && !s.includes('：')) set.add(s);
-    });
     return Array.from(set);
-  }, [tripData.companions, tripData.expenses, hasWillCompanion]);
+  }, [tripData.companions, hasWillCompanion]);
 
   // 嚴格限定於「當前旅程攜帶人員」（Jo 預設永遠加入；若 Will 同行才加入 Will 與公用；財務分帳旅伴絕不加入）
   const currentPackingPersons = useMemo(() => {
