@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Settings2, Calendar, DollarSign, LogOut, Upload, Image as ImageIcon, Trash2, Archive, Plane } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
@@ -74,9 +74,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     router.refresh();
   };
 
-  // 每次開啟時重新載入目前值
+  const prevIsOpenRef = useRef(false);
+
+  // 僅在彈窗「開啟的一瞬間」（isOpen 由 false 變 true）初始化載入目前值，避免打字過程中被重新渲染覆蓋
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setTitle(tripTitle || '');
       setDates(tripDates || '');
       setIsArchived(badgeText === '已封存');
@@ -99,7 +101,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setIconDataUrl(customIcon || svgIcon || '');
       setError('');
     }
-  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, tripNote, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule, badgeText, isTaiwanTrip]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, tripTitle, tripDates, startDate, fxRate, budgetTwd, foreignCurrency, companions, timezone, customIcon, svgIcon, citySchedule, badgeText, isTaiwanTrip]);
 
   if (!isOpen) return null;
 

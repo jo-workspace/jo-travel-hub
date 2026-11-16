@@ -1295,7 +1295,10 @@ export default function TripPage({ params }: PageProps) {
       <SettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
-        onSaved={() => fetchData(true)}
+        onSaved={() => {
+          showToast('旅程設定已成功同步至雲端 ✨');
+          fetchData(true);
+        }}
         tripId={tripId}
         tripTitle={tripData.tripTitle || tripConfig.title}
         tripDates={tripData.tripDates || tripConfig.dates || ''}

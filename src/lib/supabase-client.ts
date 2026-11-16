@@ -313,7 +313,9 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
     }
     if (!citySchedule) {
       const localCitySchedule = typeof window !== 'undefined' ? localStorage.getItem(`citySchedule_${tripId}`) || '' : '';
-      citySchedule = settingsData?.city_schedule || settingsData?.cities || localCitySchedule || TRIPS[tripId]?.citySchedule || '';
+      // 只有當整筆旅程設定完全不存在於資料庫時，才 fallback 至 TRIPS 靜態預設，避免清空後被預設值強制覆蓋
+      const fallbackDefault = !settingsData ? (TRIPS[tripId]?.citySchedule || '') : '';
+      citySchedule = settingsData?.city_schedule || settingsData?.cities || localCitySchedule || fallbackDefault;
     }
 
     // 解析跨裝置同步的優惠券 (coupons)
@@ -587,7 +589,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
   }
 }
 
-/** 儲存所有旅程設定（設定彈窗用） */
+/** 儲存所有旅程設定（透過後端 API Route 原子化同步資料庫與快取） */
 export async function updateTripSettings(
   tripId: string,
   settings: {
@@ -609,201 +611,32 @@ export async function updateTripSettings(
 ): Promise<void> {
   const iconToSave = settings.customIcon !== undefined ? settings.customIcon : settings.svgIcon;
 
-  if (typeof window !== 'undefined' && iconToSave !== undefined) {
-    localStorage.setItem(`customIcon_${tripId}`, iconToSave);
+  // 1. 優先呼叫專屬同源 API Route，由伺服器端直連 Supabase 原子化更新 trip_settings 與 trips 表
+  const res = await fetch('/api/trip-settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tripId,
+      ...settings,
+      customIcon: iconToSave,
+    }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || `雲端設定儲存失敗 (HTTP ${res.status})`);
   }
-  if (typeof window !== 'undefined' && settings.citySchedule !== undefined) {
-    localStorage.setItem(`citySchedule_${tripId}`, settings.citySchedule);
-  }
-  if (typeof window !== 'undefined' && settings.isTaiwanTrip !== undefined) {
-    localStorage.setItem(`isTaiwanTrip_${tripId}`, settings.isTaiwanTrip ? 'true' : 'false');
-  }
 
-  // 1. 查詢現有資料與欄位名稱
-  const { data: list } = await supabase
-    .from('trip_settings')
-    .select('*')
-    .eq('trip_id', tripId)
-    .limit(1);
-
-  const existingRow = list?.[0] || null;
-  const dbKeys = await getTableColumns('trip_settings', existingRow);
-
-  // 處理 trip_note 中跨裝置同步的自訂上傳圖示 (PNG Data URI)
-  let finalTripNote = settings.tripNote ?? '';
-
-  if (iconToSave !== undefined) {
-    // 使用者明確編輯/上傳了圖示
-    finalTripNote = finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '').trim();
-    if (iconToSave.trim()) {
-      try {
-        const encodedIcon = btoa(encodeURIComponent(iconToSave.trim()));
-        finalTripNote = `${finalTripNote}\n<!--CUSTOM_ICON_START-->${encodedIcon}<!--CUSTOM_ICON_END-->`;
-      } catch {
-        finalTripNote = `${finalTripNote}\n<!--CUSTOM_ICON_START-->${iconToSave.trim()}<!--CUSTOM_ICON_END-->`;
-      }
+  // 2. 伺服器確認 100% 寫入資料庫成功後，才安全寫入本地 localStorage 快取（避免未寫入成功時留下虛假快取）
+  if (typeof window !== 'undefined') {
+    if (iconToSave !== undefined) {
+      localStorage.setItem(`customIcon_${tripId}`, iconToSave);
     }
-  } else {
-    // 保留原始隱藏標籤
-    const existingIconMatch = existingRow?.trip_note?.match(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/);
-    if (existingIconMatch) {
-      finalTripNote = `${finalTripNote.replace(/<!--(CUSTOM|SVG)_ICON_START-->[\s\S]*?<!--(CUSTOM|SVG)_ICON_END-->/g, '').trim()}\n${existingIconMatch[0]}`;
+    if (settings.citySchedule !== undefined) {
+      localStorage.setItem(`citySchedule_${tripId}`, settings.citySchedule);
     }
-  }
-
-  // 處理 trip_note 中跨裝置同步的城市日程安排 (citySchedule)
-  if (settings.citySchedule !== undefined) {
-    finalTripNote = finalTripNote.replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '').trim();
-    if (settings.citySchedule.trim()) {
-      try {
-        const encodedSched = btoa(encodeURIComponent(settings.citySchedule.trim()));
-        finalTripNote = `${finalTripNote}\n<!--CITY_SCHEDULE_START-->${encodedSched}<!--CITY_SCHEDULE_END-->`;
-      } catch {
-        finalTripNote = `${finalTripNote}\n<!--CITY_SCHEDULE_START-->${settings.citySchedule.trim()}<!--CITY_SCHEDULE_END-->`;
-      }
-    }
-  } else {
-    // 保留原始隱藏標籤
-    const existingSchedMatch = existingRow?.trip_note?.match(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/);
-    if (existingSchedMatch) {
-      finalTripNote = `${finalTripNote.replace(/<!--CITY_SCHEDULE_START-->[\s\S]*?<!--CITY_SCHEDULE_END-->/g, '').trim()}\n${existingSchedMatch[0]}`;
-    }
-  }
-
-  // 處理 trip_note 中跨裝置同步的台灣行程註記 (isTaiwanTrip)
-  if (settings.isTaiwanTrip !== undefined) {
-    finalTripNote = finalTripNote.replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '').trim();
-    finalTripNote = `${finalTripNote}\n<!--IS_TAIWAN_START-->${settings.isTaiwanTrip ? '1' : '0'}<!--IS_TAIWAN_END-->`;
-  } else {
-    const existingTwMatch = existingRow?.trip_note?.match(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/);
-    if (existingTwMatch) {
-      finalTripNote = `${finalTripNote.replace(/<!--IS_TAIWAN_START-->[\s\S]*?<!--IS_TAIWAN_END-->/g, '').trim()}\n${existingTwMatch[0]}`;
-    }
-  }
-
-  // 保留原始 COUPONS 隱藏標籤
-  const existingCouponsMatch = existingRow?.trip_note?.match(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/);
-  if (existingCouponsMatch) {
-    finalTripNote = `${finalTripNote.replace(/<!--COUPONS_START-->[\s\S]*?<!--COUPONS_END-->/g, '').trim()}\n${existingCouponsMatch[0]}`;
-  }
-
-  // 保留原始 ACCOMMODATIONS 隱藏標籤
-  const existingAccommodationsMatch = existingRow?.trip_note?.match(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/);
-  if (existingAccommodationsMatch) {
-    finalTripNote = `${finalTripNote.replace(/<!--ACCOMMODATIONS_START-->[\s\S]*?<!--ACCOMMODATIONS_END-->/g, '').trim()}\n${existingAccommodationsMatch[0]}`;
-  }
-
-  // 保留原始 FLIGHTS 隱藏標籤
-  const existingFlightsMatch = existingRow?.trip_note?.match(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/);
-  if (existingFlightsMatch) {
-    finalTripNote = `${finalTripNote.replace(/<!--FLIGHTS_START-->[\s\S]*?<!--FLIGHTS_END-->/g, '').trim()}\n${existingFlightsMatch[0]}`;
-  }
-
-  // 保留原始 CLIMATE_GUIDE 隱藏標籤
-  const existingClimateGuideMatch = existingRow?.trip_note?.match(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/);
-  if (existingClimateGuideMatch) {
-    finalTripNote = `${finalTripNote.replace(/<!--CLIMATE_GUIDE_START-->[\s\S]*?<!--CLIMATE_GUIDE_END-->/g, '').trim()}\n${existingClimateGuideMatch[0]}`;
-  }
-
-
-
-  const payload: Record<string, any> = {
-    start_date: settings.startDate ?? '',
-    fx_rate: settings.fxRate ?? 1,
-    budget_twd: settings.budgetTwd ?? 0,
-    trip_note: finalTripNote,
-  };
-
-  // 只有當 DB 擁有此欄位才帶入 payload
-  if (dbKeys.includes('foreign_currency') || (dbKeys.length === 0)) {
-    payload.foreign_currency = settings.foreignCurrency !== undefined ? settings.foreignCurrency : '';
-  }
-  if (dbKeys.includes('companions') || (dbKeys.length === 0)) {
-    payload.companions = settings.companions ?? 'Jo, Will';
-  }
-  if (dbKeys.includes('timezone') || (dbKeys.length === 0)) {
-    payload.timezone = settings.timezone ?? 'Asia/Taipei';
-  }
-  // city_schedule 與 svg_icon 主要是透過 trip_note 內部隱藏標籤跨裝置儲存；若 DB 明確有此欄位才額外寫入 DB 欄位
-  if (dbKeys.includes('city_schedule')) {
-    payload.city_schedule = settings.citySchedule ?? '';
-  }
-  if (dbKeys.includes('svg_icon')) {
-    payload.svg_icon = settings.svgIcon ?? '';
-  }
-
-  let settingsError;
-  if (existingRow) {
-    const { error } = await supabase
-      .from('trip_settings')
-      .update(payload)
-      .eq('trip_id', tripId);
-    settingsError = error;
-
-    // 容錯重試：若因新欄位出錯，降級只更新基礎核心欄位
-    if (settingsError) {
-      const { start_date, fx_rate, budget_twd, trip_note, foreign_currency, companions, timezone } = payload;
-      const fallbackPayload: Record<string, any> = { start_date, fx_rate, budget_twd, trip_note };
-      if (foreign_currency !== undefined) fallbackPayload.foreign_currency = foreign_currency;
-      if (companions) fallbackPayload.companions = companions;
-      if (timezone) fallbackPayload.timezone = timezone;
-      const { error: retryErr } = await supabase
-        .from('trip_settings')
-        .update(fallbackPayload)
-        .eq('trip_id', tripId);
-      settingsError = retryErr;
-    }
-  } else {
-    const { error } = await supabase
-      .from('trip_settings')
-      .insert({ trip_id: tripId, categories: '[]', ...payload });
-    settingsError = error;
-
-    // 容錯重試：若因新欄位出錯，降級只新增基礎核心欄位
-    if (settingsError) {
-      const { start_date, fx_rate, budget_twd, trip_note, foreign_currency, companions, timezone } = payload;
-      const fallbackPayload: Record<string, any> = { trip_id: tripId, categories: '[]', start_date, fx_rate, budget_twd, trip_note };
-      if (foreign_currency) fallbackPayload.foreign_currency = foreign_currency;
-      if (companions) fallbackPayload.companions = companions;
-      if (timezone) fallbackPayload.timezone = timezone;
-      const { error: retryErr } = await supabase
-        .from('trip_settings')
-        .insert(fallbackPayload);
-      settingsError = retryErr;
-    }
-  }
-
-  if (settingsError) throw new Error(`設定儲存失敗: ${settingsError.message}`);
-
-  // 2. 同步更新 trips 資料表（旅程卡片名稱、日期與狀態）
-  if (settings.title !== undefined || settings.dates !== undefined || settings.badgeText !== undefined) {
-    try {
-      const updateData: Record<string, any> = {};
-      if (settings.title !== undefined) updateData.title = settings.title;
-      if (settings.dates !== undefined) updateData.dates = settings.dates;
-      if (settings.badgeText !== undefined) updateData.badge_text = settings.badgeText;
-
-      const { data: tripRow } = await supabase.from('trips').select('id').eq('id', tripId).limit(1);
-      if (tripRow && tripRow.length > 0) {
-        await supabase
-          .from('trips')
-          .update(updateData)
-          .eq('id', tripId);
-      } else {
-        await supabase
-          .from('trips')
-          .insert({
-            id: tripId,
-            title: settings.title || tripId,
-            dates: settings.dates || '',
-            badge_text: settings.badgeText || '進行中',
-            cover_gradient: 'from-slate-800 to-slate-900',
-            description: '',
-            ...updateData,
-          });
-      }
-    } catch (e) {
-      console.warn('trips update skipped:', e);
+    if (settings.isTaiwanTrip !== undefined) {
+      localStorage.setItem(`isTaiwanTrip_${tripId}`, settings.isTaiwanTrip ? 'true' : 'false');
     }
   }
 }
