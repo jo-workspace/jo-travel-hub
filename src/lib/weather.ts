@@ -761,20 +761,26 @@ export async function fetchWeatherForCity(
   const now = Date.now();
   const CACHE_TTL = 60 * 60 * 1000; // 60 分鐘快取
 
+  let cachedFallback: CityWeatherData | null = null;
   if (typeof window !== 'undefined') {
     const cachedStr = localStorage.getItem(cacheKey);
     if (cachedStr) {
       try {
         const cachedData: CityWeatherData = JSON.parse(cachedStr);
-        if (now - cachedData.fetchedAt < CACHE_TTL) {
+        cachedFallback = cachedData;
+        if (now - cachedData.fetchedAt < CACHE_TTL || !navigator.onLine) {
           return cachedData;
         }
       } catch {}
     }
   }
 
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return cachedFallback;
+  }
+
   const resInfo = await resolveCityInfo(cleanName, isTaiwanTrip);
-  if (!resInfo) return null;
+  if (!resInfo) return cachedFallback;
 
   let result: CityWeatherData | null = null;
 
@@ -794,7 +800,7 @@ export async function fetchWeatherForCity(
     } catch {}
   }
 
-  return result;
+  return result || cachedFallback;
 }
 
 /**

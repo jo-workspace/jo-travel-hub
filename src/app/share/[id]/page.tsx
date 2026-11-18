@@ -23,8 +23,11 @@ import {
   deleteExpenseData,
   saveShoppingData,
   toggleShoppingStatus,
+  getCachedTripData,
+  getTripLastSyncedAt,
+  saveCachedTripData,
 } from '@/lib/supabase-client';
-import { Calendar, DollarSign, Eye, EyeOff, RefreshCw, Plane } from 'lucide-react';
+import { Calendar, DollarSign, Eye, EyeOff, RefreshCw, Plane, WifiOff } from 'lucide-react';
 
 type ShareTabType = 'itinerary' | 'expenses';
 const VALID_SHARE_TABS: ShareTabType[] = ['itinerary', 'expenses'];
@@ -87,6 +90,9 @@ export default function CompanionSharePage({ params }: SharePageProps) {
   const [activeExpenseItem, setActiveExpenseItem] = useState<ExpenseItem | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [hasHydratedCache, setHasHydratedCache] = useState<boolean>(false);
 
   const [tripData, setTripData] = useState<AllTripData>({
     itinerary: [],
@@ -113,20 +119,74 @@ export default function CompanionSharePage({ params }: SharePageProps) {
     }, 3000);
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOffline(!navigator.onLine);
+    setLastSyncedAt(getTripLastSyncedAt(tripId));
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [tripId]);
+
+  useEffect(() => {
+    const cached = getCachedTripData(tripId);
+    if (cached) {
+      setTripData(cached);
+      setIsLoading(false);
+    }
+    setHasHydratedCache(true);
+  }, [tripId]);
+
+  useEffect(() => {
+    if (!hasHydratedCache) return;
+    if (tripData.itinerary.length > 0 || tripData.expenses.length > 0) {
+      saveCachedTripData(tripId, tripData, false);
+    }
+  }, [tripId, tripData, hasHydratedCache]);
+
   const fetchData = useCallback(
     async (bypassCache = false) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setIsOffline(true);
+        const cached = getCachedTripData(tripId);
+        if (cached) {
+          setTripData(cached);
+          setLastSyncedAt(getTripLastSyncedAt(tripId));
+          if (bypassCache) {
+            showToast('目前無網路，已載入本機離線資料');
+          }
+        } else if (bypassCache) {
+          showToast('目前無網路連線');
+        }
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         const res = await getAllData(bypassCache, tripId);
         if (res) {
           setTripData(res);
+          setLastSyncedAt(getTripLastSyncedAt(tripId));
           if (bypassCache) {
             showToast('已完成最新資料同步 ✨');
           }
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        showToast(`資料載入失敗: ${msg}`);
+        const cached = getCachedTripData(tripId);
+        if (cached) {
+          setTripData(cached);
+          setIsOffline(true);
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          showToast(`資料載入失敗: ${msg}`);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -201,9 +261,18 @@ export default function CompanionSharePage({ params }: SharePageProps) {
       }),
     }));
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showToast('離線模式：已暫存於本機');
+      return;
+    }
+
     try {
       await toggleVisitedStatus(id ? { id, rowIndex } : rowIndex, nextStatus, tripId);
     } catch (err: unknown) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        showToast('離線模式：已暫存於本機');
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       showToast(`更新失敗，正在還原: ${msg}`);
       fetchData(false);
@@ -220,10 +289,19 @@ export default function CompanionSharePage({ params }: SharePageProps) {
       }),
     }));
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showToast('離線模式：已暫存於本機');
+      return;
+    }
+
     try {
       const msg = await toggleIgnoredStatus(id ? { id, rowIndex } : rowIndex, currentIgnored, tripId);
       showToast(msg);
     } catch (err: unknown) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        showToast('離線模式：已暫存於本機');
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       showToast(`略過更新失敗: ${msg}`);
       fetchData(false);
@@ -472,6 +550,27 @@ export default function CompanionSharePage({ params }: SharePageProps) {
             </div>
           </div>
         </header>
+
+        {/* Offline Mode Status Banner */}
+        {isOffline && (
+          <div className="bg-amber-50 border-b border-amber-200/80 px-4 py-2 flex items-center justify-between text-xs text-amber-900 md:px-8">
+            <div className="flex items-center space-x-2 font-bold min-w-0">
+              <WifiOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="truncate">離線瀏覽 · 已載入本機快取</span>
+            </div>
+            {lastSyncedAt && (
+              <span className="text-[11px] font-semibold text-amber-700/80 shrink-0 ml-2 font-mono">
+                {new Date(lastSyncedAt).toLocaleString('zh-TW', {
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                })}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 mt-4 md:px-8">

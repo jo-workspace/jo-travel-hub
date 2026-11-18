@@ -59,13 +59,102 @@ export function sortTrips(trips: TripConfig[]): TripConfig[] {
   });
 }
 
+const TRIPS_LIST_CACHE_KEY = 'hub_offline_trips_list_v1';
+const TRIP_DATA_CACHE_PREFIX = 'hub_offline_trip_data_v1_';
+const TRIP_SYNC_AT_PREFIX = 'hub_offline_trip_sync_at_v1_';
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error('Network request timeout'));
+    }, ms);
+    Promise.resolve(promise)
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+/** 讀取本機快取的單一旅程完整資料（供郵輪/無網路離線瀏覽使用） */
+export function getCachedTripData(tripId: string): AllTripData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${TRIP_DATA_CACHE_PREFIX}${tripId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.itinerary)) {
+      return parsed as AllTripData;
+    }
+  } catch (err) {
+    console.warn('getCachedTripData parse error:', err);
+  }
+  return null;
+}
+
+/** 讀取該旅程最後一次成功與雲端同步的時間戳 (ms) */
+export function getTripLastSyncedAt(tripId: string): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${TRIP_SYNC_AT_PREFIX}${tripId}`);
+    if (!raw) return null;
+    const num = Number(raw);
+    return Number.isFinite(num) && num > 0 ? num : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 將單一旅程完整資料寫入本機離線快取 */
+export function saveCachedTripData(
+  tripId: string,
+  data: AllTripData,
+  updateSyncTime = true
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`${TRIP_DATA_CACHE_PREFIX}${tripId}`, JSON.stringify(data));
+    if (updateSyncTime) {
+      localStorage.setItem(`${TRIP_SYNC_AT_PREFIX}${tripId}`, String(Date.now()));
+    }
+  } catch (err) {
+    console.warn('saveCachedTripData error:', err);
+  }
+}
+
+/** 讀取本機快取的旅程總覽清單 */
+export function getCachedTripsList(): TripConfig[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(TRIPS_LIST_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed as TripConfig[];
+    }
+  } catch {}
+  return null;
+}
+
 /** 確保預設旅程在資料庫中存在 */
 export async function ensureInitialTripsExist(): Promise<TripConfig[]> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const cached = getCachedTripsList();
+    if (cached) return sortTrips(cached);
+  }
   try {
-    const { data: existing, error } = await supabase.from('trips').select('*');
+    const { data: existing, error } = await withTimeout(
+      supabase.from('trips').select('*'),
+      5000
+    );
     if (error) {
       console.warn('Supabase trips fetch error:', error);
-      return sortTrips(INITIAL_TRIPS);
+      const cached = getCachedTripsList();
+      return cached ? sortTrips(cached) : sortTrips(INITIAL_TRIPS);
     }
     if (!existing || existing.length === 0) {
       // 種子資料寫入
@@ -90,10 +179,17 @@ export async function ensureInitialTripsExist(): Promise<TripConfig[]> {
       apiUrl: '',
       description: row.description || '',
     }));
-    return sortTrips(formatted);
+    const sorted = sortTrips(formatted);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(TRIPS_LIST_CACHE_KEY, JSON.stringify(sorted));
+      } catch {}
+    }
+    return sorted;
   } catch (err) {
     console.error('ensureInitialTripsExist exception:', err);
-    return sortTrips(INITIAL_TRIPS);
+    const cached = getCachedTripsList();
+    return cached ? sortTrips(cached) : sortTrips(INITIAL_TRIPS);
   }
 }
 
@@ -135,6 +231,11 @@ export async function deleteTrip(tripId: string): Promise<void> {
 
 /** 獲取單一旅程的所有資料 (行程, 待辦, 行李, 花費, 購物, 設定) */
 export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promise<AllTripData> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const cached = getCachedTripData(tripId);
+    if (cached) return cached;
+  }
+
   try {
     const [
       itineraryRes,
@@ -146,24 +247,32 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       tripRes,
       allPackingCatsRes,
       allTodoCatsRes,
-    ] = await Promise.all([
-      supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
-      supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
-      supabase.from('packing_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
-      supabase.from('expense_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
-      supabase.from('shopping_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
-      // 使用 select('*') 容錯讀取所有存在欄位
-      supabase.from('trip_settings')
-        .select('*')
-        .eq('trip_id', tripId)
-        .limit(1),
-      supabase.from('trips')
-        .select('*')
-        .eq('id', tripId)
-        .limit(1),
-      supabase.from('packing_items').select('category'),
-      supabase.from('todo_items').select('category'),
-    ]);
+    ] = await withTimeout(
+      Promise.all([
+        supabase.from('itinerary_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        supabase.from('todo_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        supabase.from('packing_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        supabase.from('expense_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        supabase.from('shopping_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true }).order('id', { ascending: true }),
+        // 使用 select('*') 容錯讀取所有存在欄位
+        supabase.from('trip_settings')
+          .select('*')
+          .eq('trip_id', tripId)
+          .limit(1),
+        supabase.from('trips')
+          .select('*')
+          .eq('id', tripId)
+          .limit(1),
+        supabase.from('packing_items').select('category'),
+        supabase.from('todo_items').select('category'),
+      ]),
+      6500
+    );
+
+    // 若因斷網或連線失敗導致主表查詢報錯，拋出例外以啟用本機離線快取，避免空白資料覆蓋畫面
+    if (itineraryRes.error && !itineraryRes.data) {
+      throw new Error(itineraryRes.error.message || 'Supabase fetch failed');
+    }
 
 
 
@@ -499,7 +608,7 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
         .filter((c: string) => c && !INVALID_CATEGORIES.includes(c))
     ));
 
-    return {
+    const finalData: AllTripData = {
       itinerary,
       todo,
       packing,
@@ -526,8 +635,15 @@ export async function getAllData(bypassCache = false, tripId = 'la-2026'): Promi
       flights,
       climateGuide,
     };
+
+    saveCachedTripData(tripId, finalData, true);
+    return finalData;
   } catch (err) {
-    console.error('getAllData Supabase error:', err);
+    console.warn('getAllData network/Supabase error, attempting offline cache fallback:', err);
+    const cached = getCachedTripData(tripId);
+    if (cached) {
+      return cached;
+    }
     const localCustomIcon = typeof window !== 'undefined' ? localStorage.getItem(`customIcon_${tripId}`) || '' : '';
     return {
       itinerary: [],

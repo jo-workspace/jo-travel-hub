@@ -60,12 +60,15 @@ import {
   deleteFlightData,
   updateTripClimateGuide,
   updateTripSettings,
+  getCachedTripData,
+  getTripLastSyncedAt,
+  saveCachedTripData,
 } from '@/lib/supabase-client';
 import { computeTripDaySequence } from '@/lib/tripDate';
 import { getTodoBadgeSummary } from '@/lib/todoUtils';
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, WifiOff } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -421,6 +424,9 @@ export default function TripPage({ params }: PageProps) {
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [hasHydratedCache, setHasHydratedCache] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -429,24 +435,87 @@ export default function TripPage({ params }: PageProps) {
     }, 3000);
   };
 
+  // 監聽裝置網路連線狀態
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOffline(!navigator.onLine);
+    setLastSyncedAt(getTripLastSyncedAt(tripId));
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [tripId]);
+
+  // 進頁瞬間優先由本機快取秒開（船上無網路或弱網環境零等待）
+  useEffect(() => {
+    const cached = getCachedTripData(tripId);
+    if (cached) {
+      setTripData(cached);
+      setIsLoading(false);
+    }
+    setHasHydratedCache(true);
+  }, [tripId]);
+
+  // 當本地狀態變更（如離線勾選已去過/已打包）時，同步更新本機快取
+  useEffect(() => {
+    if (!hasHydratedCache) return;
+    if (
+      tripData.itinerary.length > 0 ||
+      tripData.todo.length > 0 ||
+      tripData.packing.length > 0 ||
+      tripData.expenses.length > 0 ||
+      tripData.shopping.length > 0
+    ) {
+      saveCachedTripData(tripId, tripData, false);
+    }
+  }, [tripId, tripData, hasHydratedCache]);
+
   // Fetch data from Supabase
   const fetchData = useCallback(async (bypassCache = false) => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setIsOffline(true);
+      const cached = getCachedTripData(tripId);
+      if (cached) {
+        setTripData(cached);
+        setLastSyncedAt(getTripLastSyncedAt(tripId));
+        if (bypassCache) {
+          showToast('目前無網路，已載入本機離線資料');
+        }
+      } else if (bypassCache) {
+        showToast('目前無網路連線');
+      }
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const start = Date.now();
     try {
       const res = await getAllData(bypassCache, tripId);
       if (res) {
         setTripData(res);
+        setLastSyncedAt(getTripLastSyncedAt(tripId));
         if (bypassCache) {
           showToast('已完成最新資料同步 ✨');
         }
       }
     } catch (err: any) {
-      showToast(`資料載入失敗: ${err.message || err}`);
+      const cached = getCachedTripData(tripId);
+      if (cached) {
+        setTripData(cached);
+        setIsOffline(true);
+      } else {
+        showToast(`資料載入失敗: ${err.message || err}`);
+      }
     } finally {
       const elapsed = Date.now() - start;
-      if (elapsed < 600) {
-        await new Promise((r) => setTimeout(r, 600 - elapsed));
+      if (elapsed < 300 && !getCachedTripData(tripId)) {
+        await new Promise((r) => setTimeout(r, 300 - elapsed));
       }
       setIsLoading(false);
     }
@@ -471,9 +540,18 @@ export default function TripPage({ params }: PageProps) {
       }),
     }));
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showToast('離線模式：已暫存於本機');
+      return;
+    }
+
     try {
       await toggleVisitedStatus(id ? { id, rowIndex } : rowIndex, nextStatus, tripId);
     } catch (err: any) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        showToast('離線模式：已暫存於本機');
+        return;
+      }
       showToast(`更新失敗，正在還原: ${err.message}`);
       fetchData(false);
     }
@@ -489,10 +567,19 @@ export default function TripPage({ params }: PageProps) {
       }),
     }));
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showToast('離線模式：已暫存於本機');
+      return;
+    }
+
     try {
       const msg = await toggleIgnoredStatus(id ? { id, rowIndex } : rowIndex, currentIgnored, tripId);
       showToast(msg);
     } catch (err: any) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        showToast('離線模式：已暫存於本機');
+        return;
+      }
       showToast(`略過更新失敗: ${err.message}`);
       fetchData(false);
     }
@@ -555,9 +642,18 @@ export default function TripPage({ params }: PageProps) {
       }),
     }));
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showToast('離線模式：已暫存於本機');
+      return;
+    }
+
     try {
       await toggleTodoStatus(rowIndex, nextStatus, tripId, itemId);
     } catch (err: any) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        showToast('離線模式：已暫存於本機');
+        return;
+      }
       showToast(`更新失敗，正在還原: ${err.message}`);
       fetchData(false);
     }
@@ -602,9 +698,18 @@ export default function TripPage({ params }: PageProps) {
       }),
     }));
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showToast('離線模式：已暫存於本機');
+      return;
+    }
+
     try {
       await togglePackingStatus(rowIndex, nextStatus, tripId, itemId);
     } catch (err: any) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        showToast('離線模式：已暫存於本機');
+        return;
+      }
       showToast(`更新失敗，正在還原: ${err.message}`);
       fetchData(false);
     }
@@ -1040,6 +1145,27 @@ export default function TripPage({ params }: PageProps) {
           </Link>
           <span className="font-extrabold text-slate-700">{tripData.tripTitle || tripConfig.title}</span>
         </div>
+
+        {/* Offline Mode Status Banner */}
+        {isOffline && (
+          <div className="bg-amber-50 border-b border-amber-200/80 px-4 py-2 flex items-center justify-between text-xs text-amber-900 md:px-8">
+            <div className="flex items-center space-x-2 font-bold min-w-0">
+              <WifiOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="truncate">離線瀏覽 · 已載入本機快取</span>
+            </div>
+            {lastSyncedAt && (
+              <span className="text-[11px] font-semibold text-amber-700/80 shrink-0 ml-2 font-mono">
+                {new Date(lastSyncedAt).toLocaleString('zh-TW', {
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                })}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 mt-4 md:px-8">

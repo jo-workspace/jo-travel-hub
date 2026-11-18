@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TripConfig } from '@/config/trips';
-import { getTripsList, createTrip } from '@/lib/supabase-client';
+import { getTripsList, createTrip, getCachedTripsList } from '@/lib/supabase-client';
 import { Compass, ArrowRight, Plus, MapPin, X, Sparkles, ChevronDown, Archive } from 'lucide-react';
 import HubSpaceSwitcherModal from '@/components/HubSpaceSwitcherModal';
 
@@ -27,6 +27,10 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    const cached = getCachedTripsList();
+    if (cached && cached.length > 0) {
+      setTripList(cached);
+    }
     loadTrips();
   }, []);
 
