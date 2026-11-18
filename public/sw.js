@@ -153,6 +153,22 @@ self.addEventListener('fetch', (event) => {
         const exactMatch = await cache.match(request);
         if (exactMatch) return exactMatch;
 
+        // 若為 Next.js RSC 請求，嘗試尋找同路徑的已快取 RSC，若無則回傳網路錯誤讓 Next.js 自動降級為一般 HTML 導覽（命中下方 cleanMatch）
+        if (isRsc) {
+          const keys = await cache.keys();
+          for (const keyReq of keys) {
+            const keyUrl = new URL(keyReq.url);
+            if (
+              keyUrl.pathname === url.pathname &&
+              keyUrl.searchParams.has('_rsc')
+            ) {
+              const rscFallback = await cache.match(keyReq);
+              if (rscFallback) return rscFallback;
+            }
+          }
+          return Response.error();
+        }
+
         // 針對頁面導覽，忽略 ?tab= 等查詢參數比對乾淨路徑
         if (isNavigation) {
           const cleanPathUrl = url.origin + url.pathname;

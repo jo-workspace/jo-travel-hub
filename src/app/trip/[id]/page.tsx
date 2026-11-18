@@ -107,7 +107,9 @@ export default function TripPage({ params }: PageProps) {
   const handleTabChange = (tab: TabType) => {
     setCurrentTab(tab);
     localStorage.setItem(`activeTab_${tripId}`, tab);
-    router.replace(`/trip/${tripId}?tab=${tab}`, { scroll: false });
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/trip/${tripId}?tab=${tab}`);
+    }
   };
 
   const handleShare = async () => {

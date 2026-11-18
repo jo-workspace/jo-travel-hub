@@ -76,7 +76,9 @@ export default function CompanionSharePage({ params }: SharePageProps) {
     const nextParams = new URLSearchParams();
     if (tokenFromUrl) nextParams.set('token', tokenFromUrl);
     nextParams.set('tab', tab);
-    router.replace(`/share/${tripId}?${nextParams.toString()}`, { scroll: false });
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/share/${tripId}?${nextParams.toString()}`);
+    }
   };
 
   const [hideVisited, setHideVisited] = useState<boolean>(true);
