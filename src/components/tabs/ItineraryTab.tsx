@@ -295,6 +295,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
 
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const mapAnchorRef = useRef<HTMLDivElement>(null);
+  const [viewingCandidateItem, setViewingCandidateItem] = useState<ItineraryItem | null>(null);
   const [quickTimeTargetItem, setQuickTimeTargetItem] = useState<ItineraryItem | null>(null);
   const [quickTimeInput, setQuickTimeInput] = useState<string>('12:00');
   const [isSavingQuickTime, setIsSavingQuickTime] = useState<boolean>(false);
@@ -1013,13 +1014,8 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                           return (
                             <div
                               key={cItem.id || cItem.rowIndex}
-                              onClick={() => {
-                                if (isReadOnly || !onOpenModal) return;
-                                onOpenModal(cItem);
-                              }}
-                              className={`bg-white border rounded-xl p-2.5 flex items-center justify-between shadow-2xs transition-all select-none group ${
-                                !isReadOnly && onOpenModal ? 'hover:shadow-xs cursor-pointer' : ''
-                              } ${
+                              onClick={() => setViewingCandidateItem(cItem)}
+                              className={`bg-white border rounded-xl p-2.5 flex items-center justify-between shadow-2xs transition-all select-none group hover:shadow-xs cursor-pointer ${
                                 cItem.isIgnored
                                   ? 'opacity-40 border-slate-200 bg-slate-50/60'
                                   : cItem.isVisited
@@ -1036,9 +1032,7 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
                                 </span>
                                 <div className="min-w-0">
                                   <div className="flex items-center space-x-1">
-                                    <h4 className={`text-xs font-bold truncate transition-colors ${
-                                      !isReadOnly ? 'group-hover:text-blue-600' : ''
-                                    } ${
+                                    <h4 className={`text-xs font-bold truncate transition-colors group-hover:text-blue-600 ${
                                       cItem.isIgnored ? 'line-through text-slate-400' : cItem.isVisited ? 'line-through text-slate-500' : 'text-slate-900'
                                     }`}>
                                       {cItem.title}
@@ -1262,6 +1256,119 @@ export const ItineraryTab: React.FC<ItineraryTabProps> = ({
         );
       })}
         </>
+      )}
+
+      {/* 口袋名單檢視彈窗 (Pocket List View Modal) */}
+      {viewingCandidateItem && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setViewingCandidateItem(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-5 shadow-2xl border border-slate-100 w-full max-w-md space-y-3.5 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-start space-x-2.5 min-w-0">
+                <span className="mt-0.5 p-2 rounded-xl bg-slate-100 text-slate-700 flex-shrink-0 inline-flex items-center justify-center">
+                  <ItineraryCategoryIcon
+                    category={viewingCandidateItem.type}
+                    className="w-4 h-4 text-slate-700"
+                  />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                    {viewingCandidateItem.day && (
+                      <span className="text-[10px] font-extrabold bg-slate-900 text-white px-2 py-0.5 rounded-full">
+                        {viewingCandidateItem.day}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                      {cleanCategoryName(viewingCandidateItem.type)}
+                    </span>
+                    <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-2 py-0.5 rounded-md inline-flex items-center space-x-1">
+                      <Bookmark className="w-2.5 h-2.5 text-amber-500 fill-amber-400" />
+                      <span>口袋名單</span>
+                    </span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-slate-900 leading-snug break-words">
+                    {viewingCandidateItem.title}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                {!isReadOnly && onOpenModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = viewingCandidateItem;
+                      setViewingCandidateItem(null);
+                      onOpenModal(target);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+                    title="編輯"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setViewingCandidateItem(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+                  title="關閉"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* 備註內容（支援完整多行與超連結點擊） */}
+            {viewingCandidateItem.content ? (
+              <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3.5 text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-line break-words max-h-[50vh] overflow-y-auto">
+                {linkifyText(viewingCandidateItem.content.replace(/<br\s*\/?>/gi, '\n'))}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 font-medium py-2">
+                尚無備註說明
+              </div>
+            )}
+
+            {/* 底部快捷動作列 */}
+            {(viewingCandidateItem.links || (!isReadOnly && onBatchUpdateTimes)) && (
+              <div className="flex items-center gap-2 pt-1">
+                {viewingCandidateItem.links && (
+                  <a
+                    href={viewingCandidateItem.links}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-2 px-3 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200/80 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Google 地圖</span>
+                  </a>
+                )}
+
+                {!isReadOnly && onBatchUpdateTimes && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = viewingCandidateItem;
+                      setViewingCandidateItem(null);
+                      setQuickTimeTargetItem(target);
+                      setQuickTimeInput('12:00');
+                    }}
+                    className="flex-1 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>排時間</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* 極簡快速填時間小聚焦視窗 (Quick Time Focus Modal) */}
