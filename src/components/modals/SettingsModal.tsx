@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { X, Settings2, Calendar, DollarSign, LogOut, Upload, Image as ImageIcon, Trash2, Archive, Plane } from 'lucide-react';
 import { updateTripSettings } from '@/lib/supabase-client';
 import { computeAutoTripStatus } from '@/lib/tripDate';
+import { resolveTimezone } from '@/lib/timezone';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -68,6 +69,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [error, setError] = useState('');
   const router = useRouter();
 
+  const tzResolution = React.useMemo(() => resolveTimezone(tz), [tz]);
+
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' });
     router.push('/login');
@@ -96,7 +99,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const defaultTaiwan =
         isTaiwanTrip !== undefined
           ? isTaiwanTrip
-          : ((timezone || '').includes('Taipei') || (tripTitle || '').includes('台灣') || (tripTitle || '').includes('武嶺') || (tripTitle || '').includes('南投') || (citySchedule || '').includes('武嶺'));
+          : ((tripTitle || '').includes('台灣') || (tripTitle || '').includes('武嶺') || (tripTitle || '').includes('南投') || (citySchedule || '').includes('武嶺'));
       setIsTaiwan(Boolean(defaultTaiwan));
       setIconDataUrl(customIcon || svgIcon || '');
       setError('');
@@ -165,7 +168,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         budgetTwd: budget ? parseInt(budget, 10) : 0,
         foreignCurrency: trimmedCurrency,
         companions: finalCompanions,
-        timezone: tz.trim() || 'Asia/Taipei',
+        timezone: tzResolution.iana,
         citySchedule: citySched.trim(),
         customIcon: iconDataUrl,
         isTaiwanTrip: isTaiwan,
@@ -271,9 +274,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="text"
                     value={tz}
                     onChange={(e) => setTz(e.target.value)}
-                    placeholder="例：America/Los_Angeles"
-                    className="w-full bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-mono h-[38px]"
+                    placeholder="例：JST、+9 或日本"
+                    className="w-full min-w-0 bg-slate-50 border border-slate-200 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all font-medium h-[38px]"
                   />
+                  {/* 即時回饋預覽標籤 */}
+                  <div className="mt-1 flex items-center min-w-0 text-[11px] font-medium leading-tight">
+                    {tzResolution.isValid ? (
+                      <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md flex items-center space-x-1 truncate" title={`IANA: ${tzResolution.iana}`}>
+                        <span className="truncate">✓ {tzResolution.displayText}</span>
+                        <span className="text-emerald-600/70 shrink-0 font-mono">· 當地 {tzResolution.localTime}</span>
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md flex items-center space-x-1 truncate">
+                        <span>⚠️ 未識別，維持台灣 (GMT+8)</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

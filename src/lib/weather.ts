@@ -510,22 +510,11 @@ export async function resolveCityInfo(
     }
   }
 
-  // 2. 檢查知名海外城市（僅在非台灣行程時檢查）
-  if (!isTaiwanTrip) {
-    const lower = clean.toLowerCase();
-    if (KNOWN_COORDINATES[lower]) {
-      const coords = KNOWN_COORDINATES[lower];
-      return {
-        cityName: clean,
-        resolvedName: clean,
-        source: 'Open-Meteo',
-        latitude: coords.lat,
-        longitude: coords.lon,
-      };
-    }
-  }
+  // 2. 檢查知名海外城市（若在已知海外字典中，且非台灣字典景點）
+  const lower = clean.toLowerCase();
+  const knownOverseas = KNOWN_COORDINATES[lower];
 
-  // 3. 透過 Open-Meteo Geocoding 搜尋
+  // 3. 透過 Open-Meteo Geocoding 搜尋精準行政區與海拔
   try {
     const res = await fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(clean)}&count=1&language=zh&format=json`
@@ -534,9 +523,11 @@ export async function resolveCityInfo(
       const data = await res.json();
       if (data.results && data.results.length > 0) {
         const item = data.results[0];
-        const isTW = isTaiwanTrip || item.country_code === 'TW';
+        // 只有實際國碼是 TW，或未回傳國碼且標記為台灣行程時才視為台灣
+        const isTW = item.country_code ? item.country_code === 'TW' : isTaiwanTrip;
+        const countryLabel = isTW ? '台灣' : (item.country || '');
         const parts = [
-          isTW ? '台灣' : item.country,
+          countryLabel,
           item.admin2,
           item.admin3,
           item.name,
@@ -557,6 +548,17 @@ export async function resolveCityInfo(
     }
   } catch (err) {
     console.warn(`Geocoding resolution failed for ${clean}:`, err);
+  }
+
+  // 4. 若 Geocoding 失敗，但命中已知海外城市字典
+  if (knownOverseas) {
+    return {
+      cityName: clean,
+      resolvedName: clean,
+      source: 'Open-Meteo',
+      latitude: knownOverseas.lat,
+      longitude: knownOverseas.lon,
+    };
   }
 
   // 若勾選台灣行程但國外查無資料，直接組裝成台灣通用 CWA
