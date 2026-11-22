@@ -67,8 +67,7 @@ import {
 import { computeTripDaySequence } from '@/lib/tripDate';
 import { getTodoBadgeSummary } from '@/lib/todoUtils';
 
-import Link from 'next/link';
-import { ArrowLeft, WifiOff } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -1119,11 +1118,16 @@ export default function TripPage({ params }: PageProps) {
         tripTitle={tripData.tripTitle || tripConfig.title}
         customIcon={tripData.customIcon || tripData.svgIcon}
         todoBadge={todoBadgeSummary}
+        onRefresh={() => fetchData(true)}
+        onOpenSettings={() => setSettingsModalOpen(true)}
+        onShare={handleShare}
+        onShareCompanion={handleShareCompanion}
+        isLoading={isLoading}
       />
 
       {/* Main Container */}
       <div className="flex-1 md:ml-64 flex flex-col">
-        {/* Header */}
+        {/* Header (Visible on Mobile only via md:hidden) */}
         <Header
           hideVisited={hideVisited}
           onToggleHideVisited={() => setHideVisited(!hideVisited)}
@@ -1135,18 +1139,6 @@ export default function TripPage({ params }: PageProps) {
           tripTitle={tripData.tripTitle || tripConfig.title}
           customIcon={tripData.customIcon || tripData.svgIcon}
         />
-
-        {/* Top Back Link & Trip Title Bar */}
-        <div className="bg-slate-100/80 border-b border-slate-200/60 px-4 py-2 flex items-center justify-between text-xs md:px-8">
-          <Link
-            href="/"
-            className="flex items-center space-x-1 font-bold text-slate-500 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>返回旅程大廳</span>
-          </Link>
-          <span className="font-extrabold text-slate-700">{tripData.tripTitle || tripConfig.title}</span>
-        </div>
 
         {/* Offline Mode Status Banner */}
         {isOffline && (

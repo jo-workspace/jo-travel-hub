@@ -442,8 +442,8 @@ export const PackingTab: React.FC<PackingTabProps> = ({
 
   return (
     <div className="space-y-4 pb-36 md:pb-20">
-      {/* Sticky Header Container: Freeze right below top header during scroll */}
-      <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs">
+      {/* Sticky Header Container: Freeze right below top header on mobile, at top-0 on desktop */}
+      <div className="sticky top-[57px] md:top-0 z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs">
         {/* Top Filter Controls: Stable & Clean Header without layout thrashing */}
         <div className="bg-white/95 rounded-2xl border border-slate-200/70 shadow-2xs p-2.5 space-y-2">
           {/* Row 1: Category Filter Chips (Left) & Pure SVG Tools (Right) */}
