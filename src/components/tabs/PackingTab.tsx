@@ -66,7 +66,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   const [quickPerson, setQuickPerson] = useState<string>('Jo');
   const [showCategoryError, setShowCategoryError] = useState(false);
   const [isQuickAdding, setIsQuickAdding] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [weatherGuideOpen, setWeatherGuideOpen] = useState(false);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
@@ -269,18 +268,6 @@ export const PackingTab: React.FC<PackingTabProps> = ({
     loadGuides();
   }, [itinerary, citySchedule, startDate, primaryDestination]);
 
-  // Listen to window scroll to collapse header into single horizontal scroll row
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
   // Custom sorting order for Categories, Persons and Locations
   const PREFERRED_CATEGORY_ORDER = ['證件', '重要證件', '衣物', '3C', '藥品', '盥洗', '美妝盥洗'];
   const PREFERRED_PERSON_ORDER = ['Jo', 'Will', '公用', '特特'];
@@ -456,238 +443,125 @@ export const PackingTab: React.FC<PackingTabProps> = ({
   return (
     <div className="space-y-4 pb-36 md:pb-20">
       {/* Sticky Header Container: Freeze right below top header during scroll */}
-      <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs transition-all duration-200">
-        {/* Top Filter Controls: Dynamic Transition between Expanded & Compact Single Row */}
-        <div className={`bg-white/95 rounded-2xl border border-slate-200/70 shadow-2xs transition-all duration-200 ${
-          isScrolled ? 'p-1.5' : 'p-2.5 space-y-2'
-        }`}>
-          {isScrolled ? (
-            /* Scrolled state: Ultra-slim Single-Row Horizontal Scroll Capsules with Right Pure SVG Icons */
-            <div className="flex items-center justify-between gap-1.5 px-1 py-0.5">
-              <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none text-xs [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
-                {categoryList.map((cat) => {
-                  const isSelected = selectedCategory === cat;
-                  return (
-                    <button
-                      key={`scroll-cat-${cat}`}
-                      onClick={() => {
-                        setSelectedCategory(cat);
-                        if (showCategoryError) setShowCategoryError(false);
-                      }}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                        isSelected
-                          ? 'bg-slate-900 text-white shadow-xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-
-                {/* Person Badges (Subtle Tint) */}
-                {hasMultiplePersons && (
-                  <>
-                    <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                    {personList.map((person) => {
-                      const isSelected = selectedPerson === person;
-                      return (
-                        <button
-                          key={`scroll-p-${person}`}
-                          onClick={() => setSelectedPerson(person)}
-                          className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                            isSelected
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                          }`}
-                        >
-                          {person}
-                        </button>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/* Location Badges (Subtle Tint) */}
-                {locationList.length > 1 && (
-                  <>
-                    <div className="h-3.5 w-px bg-slate-200 flex-shrink-0 mx-1" />
-                    {locationList.map((loc) => {
-                      const isSelected = selectedLocation === loc;
-                      return (
-                        <button
-                          key={`scroll-loc-${loc}`}
-                          onClick={() => setSelectedLocation(loc)}
-                          className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                            isSelected
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                          }`}
-                        >
-                          {loc}
-                        </button>
-                      );
-                    })}
-                  </>
-                )}
-              </div>
-
-              {/* Scrolled State Pure SVG Tool Icons */}
-              <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsBatchMode(!isBatchMode);
-                    setBatchSelectedIds(new Set());
-                  }}
-                  className={`p-1 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                    isBatchMode ? 'bg-rose-500 text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                  title={isBatchMode ? '退出批次管理' : '批次管理'}
-                >
-                  <CheckSquare className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWeatherGuideOpen(true)}
-                  className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-                  title={hasAnyWeather ? '行程即時天氣預報' : '歷史氣候與穿搭指南'}
-                >
-                  <CloudSun className={`w-3.5 h-3.5 ${hasAnyWeather || currentClimateGuide ? 'text-amber-500' : 'text-slate-400'}`} />
-                </button>
-                {onOpenImportModal && (
+      <div className="sticky top-[57px] z-30 bg-slate-50/95 backdrop-blur-md pt-1 pb-2.5 space-y-2 border-b border-slate-200/50 shadow-xs">
+        {/* Top Filter Controls: Stable & Clean Header without layout thrashing */}
+        <div className="bg-white/95 rounded-2xl border border-slate-200/70 shadow-2xs p-2.5 space-y-2">
+          {/* Row 1: Category Filter Chips (Left) & Pure SVG Tools (Right) */}
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
+              {categoryList.map((cat) => {
+                const isSelected = selectedCategory === cat;
+                return (
                   <button
-                    type="button"
-                    onClick={onOpenImportModal}
-                    className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95 rounded-lg transition-all cursor-pointer flex items-center justify-center"
-                    title="從其他旅程匯入"
+                    key={cat}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      if (showCategoryError) setShowCategoryError(false);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                    }`}
                   >
-                    <Download className="w-3.5 h-3.5 text-slate-700" />
+                    {cat}
                   </button>
-                )}
-              </div>
+                );
+              })}
             </div>
-          ) : (
-            /* Normal Top state: Category Row with Right SVG Tools + Sub-filters */
-            <>
-              {/* Row 1: Category Filter Chips (Left) & Pure SVG Tools (Right) */}
-              <div className="flex items-center justify-between gap-1.5">
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 [mask-image:linear-gradient(to_right,black_0%,black_88%,transparent_100%)]">
-                  {categoryList.map((cat) => {
-                    const isSelected = selectedCategory === cat;
+
+            {/* Right: Pure SVG Tool Icons (No Text) */}
+            <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBatchMode(!isBatchMode);
+                  setBatchSelectedIds(new Set());
+                }}
+                className={`p-1.5 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs ${
+                  isBatchMode
+                    ? 'bg-rose-500 text-white border border-rose-600'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60'
+                }`}
+                title={isBatchMode ? '退出批次管理' : '批次管理'}
+              >
+                <CheckSquare className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setWeatherGuideOpen(true)}
+                className="p-1.5 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60"
+                title={hasAnyWeather ? '行程即時天氣預報' : '歷史氣候與穿搭指南'}
+              >
+                <CloudSun className={`w-4 h-4 ${hasAnyWeather || currentClimateGuide ? 'text-amber-500' : 'text-slate-400'}`} />
+              </button>
+
+              {onOpenImportModal && (
+                <button
+                  type="button"
+                  onClick={onOpenImportModal}
+                  className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs"
+                  title="從其他旅程匯入"
+                >
+                  <Download className="w-4 h-4 text-slate-700" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2 & 3: Person & Location Sub-filters (Dedicated rows on mobile, inline on desktop) */}
+          {(hasMultiplePersons || locationList.length > 1) && (
+            <div className="flex flex-col md:flex-row md:items-center gap-2 border-t border-slate-100 pt-2">
+              {/* Person Filter (Full Row on mobile) */}
+              {hasMultiplePersons && (
+                <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+                  {personList.map((person) => {
+                    const isSelected = selectedPerson === person;
                     return (
                       <button
-                        key={cat}
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                          if (showCategoryError) setShowCategoryError(false);
-                        }}
+                        key={person}
+                        onClick={() => setSelectedPerson(person)}
                         className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                           isSelected
                             ? 'bg-slate-900 text-white shadow-xs'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                         }`}
                       >
-                        {cat}
+                        {person}
                       </button>
                     );
                   })}
                 </div>
+              )}
 
-                {/* Right: Pure SVG Tool Icons (No Text) */}
-                <div className="flex items-center gap-1 flex-shrink-0 pl-1 border-l border-slate-150">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsBatchMode(!isBatchMode);
-                      setBatchSelectedIds(new Set());
-                    }}
-                    className={`p-1.5 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs ${
-                      isBatchMode
-                        ? 'bg-rose-500 text-white border border-rose-600'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60'
-                    }`}
-                    title={isBatchMode ? '退出批次管理' : '批次管理'}
-                  >
-                    <CheckSquare className="w-4 h-4" />
-                  </button>
+              {/* Divider visible only on desktop when both exist */}
+              {hasMultiplePersons && locationList.length > 1 && (
+                <div className="hidden md:block h-3.5 w-px bg-slate-200 flex-shrink-0 mx-0.5" />
+              )}
 
-                  <button
-                    type="button"
-                    onClick={() => setWeatherGuideOpen(true)}
-                    className="p-1.5 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60"
-                    title={hasAnyWeather ? '行程即時天氣預報' : '歷史氣候與穿搭指南'}
-                  >
-                    <CloudSun className={`w-4 h-4 ${hasAnyWeather || currentClimateGuide ? 'text-amber-500' : 'text-slate-400'}`} />
-                  </button>
-
-                  {onOpenImportModal && (
-                    <button
-                      type="button"
-                      onClick={onOpenImportModal}
-                      className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 bg-slate-50 border border-slate-200/60 active:scale-95 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-2xs"
-                      title="從其他旅程匯入"
-                    >
-                      <Download className="w-4 h-4 text-slate-700" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 2 & 3: Person & Location Sub-filters (Dedicated rows on mobile, inline on desktop) */}
-              {(hasMultiplePersons || locationList.length > 1) && (
-                <div className="flex flex-col md:flex-row md:items-center gap-2 border-t border-slate-100 pt-2">
-                  {/* Person Filter (Full Row on mobile) */}
-                  {hasMultiplePersons && (
-                    <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
-                      {personList.map((person) => {
-                        const isSelected = selectedPerson === person;
-                        return (
-                          <button
-                            key={person}
-                            onClick={() => setSelectedPerson(person)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                              isSelected
-                                ? 'bg-slate-900 text-white shadow-xs'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                            }`}
-                          >
-                            {person}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Divider visible only on desktop when both exist */}
-                  {hasMultiplePersons && locationList.length > 1 && (
-                    <div className="hidden md:block h-3.5 w-px bg-slate-200 flex-shrink-0 mx-0.5" />
-                  )}
-
-                  {/* Location Filter (Full Row on mobile) */}
-                  {locationList.length > 1 && (
-                    <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
-                      {locationList.map((loc) => {
-                        const isSelected = selectedLocation === loc;
-                        return (
-                          <button
-                            key={loc}
-                            onClick={() => setSelectedLocation(loc)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                              isSelected
-                                ? 'bg-slate-900 text-white shadow-xs'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
-                            }`}
-                          >
-                            {loc}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+              {/* Location Filter (Full Row on mobile) */}
+              {locationList.length > 1 && (
+                <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+                  {locationList.map((loc) => {
+                    const isSelected = selectedLocation === loc;
+                    return (
+                      <button
+                        key={loc}
+                        onClick={() => setSelectedLocation(loc)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
 
